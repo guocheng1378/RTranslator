@@ -34,6 +34,9 @@ import androidx.annotation.Nullable;
 import androidx.lifecycle.DefaultLifecycleObserver;
 import androidx.lifecycle.LifecycleOwner;
 
+import com.downloader.PRDownloader;
+import com.downloader.PRDownloaderConfig;
+
 import java.io.File;
 import java.util.ArrayList;
 
@@ -83,6 +86,10 @@ public class Global extends Application implements DefaultLifecycleObserver {
         super.onCreate();
         mainHandler = new Handler(Looper.getMainLooper());
         recentPeersDataManager = new RecentPeersDataManager(this);
+        PRDownloaderConfig config = PRDownloaderConfig.newBuilder()
+                .setDatabaseEnabled(false)
+                .build();
+        PRDownloader.initialize(getApplicationContext(), config);
         //initializeBluetoothCommunicator();
         getMicSensitivity();
         createNotificationChannel();

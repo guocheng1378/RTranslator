@@ -29,22 +29,9 @@ import nie.translator.rtranslator.tools.ErrorCodes;
 
 public class NeuralNetworkApi {
     protected Global global;
-    private ArrayList<Thread> pendingThreads= new ArrayList<>();
     public static boolean isVerifying = false;
 
-    protected void addPendingThread(Thread thread){
-        pendingThreads.add(thread);
-    }
-
-    protected Thread takePendingThread(){
-        if(pendingThreads.size()>0) {
-            return pendingThreads.remove(0);
-        }else{
-            return null;
-        }
-    }
-
-    public static void testModelIntegrity(@NonNull String testModelPath, InitListener initListener){
+    public static boolean testModelIntegrity(@NonNull String testModelPath){
         //we try to load the model in testModelPath, if we don't have an exception the model file is perfect, else we have an integrity problem
         try {
             isVerifying = true;
@@ -59,11 +46,11 @@ public class NeuralNetworkApi {
             OrtSession testSession = onnxEnv.createSession(testModelPath, testOptions);
             testSession.close();
             isVerifying = false;
-            initListener.onInitializationFinished();
+            return true;
         } catch (OrtException e) {
             e.printStackTrace();
             isVerifying = false;
-            initListener.onError(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0);
+            return false;
         }
     }
 

@@ -91,7 +91,7 @@ public class Downloader{
     }
 
     public int getDownloadProgress(int max){
-        //here we return a value between 0 and max that represents the total prograss made so far with the download (for this we consider only the downloads, not the transfers)
+        //here we return a value between 0 and max that represents the total progress made so far with the download (for this we consider only the downloads, not the transfers)
         int totalSize = 0;
         for (int i=0; i<DownloadFragment.DOWNLOAD_SIZES.length; i++){
             totalSize = totalSize + DownloadFragment.DOWNLOAD_SIZES[i];
