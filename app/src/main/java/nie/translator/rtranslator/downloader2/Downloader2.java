@@ -1,4 +1,4 @@
-package nie.translator.rtranslator.access.downloader2;
+package nie.translator.rtranslator.downloader2;
 
 
 import android.content.Context;
@@ -15,14 +15,13 @@ import com.downloader.Progress;
 
 import javax.annotation.Nullable;
 
-import nie.translator.rtranslator.access.DownloadFragment;
 import nie.translator.rtranslator.voice_translation.neural_networks.NeuralNetworkApi;
 
 public class Downloader2 {
     public static final int GENERAL_ERROR = 1;
     public static final int INTEGRITY_CHECK_FAILED = 2;
     private Context context;
-    private DownloadInfo[] downloadInfos;
+    private final DownloadInfo[] downloadInfos;
     private Callback callback;
     @Nullable
     private int runningDownloadIndex;
@@ -31,12 +30,23 @@ public class Downloader2 {
     public Downloader2(DownloadInfo[] downloadInfos, Context context, Callback callback) {
         this.downloadInfos = downloadInfos;
         this.runningDownloadIndex = -1;
+        this.context = context;
+        this.callback = callback;
     }
 
     public void startDownloads(){
         if(runningDownloadIndex == -1 && downloadInfos.length > 0){
             startDownload(0);
         }
+    }
+
+    public void pauseDownloads(){
+        //we cancel the current download (for now this is the best option, it is difficult (if not impossible) to pause without having access to the server)
+        PRDownloader.cancel(downloadInfos[runningDownloadIndex].getDownloadId());
+    }
+
+    public DownloadInfo[] getDownloadInfos() {
+        return downloadInfos;
     }
 
     private void startDownload(int index){
@@ -80,7 +90,7 @@ public class Downloader2 {
                             }
                             baseProgress = (int) ((baseSize * 100) / totalSize);
                             int currentProgress = (int) ((((float) progress.currentBytes / 1000) * 100) / totalSize);
-                            callback.onProgress(baseProgress + currentProgress);
+                            callback.onProgress(downloadInfos[runningDownloadIndex], baseProgress + currentProgress, false);
                         }
                     })
                     .start(new OnDownloadListener() {
@@ -88,17 +98,26 @@ public class Downloader2 {
                         public void onDownloadComplete() {
                             DownloadInfo finishedDownload = downloadInfos[runningDownloadIndex];
                             if (finishedDownload.isNNModel()) {
-                                if (NeuralNetworkApi.testModelIntegrity(finishedDownload.getDestinationCompletePath())) {
-                                    SharedPreferences sharedPreferences = context.getSharedPreferences("default", Context.MODE_PRIVATE);
-                                    SharedPreferences.Editor editor;
-                                    editor = sharedPreferences.edit();
-                                    editor.putBoolean(finishedDownload.getDestinationCompletePath() + "DownloadSuccess", true);
-                                    editor.apply();
-                                } else {
-                                    callback.onError(finishedDownload, INTEGRITY_CHECK_FAILED);
-                                }
+                                callback.onProgress(downloadInfos[runningDownloadIndex], 100, true);
+                                NeuralNetworkApi.testModelIntegrity(finishedDownload.getDestinationCompletePath(), new NeuralNetworkApi.InitListener() {
+                                    @Override
+                                    public void onInitializationFinished() {
+                                        SharedPreferences sharedPreferences = context.getSharedPreferences("default", Context.MODE_PRIVATE);
+                                        SharedPreferences.Editor editor;
+                                        editor = sharedPreferences.edit();
+                                        editor.putBoolean(finishedDownload.getDestinationCompletePath() + "DownloadSuccess", true);
+                                        editor.apply();
+                                        startNextDownload();
+                                    }
+
+                                    @Override
+                                    public void onError(int[] reasons, long value) {
+                                        callback.onError(finishedDownload, INTEGRITY_CHECK_FAILED);
+                                    }
+                                });
+                            }else{
+                                startNextDownload();
                             }
-                            startNextDownload();
                         }
 
                         @Override
@@ -126,7 +145,7 @@ public class Downloader2 {
     public static abstract class Callback {
         public abstract void onAllDownloadComplete();
         public abstract void onDownloadComplete(DownloadInfo downloadInfo);
-        public abstract void onProgress(int progress);
+        public abstract void onProgress(DownloadInfo downloadInfo, int progress, boolean testingIntegrity);
         public abstract void onError(DownloadInfo downloadInfo, int reason);
     }
 }

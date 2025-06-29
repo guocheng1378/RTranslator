@@ -51,17 +51,23 @@ public class DownloadReceiver extends BroadcastReceiver {
                             if (urlIndex != -1) {
                                 String downloadedModelPath = context.getExternalFilesDir(null) + "/" + DownloadFragment.DOWNLOAD_NAMES[urlIndex];
                                 //we check the integrity of the downloaded model
-                                if(NeuralNetworkApi.testModelIntegrity(downloadedModelPath)) {
-                                    transferModelAndStartNextDownload(context, downloader, urlIndex);
-                                } else {
-                                    SharedPreferences sharedPreferences = context.getSharedPreferences("default", Context.MODE_PRIVATE);
-                                    SharedPreferences.Editor editor;
-                                    //we save in the preferences that this download has failed (in this case we save it because otherwise the downloader would return STATUS_SUCCESSFUL)
-                                    editor = sharedPreferences.edit();
-                                    editor.putLong("currentDownloadId", -3);
-                                    editor.apply();
-                                    notifyDownloadFailed(context);
-                                }
+                                NeuralNetworkApi.testModelIntegrity(downloadedModelPath, new NeuralNetworkApi.InitListener() {
+                                    @Override
+                                    public void onInitializationFinished() {
+                                        transferModelAndStartNextDownload(context, downloader, urlIndex);
+                                    }
+
+                                    @Override
+                                    public void onError(int[] reasons, long value) {
+                                        SharedPreferences sharedPreferences = context.getSharedPreferences("default", Context.MODE_PRIVATE);
+                                        SharedPreferences.Editor editor;
+                                        //we save in the preferences that this download has failed (in this case we save it because because otherwise the downloader would return STATUS_SUCCESSFUL)
+                                        editor = sharedPreferences.edit();
+                                        editor.putLong("currentDownloadId", -3);
+                                        editor.apply();
+                                        notifyDownloadFailed(context);
+                                    }
+                                });
                             }
                         }
                     }
@@ -160,21 +166,27 @@ public class DownloadReceiver extends BroadcastReceiver {
             String nextDownloadInternalPath = context.getFilesDir() + "/" + DownloadFragment.DOWNLOAD_NAMES[urlIndex + 1];
             File nextDownloadInternalFile = new File(nextDownloadInternalPath);
             if(nextDownloadInternalFile.exists()){
-                if(NeuralNetworkApi.testModelIntegrity(nextDownloadInternalPath)) {
-                    //we save the success of the download
-                    editor = sharedPreferences.edit();
-                    editor.putString("lastDownloadSuccess", DownloadFragment.DOWNLOAD_NAMES[urlIndex+1]);
-                    editor.apply();
-                    //we save the success of the transfer
-                    editor = sharedPreferences.edit();
-                    editor.putString("lastTransferSuccess", DownloadFragment.DOWNLOAD_NAMES[urlIndex+1]);
-                    editor.apply();
-                    //we start the next download
-                    internalCheckAndStartNextDownload(context, downloader, urlIndex+1);
-                } else {
-                    boolean result = nextDownloadInternalFile.delete();
-                    externalCheckAndStartNextDownload(context, downloader, urlIndex);
-                }
+                NeuralNetworkApi.testModelIntegrity(nextDownloadInternalPath, new NeuralNetworkApi.InitListener() {
+                    @Override
+                    public void onInitializationFinished() {   //the model to be downloaded next is already in internal memory and it is not corrupted
+                        //we save the success of the download
+                        SharedPreferences.Editor editor = sharedPreferences.edit();
+                        editor.putString("lastDownloadSuccess", DownloadFragment.DOWNLOAD_NAMES[urlIndex+1]);
+                        editor.apply();
+                        //we save the success of the transfer
+                        editor = sharedPreferences.edit();
+                        editor.putString("lastTransferSuccess", DownloadFragment.DOWNLOAD_NAMES[urlIndex+1]);
+                        editor.apply();
+                        //we start the next download
+                        internalCheckAndStartNextDownload(context, downloader, urlIndex+1);
+                    }
+
+                    @Override
+                    public void onError(int[] reasons, long value) {
+                        boolean result = nextDownloadInternalFile.delete();
+                        externalCheckAndStartNextDownload(context, downloader, urlIndex);
+                    }
+                });
             }else{
                 externalCheckAndStartNextDownload(context, downloader, urlIndex);
             }
@@ -197,16 +209,22 @@ public class DownloadReceiver extends BroadcastReceiver {
         String nextDownloadInternalPath = context.getExternalFilesDir(null) + "/" + DownloadFragment.DOWNLOAD_NAMES[urlIndex + 1];
         File nextDownloadInternalFile = new File(nextDownloadInternalPath);
         if(nextDownloadInternalFile.exists()){
-            if(NeuralNetworkApi.testModelIntegrity(nextDownloadInternalPath)) {
-                transferModelAndStartNextDownload(context, downloader, urlIndex+1);
-            }else{
-                boolean result = nextDownloadInternalFile.delete();
-                //we start the next download
-                long newDownloadId = downloader.downloadModel(DownloadFragment.DOWNLOAD_URLS[urlIndex + 1], DownloadFragment.DOWNLOAD_NAMES[urlIndex + 1]);
-                SharedPreferences.Editor editor = sharedPreferences.edit();
-                editor.putLong("currentDownloadId", newDownloadId);
-                editor.apply();
-            }
+            NeuralNetworkApi.testModelIntegrity(nextDownloadInternalPath, new NeuralNetworkApi.InitListener() {
+                @Override
+                public void onInitializationFinished() {   //the model to be downloaded next is already in external memory and it is not corrupted
+                    transferModelAndStartNextDownload(context, downloader, urlIndex+1);
+                }
+
+                @Override
+                public void onError(int[] reasons, long value) {
+                    boolean result = nextDownloadInternalFile.delete();
+                    //we start the next download
+                    long newDownloadId = downloader.downloadModel(DownloadFragment.DOWNLOAD_URLS[urlIndex + 1], DownloadFragment.DOWNLOAD_NAMES[urlIndex + 1]);
+                    SharedPreferences.Editor editor = sharedPreferences.edit();
+                    editor.putLong("currentDownloadId", newDownloadId);
+                    editor.apply();
+                }
+            });
         }else{
             //we start the next download
             long newDownloadId = downloader.downloadModel(DownloadFragment.DOWNLOAD_URLS[urlIndex + 1], DownloadFragment.DOWNLOAD_NAMES[urlIndex + 1]);

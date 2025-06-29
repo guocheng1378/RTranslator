@@ -51,7 +51,7 @@
         android:largeHeap="true"
         android:supportsRtl="true"
         android:theme="@style/Theme.Speech"
-        tools:ignore="GoogleAppIndexingWarning">
+        tools:ignore="GoogleAppIndexingWarning,NewApi">
         <activity
             android:name="nie.translator.rtranslator.LoadingActivity"
             android:exported="true"
@@ -95,6 +95,8 @@
         <service android:name="nie.translator.rtranslator.voice_translation._walkie_talkie_mode._walkie_talkie.WalkieTalkieService"
             android:foregroundServiceType="microphone"/>
         <service android:name="nie.translator.rtranslator.GeneralService" />
+        <service android:name=".downloader2.DownloaderService"
+            android:foregroundServiceType="dataSync" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
