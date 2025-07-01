@@ -8,6 +8,7 @@ import android.os.Binder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class DownloaderService extends Service {
     public static final String DOWNLOAD_INFOS = "nie.translator.rtranslator.downloader2.DOWNLOAD_INFOS";
@@ -64,32 +65,34 @@ public class DownloaderService extends Service {
                 }
 
                 if (!alreadyDownloading) {
+                    final AtomicReference<Downloader2> newDownloaderRef = new AtomicReference<>();
                     final Downloader2 newDownloader = new Downloader2(newDownloadsToStart.toArray(new DownloadInfo[0]), this, new Downloader2.Callback() {
                         @Override
                         public void onAllDownloadComplete() {
-                            notifyAllCompleted(newDownloader);
+                            notifyAllCompleted(newDownloaderRef.get());
                             synchronized (downloaders) {
-                                downloaders.remove(newDownloader);
+                                downloaders.remove(newDownloaderRef.get());
                             }
                         }
 
                         @Override
                         public void onDownloadComplete(DownloadInfo downloadInfo) {
-                            notifyCompleted(newDownloader, downloadInfo);
+                            notifyCompleted(newDownloaderRef.get(), downloadInfo);
                         }
 
                         @Override
                         public void onProgress(DownloadInfo download, int progress, boolean testingIntegrity) {
-                            notifyProgress(newDownloader, download, progress, testingIntegrity);
+                            notifyProgress(newDownloaderRef.get(), download, progress, testingIntegrity);
                         }
                         @Override
                         public void onError(DownloadInfo downloadInfo, int reason) {
-                            notifyError(newDownloader, downloadInfo, reason);
+                            notifyError(newDownloaderRef.get(), downloadInfo, reason);
                             synchronized (downloaders) {
-                                downloaders.remove(newDownloader);
+                                downloaders.remove(newDownloaderRef.get());
                             }
                         }
                     });
+                    newDownloaderRef.set(newDownloader);
                     synchronized (downloaders) {
                         downloaders.add(newDownloader);
                     }
