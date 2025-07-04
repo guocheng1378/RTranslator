@@ -41,6 +41,7 @@ import nie.translator.rtranslator.Global;
 import nie.translator.rtranslator.LoadingActivity;
 import nie.translator.rtranslator.R;
 import nie.translator.rtranslator.downloader2.DownloadInfo;
+import nie.translator.rtranslator.downloader2.DownloadInfoExtended;
 import nie.translator.rtranslator.downloader2.DownloadManager;
 import nie.translator.rtranslator.downloader2.Downloader2;
 import nie.translator.rtranslator.tools.FileTools;
@@ -231,7 +232,7 @@ public class DownloadFragment2 extends Fragment {
                 storageWarningText.setVisibility(View.VISIBLE);
             }
 
-            downloader.subscribe(new Downloader2.Callback() {
+            Downloader2.Callback callback = new Downloader2.Callback() {
                 @Override
                 public void onAllDownloadComplete() {
                     startRTranslator();
@@ -269,7 +270,23 @@ public class DownloadFragment2 extends Fragment {
                 public void onError(DownloadInfo downloadInfo, int reason) {
                     showDownloadError();
                 }
-            });
+            };
+
+            //we change the GUI based on current download status
+            DownloadInfoExtended downloadStatus = downloader.getRunningDownloadStatus();
+            if(downloadStatus != null){
+                if(downloadStatus.isAllDownloadCompleted()){
+                    callback.onAllDownloadComplete();
+                }else{
+                    if(downloadStatus.getCurrentError() != null){
+                        callback.onError(downloadStatus.getCurrentError().downloadInfo, downloadStatus.getCurrentError().reason);
+                    }else{
+                        callback.onProgress(downloadStatus, downloadStatus.getCurrentProgress(), downloadStatus.isTestingIntegrity());
+                    }
+                }
+            }
+
+            downloader.subscribe(callback);
         }
     }
 

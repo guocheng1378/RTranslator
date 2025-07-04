@@ -26,6 +26,9 @@ public class Downloader2 {
     @Nullable
     private int runningDownloadIndex;
     private int lastDownloadSuccessIndex;
+    @Nullable
+    private DownloadInfoExtended runningDownloadStatus;  //represent also the status of the last downloaded before an error
+    private boolean allCompleted = false;
 
     public Downloader2(DownloadInfo[] downloadInfos, Context context, Callback callback) {
         this.downloadInfos = downloadInfos;
@@ -49,7 +52,21 @@ public class Downloader2 {
         return downloadInfos;
     }
 
+    @Nullable
+    public DownloadInfoExtended getRunningDownloadStatus() {
+        if(allCompleted){
+            return new DownloadInfoExtended(true);
+        }else{
+            if(runningDownloadStatus != null){
+                return runningDownloadStatus;
+            }
+        }
+        return null;
+    }
+
     private void startDownload(int index){
+        runningDownloadIndex = index;
+        runningDownloadStatus = new DownloadInfoExtended(downloadInfos[index]);
         SharedPreferences sharedPreferences = context.getSharedPreferences("default", Context.MODE_PRIVATE);
         boolean downloadSuccess = sharedPreferences.getBoolean(downloadInfos[index].getDestinationCompletePath()+"DownloadSuccess", false);
         if(downloadSuccess){
@@ -79,18 +96,11 @@ public class Downloader2 {
                         @Override
                         public void onProgress(Progress progress) {
                             //here we return a value between 0 and 100 that represents the total progress made so far with the download
-                            double totalSize = 0;
-                            for (DownloadInfo downloadInfo : downloadInfos) {
-                                totalSize = totalSize + downloadInfo.getSize();
+                            int percentageProgress = calculateProgress(lastDownloadSuccessIndex, progress.currentBytes/1000);
+                            if(runningDownloadStatus != null) {
+                                runningDownloadStatus.setCurrentProgress(percentageProgress, false);
                             }
-                            int baseProgress = 0;
-                            double baseSize = 0;
-                            for (int i = 0; i <= lastDownloadSuccessIndex; i++) {
-                                baseSize = baseSize + downloadInfos[i].getSize();
-                            }
-                            baseProgress = (int) ((baseSize * 100) / totalSize);
-                            int currentProgress = (int) ((((float) progress.currentBytes / 1000) * 100) / totalSize);
-                            callback.onProgress(downloadInfos[runningDownloadIndex], baseProgress + currentProgress, false);
+                            callback.onProgress(downloadInfos[runningDownloadIndex], percentageProgress, false);
                         }
                     })
                     .start(new OnDownloadListener() {
@@ -98,7 +108,11 @@ public class Downloader2 {
                         public void onDownloadComplete() {
                             DownloadInfo finishedDownload = downloadInfos[runningDownloadIndex];
                             if (finishedDownload.isNNModel()) {
-                                callback.onProgress(downloadInfos[runningDownloadIndex], 100, true);
+                                int percentageProgress = calculateProgress(lastDownloadSuccessIndex+1, 0);
+                                if(runningDownloadStatus != null) {
+                                    runningDownloadStatus.setCurrentProgress(percentageProgress, true);
+                                }
+                                callback.onProgress(downloadInfos[runningDownloadIndex], percentageProgress, true);
                                 NeuralNetworkApi.testModelIntegrity(finishedDownload.getDestinationCompletePath(), new NeuralNetworkApi.InitListener() {
                                     @Override
                                     public void onInitializationFinished() {
@@ -112,6 +126,10 @@ public class Downloader2 {
 
                                     @Override
                                     public void onError(int[] reasons, long value) {
+                                        if(runningDownloadStatus != null){
+                                            runningDownloadStatus.setCurrentError(new DownloadError(finishedDownload, INTEGRITY_CHECK_FAILED));
+                                        }
+                                        runningDownloadIndex = -1;
                                         callback.onError(finishedDownload, INTEGRITY_CHECK_FAILED);
                                     }
                                 });
@@ -122,7 +140,12 @@ public class Downloader2 {
 
                         @Override
                         public void onError(Error error) {
-                            callback.onError(downloadInfos[runningDownloadIndex], GENERAL_ERROR);
+                            DownloadInfo download = downloadInfos[runningDownloadIndex];
+                            if(runningDownloadStatus != null) {
+                                runningDownloadStatus.setCurrentError(new DownloadError(download, GENERAL_ERROR));
+                            }
+                            runningDownloadIndex = -1;
+                            callback.onError(download, GENERAL_ERROR);
                         }
                     });
             downloadInfos[index].setDownloadId(downloadId);
@@ -134,11 +157,30 @@ public class Downloader2 {
             //we start the next download and notify the end of the current one
             lastDownloadSuccessIndex = runningDownloadIndex;
             callback.onDownloadComplete(downloadInfos[runningDownloadIndex]);
-            runningDownloadIndex++;
-            startDownload(runningDownloadIndex);
+            startDownload(runningDownloadIndex+1);
         } else {
             //we notify the end of all downloads
+            allCompleted = true;
             callback.onAllDownloadComplete();
+        }
+    }
+
+    private int calculateProgress(int lastDownloadSuccessIndex, long downloadedKb) {
+        if(lastDownloadSuccessIndex <= downloadInfos.length-1) {
+            double totalSize = 0;
+            for (DownloadInfo downloadInfo : downloadInfos) {
+                totalSize = totalSize + downloadInfo.getSize();
+            }
+            int baseProgress = 0;
+            double baseSize = 0;
+            for (int i = 0; i <= lastDownloadSuccessIndex; i++) {
+                baseSize = baseSize + downloadInfos[i].getSize();
+            }
+            baseProgress = (int) ((baseSize * 100) / totalSize);
+            int currentProgress = (int) (((downloadedKb) * 100) / totalSize);
+            return baseProgress + currentProgress;
+        }else{
+            return 100;
         }
     }
 
@@ -147,6 +189,16 @@ public class Downloader2 {
         public abstract void onDownloadComplete(DownloadInfo downloadInfo);
         public abstract void onProgress(DownloadInfo downloadInfo, int progress, boolean testingIntegrity);
         public abstract void onError(DownloadInfo downloadInfo, int reason);
+    }
+
+    public static class DownloadError {
+        public DownloadInfo downloadInfo;
+        public int reason;
+
+        public DownloadError(DownloadInfo downloadInfo, int reason) {
+            this.downloadInfo = downloadInfo;
+            this.reason = reason;
+        }
     }
 }
 

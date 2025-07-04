@@ -101,7 +101,7 @@ public class AccessActivity extends GeneralActivity {
                 break;
             }
             case DOWNLOAD_FRAGMENT: {
-                DownloadFragment downloadFragment = new DownloadFragment();
+                DownloadFragment2 downloadFragment = new DownloadFragment2();
                 if (bundle != null) {
                     downloadFragment.setArguments(bundle);
                 }
@@ -129,7 +129,7 @@ public class AccessActivity extends GeneralActivity {
             startFragment(NOTICE_FRAGMENT,null);
             return;
         }
-        if(fragment instanceof DownloadFragment){
+        if(fragment instanceof DownloadFragment2){
             startFragment(USER_DATA_FRAGMENT,null);
             return;
         }

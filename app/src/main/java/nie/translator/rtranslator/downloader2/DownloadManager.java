@@ -7,11 +7,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Objects;
 
 import nie.translator.rtranslator.voice_translation._conversation_mode._conversation.ConversationService;
 
@@ -65,7 +67,8 @@ public class DownloadManager implements ServiceConnection {
         if(this.callback == null) {
             this.callback = callback;
             if(serviceStarted) {  //if we have not started yet the service, we will bind after starting it, not now (this way the service will not stop when we unbind)
-                context.bindService(new Intent(context, ConversationService.class), this, BIND_ABOVE_CLIENT);
+                boolean result = context.bindService(new Intent(context, DownloaderService.class), this, BIND_ABOVE_CLIENT);
+                Log.d("bind download", result ? "success" : "failed");
             }
         }
     }
@@ -84,11 +87,12 @@ public class DownloadManager implements ServiceConnection {
         if(!serviceStarted) {
             final Intent intent = new Intent(context, DownloaderService.class);
             //intent.putExtra("notification", notification);
-            intent.putExtra(DownloaderService.DOWNLOAD_INFOS, downloadInfos);
+            intent.putParcelableArrayListExtra(DownloaderService.DOWNLOAD_INFOS, new ArrayList<>(Arrays.asList(downloadInfos)));
             context.startService(intent);
             this.serviceStarted = true;
             if (callback != null) {   //if we have previously called subscribe before starting the service we will bind here
-                context.bindService(new Intent(context, ConversationService.class), this, BIND_ABOVE_CLIENT);
+                boolean result = context.bindService(new Intent(context, DownloaderService.class), this, BIND_ABOVE_CLIENT);
+                Log.d("bind download", result ? "success" : "failed");
             }
         }
     }
@@ -109,6 +113,19 @@ public class DownloadManager implements ServiceConnection {
         return false;
     }
 
+    @Nullable
+    public DownloadInfoExtended getRunningDownloadStatus() {
+        if (downloaderService != null) {
+            ArrayList<Downloader2> downloaders = downloaderService.getDownloaders();
+            for (Downloader2 download : downloaders) {
+                if (isThisDownload(download)) {
+                    return downloaderService.getRunningDownloadStatus(download);
+                }
+            }
+        }
+        return null;
+    }
+
     @Override
     public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
         this.downloaderService = ((DownloaderService.LocalBinder) iBinder).getService();
@@ -123,6 +140,6 @@ public class DownloadManager implements ServiceConnection {
     private boolean isThisDownload(Downloader2 download){
         //we check if the download is the one started by this manager
         //(based on how the downloaderService is implemented if one of the downloadInfos match they all match)
-        return Arrays.stream(download.getDownloadInfos()).anyMatch((item -> item == downloadInfos[0]));
+        return Arrays.stream(download.getDownloadInfos()).anyMatch((item -> Objects.equals(item.getDestinationCompletePath(), downloadInfos[0].getDestinationCompletePath())));
     }
 }

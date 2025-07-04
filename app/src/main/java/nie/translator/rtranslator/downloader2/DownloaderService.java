@@ -5,6 +5,8 @@ import android.content.Intent;
 import android.os.IBinder;
 import android.os.Binder;
 
+import androidx.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -48,7 +50,6 @@ public class DownloaderService extends Service {
         if (intent != null && intent.hasExtra(DOWNLOAD_INFOS)) {
             ArrayList<DownloadInfo> downloadInfosToStart = intent.getParcelableArrayListExtra(DOWNLOAD_INFOS);
             if (downloadInfosToStart != null) {
-                List<DownloadInfo> newDownloadsToStart = new ArrayList<>();
                 boolean alreadyDownloading = false;
                 for (DownloadInfo infoToStart : downloadInfosToStart) {
                     synchronized (downloaders) {
@@ -66,7 +67,7 @@ public class DownloaderService extends Service {
 
                 if (!alreadyDownloading) {
                     final AtomicReference<Downloader2> newDownloaderRef = new AtomicReference<>();
-                    final Downloader2 newDownloader = new Downloader2(newDownloadsToStart.toArray(new DownloadInfo[0]), this, new Downloader2.Callback() {
+                    final Downloader2 newDownloader = new Downloader2(downloadInfosToStart.toArray(new DownloadInfo[0]), this, new Downloader2.Callback() {
                         @Override
                         public void onAllDownloadComplete() {
                             notifyAllCompleted(newDownloaderRef.get());
@@ -127,6 +128,16 @@ public class DownloaderService extends Service {
             if (downloaders.contains(download)) {
                 download.pauseDownloads();
             }
+        }
+    }
+
+    @Nullable
+    public DownloadInfoExtended getRunningDownloadStatus(Downloader2 download) {
+        synchronized (downloaders) {
+            if (downloaders.contains(download)) {
+                return download.getRunningDownloadStatus();
+            }
+            return null;
         }
     }
 
