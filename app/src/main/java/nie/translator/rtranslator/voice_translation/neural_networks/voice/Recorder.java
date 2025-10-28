@@ -18,6 +18,7 @@ package nie.translator.rtranslator.voice_translation.neural_networks.voice;
 
 import static android.media.AudioManager.GET_DEVICES_INPUTS;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.media.AudioDeviceCallback;
 import android.media.AudioDeviceInfo;
@@ -47,6 +48,7 @@ import nie.translator.rtranslator.voice_translation._conversation_mode._conversa
  * {@link AudioFormat#CHANNEL_IN_MONO}. This class will automatically pick the right sample rate
  * for the device. Use {@link #getSampleRate()} to getGroup the selected value.</p>
  */
+@SuppressLint("MissingPermission")
 public class Recorder {
     private final Global global;
     private boolean isRecording;

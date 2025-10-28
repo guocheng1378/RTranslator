@@ -16,6 +16,7 @@
 
 package nie.translator.rtranslator.bluetooth;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.os.Handler;
@@ -38,6 +39,7 @@ import java.util.Objects;
  * To understand if one peer is equivalent to another we should compare the uniqueName of the two peers, this is because the device
  * can vary over time and name could have a homonym.
  */
+@SuppressLint("MissingPermission")
 public class Peer implements Parcelable, Cloneable {
     @NonNull
     private String uniqueName;

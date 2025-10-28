@@ -1,5 +1,6 @@
 package nie.translator.rtranslator.tools;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHeadset;
@@ -21,7 +22,7 @@ import nie.translator.rtranslator.bluetooth.tools.CustomCountDownTimer;
  *
  * @author Hoan Nguyen
  */
-
+@SuppressLint("MissingPermission")
 public abstract class BluetoothHeadsetUtils {
     private Context mContext;
 

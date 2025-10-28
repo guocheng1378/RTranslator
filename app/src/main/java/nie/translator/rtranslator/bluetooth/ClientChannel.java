@@ -16,6 +16,7 @@
 
 package nie.translator.rtranslator.bluetooth;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
@@ -29,6 +30,7 @@ import nie.translator.rtranslator.bluetooth.tools.Timer;
 
 import java.nio.charset.StandardCharsets;
 
+@SuppressLint("MissingPermission")
 class ClientChannel extends nie.translator.rtranslator.bluetooth.Channel {
     private BluetoothGatt bluetoothGatt;
 

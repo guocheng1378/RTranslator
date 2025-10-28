@@ -16,8 +16,10 @@
 
 package nie.translator.rtranslator.access;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 
@@ -26,6 +28,7 @@ import androidx.fragment.app.FragmentTransaction;
 import nie.translator.rtranslator.GeneralActivity;
 import nie.translator.rtranslator.Global;
 import nie.translator.rtranslator.R;
+import nie.translator.rtranslator.tools.Tools;
 
 
 public class AccessActivity extends GeneralActivity {
@@ -33,6 +36,8 @@ public class AccessActivity extends GeneralActivity {
     public static final int NOTICE_FRAGMENT = 1;
     public static final int DOWNLOAD_FRAGMENT = 2;
     private Fragment fragment;
+    public static String[] REQUIRED_PERMISSIONS;
+    public static final int REQUEST_CODE_REQUIRED_PERMISSIONS = 4;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,6 +46,14 @@ public class AccessActivity extends GeneralActivity {
 
         View decorView = getWindow().getDecorView();
         decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            REQUIRED_PERMISSIONS = new String[]{
+                    Manifest.permission.POST_NOTIFICATIONS
+            };
+        }else{
+            REQUIRED_PERMISSIONS = new String[0];
+        }
 
         if (savedInstanceState != null) {
             //Restore the fragment's instance
@@ -86,6 +99,9 @@ public class AccessActivity extends GeneralActivity {
                 transaction.replace(R.id.fragment_initialization_container, userDataFragment);
                 transaction.commit();
                 fragment = userDataFragment;
+                if (REQUIRED_PERMISSIONS.length > 0 && !Tools.hasPermissions(this, REQUIRED_PERMISSIONS)) {
+                    requestPermissions(REQUIRED_PERMISSIONS, REQUEST_CODE_REQUIRED_PERMISSIONS);
+                }
                 break;
             }
             case NOTICE_FRAGMENT: {

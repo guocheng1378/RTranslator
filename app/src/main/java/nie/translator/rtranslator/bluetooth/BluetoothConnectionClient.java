@@ -16,6 +16,7 @@
 
 package nie.translator.rtranslator.bluetooth;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -37,6 +38,7 @@ import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
+@SuppressLint("MissingPermission")
 class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.BluetoothConnection {
     private BluetoothGattCallback channelsCallback;
     private ConnectionDeque pendingConnections = new ConnectionDeque();

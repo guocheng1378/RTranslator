@@ -16,6 +16,7 @@
 
 package nie.translator.rtranslator.bluetooth;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -38,6 +39,7 @@ import java.util.ArrayList;
 import java.util.UUID;
 
 
+@SuppressLint("MissingPermission")
 class BluetoothConnectionServer extends nie.translator.rtranslator.bluetooth.BluetoothConnection {
     //costants
     public static final UUID CONNECTION_REQUEST_UUID = UUID.fromString("fa87c0d0-afac-11de-8a39-0857350c7a66");

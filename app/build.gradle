@@ -25,10 +25,11 @@ ext {
 
 android {
     namespace 'nie.translator.rtranslator'
-    compileSdkVersion 33  //33
+    //compileSdkVersion 33  //33
     defaultConfig {
         applicationId "nie.translator.rtranslator"
-        targetSdkVersion 32   //32
+        targetSdkVersion 36   //32
+        compileSdk 36
         versionCode 24
         versionName '2.1.4'
         minSdkVersion 24

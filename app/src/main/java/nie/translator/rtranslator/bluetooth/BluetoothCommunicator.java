@@ -16,6 +16,7 @@
 
 package nie.translator.rtranslator.bluetooth;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.le.AdvertiseCallback;
@@ -237,6 +238,7 @@ import java.util.Objects;
  * <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
  * }</pre>
  */
+@SuppressLint("MissingPermission")
 public class BluetoothCommunicator {
     // constants
     public static final int CLIENT = 0;

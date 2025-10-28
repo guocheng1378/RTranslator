@@ -625,6 +625,7 @@ public class VoiceTranslationActivity extends GeneralActivity {
                     .setContentIntent(resultPendingIntent)
                     .setSmallIcon(R.drawable.mic_icon)
                     .setOngoing(true)
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setChannelId(channelID)
                     .build();
         } else {
@@ -633,6 +634,7 @@ public class VoiceTranslationActivity extends GeneralActivity {
                     .setContentIntent(resultPendingIntent)
                     .setSmallIcon(R.drawable.mic_icon)
                     .setOngoing(true)
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setChannelId(channelID)
                     .build();
         }
