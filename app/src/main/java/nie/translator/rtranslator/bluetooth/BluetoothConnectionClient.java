@@ -174,8 +174,8 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
 
                                         //request mtu
                                         BluetoothGattCharacteristic output = service.getCharacteristic(nie.translator.rtranslator.bluetooth.BluetoothConnectionServer.MTU_REQUEST_UUID);
-                                        byte[] data = new byte[128];
-                                        for (int i = 0; i < 128; i++) {
+                                        byte[] data = new byte[MTU];
+                                        for (int i = 0; i < MTU; i++) {
                                             data[i] = String.valueOf(1).getBytes(StandardCharsets.UTF_8)[0];
                                         }
                                         output.setValue(data);
