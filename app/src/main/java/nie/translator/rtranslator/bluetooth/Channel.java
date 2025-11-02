@@ -57,7 +57,6 @@ abstract class Channel {
     private Timer messageTimer;
     private Timer dataTimer;
     private Timer notifyDisconnectionTimer;
-    private Timer disconnectionTimer;
     protected Handler mainHandler;
     private Handler messageHandler;
     private Handler dataHandler;
@@ -298,12 +297,7 @@ abstract class Channel {
                 startNotifyDisconnectionTimer(new Timer.Callback() {
                     @Override
                     public void onFinished() {
-                        disconnect(new DisconnectionCallback() {
-                            @Override
-                            public void onDisconnectionFailed() {
-                                disconnectionNotificationCallback.onDisconnectionFailed();
-                            }
-                        });
+                        disconnect(null);
                     }
                 });
                 // stop sending messages
@@ -315,7 +309,7 @@ abstract class Channel {
         }
     }
 
-    public boolean disconnect(final DisconnectionCallback callback) {
+    public boolean disconnect(@Nullable final DisconnectionCallback callback) {
         synchronized (lock) {
             if (!disconnecting) {
                 disconnecting = true;
@@ -327,15 +321,7 @@ abstract class Channel {
                     disconnectionNotificationCallback.onDisconnectionNotificationSent();
                     disconnectionNotificationCallback = null;
                 }
-                if (getPeer().isHardwareConnected()) {
-                    // start disconnection timer
-                    startDisconnectionTimer(new Timer.Callback() {
-                        @Override
-                        public void onFinished() {
-                            callback.onDisconnectionFailed();
-                        }
-                    });
-                } else {
+                if (!getPeer().isHardwareConnected() && callback != null) {
                     callback.onAlreadyDisconnected(getPeer());
                 }
                 // stop sending messages
@@ -348,7 +334,7 @@ abstract class Channel {
     }
 
     public void onDisconnected() {
-        resetDisconnectionTimer();
+        //insert here eventual channel release operations (before it was used to resent the disconnection timer)
     }
 
     public void destroy() {
@@ -357,7 +343,6 @@ abstract class Channel {
             resetDataTimer();
             resetReconnectionTimer();
             resetConnectionCompleteTimer();
-            resetDisconnectionTimer();
             resetNotifyDisconnectionTimer();
             messageHandler.removeCallbacksAndMessages(null);
             dataHandler.removeCallbacksAndMessages(null);
@@ -474,42 +459,19 @@ abstract class Channel {
         }
     }
 
-    private void startDisconnectionTimer(final Timer.Callback callback) {
-        synchronized (lock) {
-            disconnectionTimer = new Timer(DISCONNECTION_TIMEOUT);
-            disconnectionTimer.setCallback(callback);
-            disconnectionTimer.start();
-        }
-    }
-
-    private void resetDisconnectionTimer() {
-        synchronized (lock) {
-            if (disconnectionTimer != null) {
-                disconnectionTimer.cancel();
-                disconnectionTimer = null;
-            }
-        }
-    }
-
     public static abstract class MessageCallback {
         public abstract void onMessageSent();
     }
 
     public static abstract class DisconnectionNotificationCallback {
         public abstract void onDisconnectionNotificationSent();
-
-        public void onDisconnectionFailed() {
-        }
     }
 
     public static abstract class DisconnectionCallback {
-        public void onAlreadyDisconnected(Peer peer) {
-        }
+        public abstract void onAlreadyDisconnected(Peer peer);
 
         public void onClientDisconnectionSuccess(BluetoothGatt gatt) {}
 
         public void onServerDisconnectionSuccess(Peer peer) {}
-
-        public abstract void onDisconnectionFailed();
     }
 }

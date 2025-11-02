@@ -166,14 +166,6 @@ abstract class BluetoothConnection {
                                         disconnectionNotificationCallback.onDisconnectionNotificationSent();
                                     }
                                 }
-
-                                @Override
-                                public void onDisconnectionFailed() {
-                                    if (disconnectionNotificationCallback != null) {
-                                        disconnectionNotificationCallback.onDisconnectionNotificationSent();
-                                    }
-                                    notifyDisconnectionFailed();
-                                }
                             })) {
                                 channels.get(index).disconnect(disconnectionCallback);  // onDisconnectionNotificationSent is still called by disconnect();
                             }
@@ -286,10 +278,6 @@ abstract class BluetoothConnection {
 
     protected abstract void notifyDisconnection(Channel channel);
 
-    protected void notifyDisconnectionFailed() {
-        callback.onDisconnectionFailed();
-    }
-
     public static class Callback {
         /**
          * It means you have received a connection request from another device (peer) (that have called connect)
@@ -394,14 +382,6 @@ abstract class BluetoothConnection {
          * @param peer
          */
         void onDisconnected(Peer peer) {
-        }
-
-        /**
-         * Means that a disconnection is failed, super.onDisconnectionFailed will reactivate bluetooth for forcing disconnection,
-         * after that the disconnection will be notified in onDisconnection.
-         */
-        public void onDisconnectionFailed() {
-
         }
     }
 }

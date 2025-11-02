@@ -214,14 +214,6 @@ import java.util.Objects;
  *
  *         Means that the peer is disconnected, peersLeft indicate the number of connected peers remained
  *     }
- *
- *     @Override
- *     public void onDisconnectionFailed(){
- *         super.onDisconnectionFailed();
- *
- *         Means that a disconnection is failed, super.onDisconnectionFailed will reactivate bluetooth for forcing disconnection
- *         (however the disconnection will be notified in onDisconnection)
- *     }
  * });
  * }</pre>
  * Finally you can start discovery and/or advertising:
@@ -577,27 +569,6 @@ public class BluetoothCommunicator {
                             pendingData= new ArrayDeque<>();
                         }
                         notifyDisconnection(peer, peersLeft);
-                    }
-                }
-
-                @Override
-                public void onDisconnectionFailed() {
-                    super.onDisconnectionFailed();
-                    if(bluetoothRestartable) {
-                        //restart of bluetooth
-                        synchronized (bluetoothLock) {
-                            if (bluetoothAdapter != null) {
-                                restartingBluetooth = true;
-                                if (bluetoothAdapter.isEnabled()) {
-                                    bluetoothAdapter.disable();
-                                } else {
-                                    if (!turningOnBluetooth) {
-                                        turningOnBluetooth = true;
-                                        bluetoothAdapter.enable();
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
             };
@@ -1141,9 +1112,7 @@ public class BluetoothCommunicator {
 
     /**
      * This method disconnect the peer passed to the argument (it must be connected or nothing happens), the disconnection is completed
-     * when onDisconnected is called with that peer as argument, in case the disconnection fails onDisconnectionFailed is called but if you not
-     * override it or leave the call to super BluetoothCommunicator will turn off and on bluetooth to force the disconnection and onDisconnection will be
-     * called.
+     * when onDisconnected is called with that peer as argument.
      *
      * @param peer connected peer you want to disconnect from
      * @return SUCCESS if bluetooth le is supported by the device or BLUETOOTH_LE_NOT_SUPPORTED if not (or rarely if we had a generic bluetooth problem)

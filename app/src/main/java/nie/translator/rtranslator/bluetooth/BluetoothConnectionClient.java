@@ -60,11 +60,6 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
             public void onClientDisconnectionSuccess(BluetoothGatt gatt){
                 manageDisconnection(gatt);
             }
-
-            @Override
-            public void onDisconnectionFailed() {
-                notifyDisconnectionFailed();
-            }
         };
         channelsCallback = new BluetoothGattCallback() {
             @Override
@@ -524,11 +519,6 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
             @Override
             public void onAlreadyDisconnected(nie.translator.rtranslator.bluetooth.Peer peer) {
                 notifyDisconnection(channel);
-            }
-
-            @Override
-            public void onDisconnectionFailed() {
-                disconnectionCallback.onDisconnectionFailed();
             }
         });    // to cancel a possible connection in progress and to notify the disconnection
     }

@@ -84,11 +84,6 @@ class BluetoothConnectionServer extends nie.translator.rtranslator.bluetooth.Blu
             public void onServerDisconnectionSuccess(Peer peer){
                 manageDisconnection(peer);
             }
-
-            @Override
-            public void onDisconnectionFailed() {
-                notifyDisconnectionFailed();
-            }
         };
 
         bluetoothGattServer = bluetoothManager.openGattServer(context, new BluetoothGattServerCallback() {
@@ -485,11 +480,6 @@ class BluetoothConnectionServer extends nie.translator.rtranslator.bluetooth.Blu
             @Override
             public void onAlreadyDisconnected(Peer peer) {
                 notifyDisconnection(channel);
-            }
-
-            @Override
-            public void onDisconnectionFailed() {
-                disconnectionCallback.onDisconnectionFailed();
             }
         });    // to cancel a possible connection in progress
     }
