@@ -272,6 +272,7 @@ class ServerChannel extends Channel {
             if (super.disconnect(disconnectionCallback)) {
                 if (bluetoothGattServer != null) {
                     bluetoothGattServer.cancelConnection(getPeer().getRemoteDevice(bluetoothAdapter));
+                    disconnectionCallback.onServerDisconnectionSuccess(getPeer());  //here the resources are cleared and the disconnection notified to BluetoothCommunicator (there is no need to call any close method for the server side)
                     return true;
                 }
             }

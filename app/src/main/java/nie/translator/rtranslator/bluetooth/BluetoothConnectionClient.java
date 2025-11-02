@@ -57,7 +57,7 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
             }
 
             @Override
-            public void onDisconnectionSuccess(BluetoothGatt gatt){
+            public void onClientDisconnectionSuccess(BluetoothGatt gatt){
                 manageDisconnection(gatt);
             }
 
@@ -396,7 +396,6 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
                                             if (pendingSubMessage != null && id.equals(pendingSubMessage.getId()) && sequenceNumber.equals(pendingSubMessage.getSequenceNumber())) {
                                                 channels.get(index).onSubMessageWriteSuccess();
                                             }
-
                                         }
                                     } else {
                                         channels.get(index).onSubMessageWriteFailed();
@@ -541,7 +540,6 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
         }
 
         synchronized (channelsLock) {
-            gatt.close();
             int index = channels.indexOf(new nie.translator.rtranslator.bluetooth.Peer(gatt.getDevice(), null, true));
             if (index == -1) {  // in case the device of the channel that failed the reconnection has been changed by onReconnectingPeerFound
                 nie.translator.rtranslator.bluetooth.Peer peer = pendingConnections.peekFirst();
@@ -549,6 +547,8 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
                     index = indexOfChannel(peer.getUniqueName());  // the comparison will thus be based on the name instead of the address (which is different in this case) (to be reviewed in case of problems)
                 }
             }
+
+            gatt.close();
 
             if (index != -1) {     // is used to manage synchronization with the server to avoid adding a device that connects to the latter instead of us
                 ((nie.translator.rtranslator.bluetooth.ClientChannel) channels.get(index)).setBluetoothGatt(null);

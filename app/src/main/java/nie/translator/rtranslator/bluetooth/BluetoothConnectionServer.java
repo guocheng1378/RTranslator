@@ -81,6 +81,11 @@ class BluetoothConnectionServer extends nie.translator.rtranslator.bluetooth.Blu
             }
 
             @Override
+            public void onServerDisconnectionSuccess(Peer peer){
+                manageDisconnection(peer);
+            }
+
+            @Override
             public void onDisconnectionFailed() {
                 notifyDisconnectionFailed();
             }
@@ -98,6 +103,7 @@ class BluetoothConnectionServer extends nie.translator.rtranslator.bluetooth.Blu
                             synchronized (channelsLock) {
                                 int index;
                                 if(!client.getConnectedPeers().contains(peer)) {    // the client object is used to manage synchronization with the client to avoid adding a device that connects to the latter instead of us
+                                    bluetoothGattServer.connect(device, false);  //this is not mandatory but will tell the server OS not to drop the connection, making it more stable.
                                     if (!channels.contains(peer)) {
                                         channels.add(new nie.translator.rtranslator.bluetooth.ServerChannel(context, peer, bluetoothAdapter));
                                         index = channels.size() - 1;
@@ -139,50 +145,7 @@ class BluetoothConnectionServer extends nie.translator.rtranslator.bluetooth.Blu
                             }
 
                         } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                            ArrayList<String> channelsNames = new ArrayList<>();
-                            for (Channel channel : channels) {
-                                channelsNames.add(channel.getPeer().getDevice().getAddress() + " ");
-                            }
-
-                            synchronized (channelsLock) {
-                                final int index = channels.indexOf(peer);
-                                if (index != -1) {
-                                    ((nie.translator.rtranslator.bluetooth.ServerChannel) channels.get(index)).setBluetoothGattServer(null);
-                                    channels.get(index).getPeer().setHardwareConnected(false);
-
-                                    if (channels.get(index).getPeer().isDisconnecting()) {
-                                        channels.get(index).onDisconnected();
-                                    }
-
-                                    if (channels.get(index).getPeer().isConnected()) {
-                                        if (channels.get(index).getPeer().isDisconnecting()) {
-                                            // disconnection
-                                            notifyDisconnection(channels.get(index));
-
-                                        } else {
-                                            // connection lost
-                                            notifyConnectionLost(channels.get(index));
-                                        }
-                                    } else {
-                                        if (channels.get(index).getPeer().isReconnecting()) {
-                                            if (channels.get(index).getPeer().isDisconnecting()) {
-                                                // we had a disconnection after the stopReconnection call (due to the latter method)
-                                                notifyDisconnection(channels.get(index));
-
-                                            } else {
-                                                // we had a disconnect between the hw connection and the complete connection
-                                                stopReconnection(channels.get(index));
-
-                                            }
-
-                                        } else {
-                                            // means that there has been a disconnect between the connection request and its acceptance.
-                                            // we delete the disconnected channel
-                                            channels.remove(index);
-                                        }
-                                    }
-                                }
-                            }
+                            manageDisconnection(peer);
                         }
                     }
                 });
@@ -529,6 +492,52 @@ class BluetoothConnectionServer extends nie.translator.rtranslator.bluetooth.Blu
                 disconnectionCallback.onDisconnectionFailed();
             }
         });    // to cancel a possible connection in progress
+    }
+
+    private void manageDisconnection(Peer peer){
+        ArrayList<String> channelsNames = new ArrayList<>();
+        for (Channel channel : channels) {
+            channelsNames.add(channel.getPeer().getDevice().getAddress() + " ");
+        }
+
+        synchronized (channelsLock) {
+            final int index = channels.indexOf(peer);
+            if (index != -1) {
+                ((nie.translator.rtranslator.bluetooth.ServerChannel) channels.get(index)).setBluetoothGattServer(null);
+                channels.get(index).getPeer().setHardwareConnected(false);
+
+                if (channels.get(index).getPeer().isDisconnecting()) {
+                    channels.get(index).onDisconnected();
+                }
+
+                if (channels.get(index).getPeer().isConnected()) {
+                    if (channels.get(index).getPeer().isDisconnecting()) {
+                        // disconnection
+                        notifyDisconnection(channels.get(index));
+
+                    } else {
+                        // connection lost
+                        notifyConnectionLost(channels.get(index));
+                    }
+                } else {
+                    if (channels.get(index).getPeer().isReconnecting()) {
+                        if (channels.get(index).getPeer().isDisconnecting()) {
+                            // we had a disconnection after the stopReconnection call (due to the latter method)
+                            notifyDisconnection(channels.get(index));
+
+                        } else {
+                            // we had a disconnect between the hw connection and the complete connection
+                            stopReconnection(channels.get(index));
+                        }
+
+                    } else {
+                        // means that there has been a disconnect between the connection request and its acceptance.
+                        // we delete the disconnected channel
+                        channels.remove(index);
+                    }
+                }
+            }
+        }
     }
 
     @Override
