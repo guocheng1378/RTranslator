@@ -47,7 +47,7 @@ public class ConversationBluetoothCommunicator {
     public ConversationBluetoothCommunicator(final Global global, String name, int strategy) {
         this.global = global;
         mainHandler = new Handler(Looper.getMainLooper());
-        bluetoothCommunicator = new BluetoothCommunicator(global, name, strategy);
+        bluetoothCommunicator = new BluetoothCommunicator(global, name, strategy, false);
         BluetoothCommunicator.Callback bluetoothCommunicatorCallback = new BluetoothCommunicator.Callback() {
             @Override
             public void onAdvertiseStarted() {

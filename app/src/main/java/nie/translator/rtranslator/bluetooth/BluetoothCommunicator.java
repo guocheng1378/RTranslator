@@ -246,6 +246,7 @@ public class BluetoothCommunicator {
     public static final int SUCCESS = 0;
     public static final int CONNECTION_REJECTED = 1;
     public static final int ERROR = -1;
+    public static final int BLUETOOTH_OFF = -8;
     public static final int ALREADY_STARTED = -3;
     public static final int ALREADY_STOPPED = -4;
     public static final int NOT_MAIN_THREAD = -5;
@@ -253,6 +254,7 @@ public class BluetoothCommunicator {
     public static final int BLUETOOTH_LE_NOT_SUPPORTED = -7;
     public static final int STRATEGY_P2P_WITH_RECONNECTION = 2;
     // variables
+    private boolean bluetoothRestartable = false;
     private boolean advertising = false;
     private boolean discovering = false;
     private boolean turningOnBluetooth = false;
@@ -292,85 +294,90 @@ public class BluetoothCommunicator {
      * @param name the name by which the other devices will see us (limited to 18 characters
      * and can be only characters listed in BluetoothTools.getSupportedUTFCharacters(context) because the number of bytes for advertising beacon is limited)
      * @param strategy (for now the only supported strategy is BluetoothCommunicator.STRATEGY_P2P_WITH_RECONNECTION)
+     * @param bluetoothRestart indicates if BluetoothCommunicator can turn bluetooth on or off programmatically, to turn it on when is needed
+     * and to restart it to force disconnections in case of errors
      */
-    public BluetoothCommunicator(final Context context, String name, int strategy) {
+    public BluetoothCommunicator(final Context context, String name, int strategy, boolean bluetoothRestart) {
         this.context = context;
         this.strategy = strategy;
         this.uniqueName = name + BluetoothTools.generateBluetoothNameId(context);
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
-        // verify that it is called only when bluetooth is actually turned on again
-        broadcastReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(final Context context, final Intent intent) {
-                mainHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        synchronized (bluetoothLock) {
-                            int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1);
+        this.bluetoothRestartable = bluetoothRestart;
+        if(bluetoothRestartable) {
+            IntentFilter intentFilter = new IntentFilter();
+            intentFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+            // verify that it is called only when bluetooth is actually turned on again
+            broadcastReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(final Context context, final Intent intent) {
+                    mainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            synchronized (bluetoothLock) {
+                                int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1);
 
-                            if (state == BluetoothAdapter.STATE_OFF) {
-                                if (bluetoothAdapter != null) {
-                                    if (destroying) {
-                                        // release all the resources and restore the bluetooth status
-                                        pendingMessages = new ArrayDeque<>();
-                                        pendingData = new ArrayDeque<>();
-                                        context.unregisterReceiver(broadcastReceiver);
-                                        stopAdvertising(true);
-                                        stopDiscovery(true);
-                                        if (destroyCallback != null) {
-                                            destroyCallback.onDestroyed();
-                                        }
-                                    } else {
-                                        if (restartingBluetooth) {
-                                            restartingBluetooth = false;
-                                            bluetoothAdapter.enable();
+                                if (state == BluetoothAdapter.STATE_OFF) {
+                                    if (bluetoothAdapter != null) {
+                                        if (destroying) {
+                                            // release all the resources and restore the bluetooth status
+                                            pendingMessages = new ArrayDeque<>();
+                                            pendingData = new ArrayDeque<>();
+                                            context.unregisterReceiver(broadcastReceiver);
+                                            stopAdvertising(true);
+                                            stopDiscovery(true);
+                                            if (destroyCallback != null) {
+                                                destroyCallback.onDestroyed();
+                                            }
                                         } else {
-                                            stopAdvertising(false);
-                                            stopDiscovery(false);
-                                        }
-                                        if (turningOffBluetooth) {
-                                            turningOffBluetooth = false;
-                                        } else {
-                                            originalBluetoothState = BluetoothAdapter.STATE_OFF;
+                                            if (restartingBluetooth) {
+                                                restartingBluetooth = false;
+                                                bluetoothAdapter.enable();
+                                            } else {
+                                                stopAdvertising(false);
+                                                stopDiscovery(false);
+                                            }
+                                            if (turningOffBluetooth) {
+                                                turningOffBluetooth = false;
+                                            } else {
+                                                originalBluetoothState = BluetoothAdapter.STATE_OFF;
+                                            }
                                         }
                                     }
-                                }
 
-                            } else if (state == BluetoothAdapter.STATE_ON) {   // verify that it is called only when bluetooth is actually turned on again
-                                bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-                                if (bluetoothAdapter != null) {
-                                    if (initializingConnection) {
-                                        initializingConnection = false;
-                                        initializeConnection();
-                                    }
-                                    if ((connectionServer != null && connectionServer.getReconnectingPeers().size() > 0) || advertising) {
-                                        executeStartAdvertising();
-                                    }
-                                    if ((connectionClient != null && connectionClient.getReconnectingPeers().size() > 0) || discovering) {
-                                        executeStartDiscovery();
-                                    }
-                                    if (turningOnBluetooth) {
-                                        turningOnBluetooth = false;
-                                        if (restartingBluetooth) {
-                                            restartingBluetooth = false;
-                                            bluetoothAdapter.disable();
+                                } else if (state == BluetoothAdapter.STATE_ON) {   // verify that it is called only when bluetooth is actually turned on again
+                                    bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+                                    if (bluetoothAdapter != null) {
+                                        if (initializingConnection) {
+                                            initializingConnection = false;
+                                            initializeConnection();
                                         }
-                                    } else {
-                                        if (restartingBluetooth) {
-                                            restartingBluetooth = false;
+                                        if ((connectionServer != null && connectionServer.getReconnectingPeers().size() > 0) || advertising) {
+                                            executeStartAdvertising();
+                                        }
+                                        if ((connectionClient != null && connectionClient.getReconnectingPeers().size() > 0) || discovering) {
+                                            executeStartDiscovery();
+                                        }
+                                        if (turningOnBluetooth) {
+                                            turningOnBluetooth = false;
+                                            if (restartingBluetooth) {
+                                                restartingBluetooth = false;
+                                                bluetoothAdapter.disable();
+                                            }
                                         } else {
-                                            originalBluetoothState = BluetoothAdapter.STATE_ON;
+                                            if (restartingBluetooth) {
+                                                restartingBluetooth = false;
+                                            } else {
+                                                originalBluetoothState = BluetoothAdapter.STATE_ON;
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
-                    }
-                });
-            }
-        };
-        context.registerReceiver(broadcastReceiver, intentFilter);
+                    });
+                }
+            };
+            context.registerReceiver(broadcastReceiver, intentFilter);
+        }
         mainHandler = new Handler(Looper.getMainLooper());
 
         advertiseCallback = new AdvertiseCallback() {
@@ -462,10 +469,12 @@ public class BluetoothCommunicator {
      * @param name the name by which the other devices will see us (limited to 18 characters
      * and can be only characters listed in BluetoothTools.getSupportedUTFCharacters(context) because the number of bytes for advertising beacon is limited)
      * @param strategy (for now the only supported strategy is BluetoothCommunicator.STRATEGY_P2P_WITH_RECONNECTION)
+     * @param bluetoothRestart indicates if BluetoothCommunicator can turn bluetooth on or off programmatically, to turn it on when is needed
+     *      * and to restart it to force disconnections in case of errors
      * @param callback callback added, like in addCallback
      */
-    public BluetoothCommunicator(final Context context, String name, int strategy, Callback callback) {
-        this(context,name,strategy);
+    public BluetoothCommunicator(final Context context, String name, int strategy, boolean bluetoothRestart, Callback callback) {
+        this(context,name,strategy, bluetoothRestart);
         addCallback(callback);
     }
 
@@ -574,16 +583,18 @@ public class BluetoothCommunicator {
                 @Override
                 public void onDisconnectionFailed() {
                     super.onDisconnectionFailed();
-                    //restart of bluetooth
-                    synchronized (bluetoothLock) {
-                        if (bluetoothAdapter != null) {
-                            restartingBluetooth = true;
-                            if (bluetoothAdapter.isEnabled()) {
-                                bluetoothAdapter.disable();
-                            } else {
-                                if (!turningOnBluetooth) {
-                                    turningOnBluetooth = true;
-                                    bluetoothAdapter.enable();
+                    if(bluetoothRestartable) {
+                        //restart of bluetooth
+                        synchronized (bluetoothLock) {
+                            if (bluetoothAdapter != null) {
+                                restartingBluetooth = true;
+                                if (bluetoothAdapter.isEnabled()) {
+                                    bluetoothAdapter.disable();
+                                } else {
+                                    if (!turningOnBluetooth) {
+                                        turningOnBluetooth = true;
+                                        bluetoothAdapter.enable();
+                                    }
                                 }
                             }
                         }
@@ -621,11 +632,13 @@ public class BluetoothCommunicator {
                                 } else {
                                     ret = isBluetoothLeSupported();
                                 }
-                            } else {
+                            } else if(bluetoothRestartable){
                                 //turn on bluetooth
                                 turningOnBluetooth = true;
                                 bluetoothAdapter.enable();
                                 ret = SUCCESS;
+                            }else{
+                                ret = BLUETOOTH_OFF;
                             }
                             if (ret == SUCCESS) {
                                 advertising = true;
@@ -783,11 +796,13 @@ public class BluetoothCommunicator {
                                 } else {
                                     ret = SUCCESS;
                                 }
-                            } else {
+                            } else if(bluetoothRestartable){
                                 //turn on bluetooth
                                 turningOnBluetooth = true;
                                 bluetoothAdapter.enable();
                                 ret = SUCCESS;
+                            }else{
+                                ret = BLUETOOTH_OFF;
                             }
                             if (ret == SUCCESS) {
                                 discovering = true;
@@ -1139,7 +1154,7 @@ public class BluetoothCommunicator {
                 connectionServer.disconnect((nie.translator.rtranslator.bluetooth.Peer) peer.clone());
                 connectionClient.disconnect((nie.translator.rtranslator.bluetooth.Peer) peer.clone());
                 if (!advertising && !discovering && getConnectedPeersList().size() == 0) {
-                    if (originalBluetoothState == BluetoothAdapter.STATE_OFF) {
+                    if (originalBluetoothState == BluetoothAdapter.STATE_OFF && bluetoothRestartable) {
                         turningOffBluetooth = true;
                         bluetoothAdapter.disable();
                     }
