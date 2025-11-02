@@ -246,7 +246,9 @@ class ClientChannel extends nie.translator.rtranslator.bluetooth.Channel {
 
                     // actual disconnection
                     bluetoothGatt.disconnect();
+                    disconnectionCallback.onDisconnectionSuccess(bluetoothGatt);  //here the bluetoothGatt.close() is called
                     bluetoothGatt = null;
+
                 }
                 return true;
             }

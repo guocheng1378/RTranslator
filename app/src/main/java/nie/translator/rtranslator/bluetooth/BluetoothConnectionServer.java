@@ -71,6 +71,21 @@ class BluetoothConnectionServer extends nie.translator.rtranslator.bluetooth.Blu
         super(context, name, bluetoothAdapter, strategy, callback);
         bluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
 
+        this.disconnectionCallback = new Channel.DisconnectionCallback() {
+            @Override
+            public void onAlreadyDisconnected(Peer peer) {
+                int index = channels.indexOf(peer);
+                if (index != -1) {
+                    channels.remove(index);
+                }
+            }
+
+            @Override
+            public void onDisconnectionFailed() {
+                notifyDisconnectionFailed();
+            }
+        };
+
         bluetoothGattServer = bluetoothManager.openGattServer(context, new BluetoothGattServerCallback() {
             @Override
             public void onConnectionStateChange(BluetoothDevice device, int status, final int newState) {
@@ -80,45 +95,46 @@ class BluetoothConnectionServer extends nie.translator.rtranslator.bluetooth.Blu
                     @Override
                     public void run() {
                         if (newState == BluetoothProfile.STATE_CONNECTED) {
-
                             synchronized (channelsLock) {
                                 int index;
-                                if (!client.getConnectedPeers().contains(peer) && !channels.contains(peer)) {   // the client object is used to manage synchronization with the client to avoid adding a device that connects to the latter instead of us
-                                    channels.add(new nie.translator.rtranslator.bluetooth.ServerChannel(context, peer, bluetoothAdapter));
-                                    index = channels.size() - 1;
-                                    ((nie.translator.rtranslator.bluetooth.ServerChannel) channels.get(index)).setBluetoothGattServer(bluetoothGattServer);
-                                    channels.get(index).getPeer().setHardwareConnected(true);
-
-                                } else {
-                                    index = channels.indexOf(peer);
-                                    if (index != -1) {
+                                if(!client.getConnectedPeers().contains(peer)) {    // the client object is used to manage synchronization with the client to avoid adding a device that connects to the latter instead of us
+                                    if (!channels.contains(peer)) {
+                                        channels.add(new nie.translator.rtranslator.bluetooth.ServerChannel(context, peer, bluetoothAdapter));
+                                        index = channels.size() - 1;
                                         ((nie.translator.rtranslator.bluetooth.ServerChannel) channels.get(index)).setBluetoothGattServer(bluetoothGattServer);
                                         channels.get(index).getPeer().setHardwareConnected(true);
-                                        if (channels.get(index).getPeer().isReconnecting()) {
-                                            // the connection is recovering so we reset the timer, so in case of failure we will still have a disconnection
-                                            channels.get(index).resetReconnectionTimer();
-                                        }
-                                    }
 
-                                }
-                                if (index != -1) {
-                                    final Channel channel = channels.get(index);
-                                    channel.startConnectionCompleteTimer(new Timer.Callback() {
-                                        @Override
-                                        public void onFinished() {
-                                            mainHandler.post(new Runnable() {
-                                                @Override
-                                                public void run() {
-                                                    // means that the connection failed because it did not happen completely by the end of the timer
-                                                    if (channel.getPeer().isReconnecting()) {
-                                                        stopReconnection(channel);
-                                                    } else {
-                                                        channel.disconnect(disconnectionCallback);
-                                                    }
-                                                }
-                                            });
+                                    } else {
+                                        index = channels.indexOf(peer);
+                                        if (index != -1) {
+                                            ((nie.translator.rtranslator.bluetooth.ServerChannel) channels.get(index)).setBluetoothGattServer(bluetoothGattServer);
+                                            channels.get(index).getPeer().setHardwareConnected(true);
+                                            if (channels.get(index).getPeer().isReconnecting()) {
+                                                // the connection is recovering so we reset the timer, so in case of failure we will still have a disconnection
+                                                channels.get(index).resetReconnectionTimer();
+                                            }
                                         }
-                                    });
+
+                                    }
+                                    if (index != -1) {
+                                        final Channel channel = channels.get(index);
+                                        channel.startConnectionCompleteTimer(new Timer.Callback() {
+                                            @Override
+                                            public void onFinished() {
+                                                mainHandler.post(new Runnable() {
+                                                    @Override
+                                                    public void run() {
+                                                        // means that the connection failed because it did not happen completely by the end of the timer
+                                                        if (channel.getPeer().isReconnecting()) {
+                                                            stopReconnection(channel);
+                                                        } else {
+                                                            channel.disconnect(disconnectionCallback);
+                                                        }
+                                                    }
+                                                });
+                                            }
+                                        });
+                                    }
                                 }
                             }
 

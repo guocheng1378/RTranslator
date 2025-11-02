@@ -30,6 +30,7 @@ import android.os.Build;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import nie.translator.rtranslator.bluetooth.tools.BluetoothTools;
 import nie.translator.rtranslator.bluetooth.tools.Timer;
@@ -46,6 +47,25 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
 
     public BluetoothConnectionClient(final Context context, String uniqueName, @NonNull final BluetoothAdapter bluetoothAdapter, final int strategy, final Callback callback) {
         super(context, uniqueName, bluetoothAdapter, strategy, callback);
+        this.disconnectionCallback = new Channel.DisconnectionCallback() {
+            @Override
+            public void onAlreadyDisconnected(Peer peer) {
+                int index = channels.indexOf(peer);
+                if (index != -1) {
+                    channels.remove(index);
+                }
+            }
+
+            @Override
+            public void onDisconnectionSuccess(BluetoothGatt gatt){
+                manageDisconnection(gatt);
+            }
+
+            @Override
+            public void onDisconnectionFailed() {
+                notifyDisconnectionFailed();
+            }
+        };
         channelsCallback = new BluetoothGattCallback() {
             @Override
             public void onConnectionStateChange(final BluetoothGatt gatt, int status, final int newState) {
@@ -85,65 +105,7 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
                             }
 
                         } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                            ArrayList<String> channelsNames = new ArrayList<>();
-                            for (nie.translator.rtranslator.bluetooth.Channel channel : channels) {
-                                channelsNames.add(channel.getPeer().getDevice().getAddress() + " ");
-                            }
-
-                            synchronized (channelsLock) {
-                                gatt.close();
-                                int index = channels.indexOf(new nie.translator.rtranslator.bluetooth.Peer(gatt.getDevice(), null, true));
-                                if (index == -1) {  // in case the device of the channel that failed the reconnection has been changed by onReconnectingPeerFound
-                                    nie.translator.rtranslator.bluetooth.Peer peer = pendingConnections.peekFirst();
-                                    if (peer != null) {
-                                        index = indexOfChannel(peer.getUniqueName());  // the comparison will thus be based on the name instead of the address (which is different in this case) (to be reviewed in case of problems)
-                                    }
-                                }
-
-                                if (index != -1) {     // is used to manage synchronization with the server to avoid adding a device that connects to the latter instead of us
-                                    ((nie.translator.rtranslator.bluetooth.ClientChannel) channels.get(index)).setBluetoothGatt(null);
-                                    channels.get(index).getPeer().setHardwareConnected(false);
-                                    if (channels.get(index).getPeer().isDisconnecting()) {
-                                        channels.get(index).onDisconnected();
-                                    }
-
-                                    if (channels.get(index).getPeer().isConnected()) {
-                                        if (channels.get(index).getPeer().isDisconnecting()) {
-                                            // disconnection
-                                            notifyDisconnection(channels.get(index));
-                                        } else {
-                                            // connection lost
-                                            notifyConnectionLost(channels.get(index));
-                                        }
-
-                                    } else {
-                                        if (channels.get(index).getPeer().isReconnecting()) {
-                                            if (channels.get(index).getPeer().isRequestingReconnection()) {
-                                                if (channels.get(index).getReconnectionTimer() != null && !channels.get(index).getReconnectionTimer().isFinished()) {
-                                                    // pending connections update
-                                                    pendingConnections.setFirst(channels.get(index).getPeer());
-                                                    // reconnection
-                                                    connect();
-                                                }
-                                            } else {
-                                                if (channels.get(index).getPeer().isDisconnecting()) {
-                                                    // we had a disconnection after the stopReconnection call (due to the latter method)
-                                                    notifyDisconnection(channels.get(index));
-
-                                                } else {
-                                                    // we had a disconnect between the hw connection and the complete connection
-                                                    stopReconnection(channels.get(index));
-
-                                                }
-                                            }
-                                        } else {
-                                            // connection failed
-                                            notifyConnectionFailed(channels.get(index));
-                                        }
-
-                                    }
-                                }
-                            }
+                            manageDisconnection(gatt);
                         }
                     }
                 });
@@ -572,6 +534,68 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
         });    // to cancel a possible connection in progress and to notify the disconnection
     }
 
+    private void manageDisconnection(BluetoothGatt gatt){
+        ArrayList<String> channelsNames = new ArrayList<>();
+        for (nie.translator.rtranslator.bluetooth.Channel channel : channels) {
+            channelsNames.add(channel.getPeer().getDevice().getAddress() + " ");
+        }
+
+        synchronized (channelsLock) {
+            gatt.close();
+            int index = channels.indexOf(new nie.translator.rtranslator.bluetooth.Peer(gatt.getDevice(), null, true));
+            if (index == -1) {  // in case the device of the channel that failed the reconnection has been changed by onReconnectingPeerFound
+                nie.translator.rtranslator.bluetooth.Peer peer = pendingConnections.peekFirst();
+                if (peer != null) {
+                    index = indexOfChannel(peer.getUniqueName());  // the comparison will thus be based on the name instead of the address (which is different in this case) (to be reviewed in case of problems)
+                }
+            }
+
+            if (index != -1) {     // is used to manage synchronization with the server to avoid adding a device that connects to the latter instead of us
+                ((nie.translator.rtranslator.bluetooth.ClientChannel) channels.get(index)).setBluetoothGatt(null);
+                channels.get(index).getPeer().setHardwareConnected(false);
+                if (channels.get(index).getPeer().isDisconnecting()) {
+                    channels.get(index).onDisconnected();
+                }
+
+                if (channels.get(index).getPeer().isConnected()) {
+                    if (channels.get(index).getPeer().isDisconnecting()) {
+                        // disconnection
+                        notifyDisconnection(channels.get(index));
+                    } else {
+                        // connection lost
+                        notifyConnectionLost(channels.get(index));
+                    }
+
+                } else {
+                    if (channels.get(index).getPeer().isReconnecting()) {
+                        if (channels.get(index).getPeer().isRequestingReconnection()) {
+                            if (channels.get(index).getReconnectionTimer() != null && !channels.get(index).getReconnectionTimer().isFinished()) {
+                                // pending connections update
+                                pendingConnections.setFirst(channels.get(index).getPeer());
+                                // reconnection
+                                connect();
+                            }
+                        } else {
+                            if (channels.get(index).getPeer().isDisconnecting()) {
+                                // we had a disconnection after the stopReconnection call (due to the latter method)
+                                notifyDisconnection(channels.get(index));
+
+                            } else {
+                                // we had a disconnect between the hw connection and the complete connection
+                                stopReconnection(channels.get(index));
+
+                            }
+                        }
+                    } else {
+                        // connection failed
+                        notifyConnectionFailed(channels.get(index));
+                    }
+
+                }
+            }
+        }
+    }
+
     private boolean refreshDeviceCache(BluetoothGatt gatt) {
         try {
             Method localMethod = gatt.getClass().getMethod("refresh");
@@ -672,7 +696,6 @@ class BluetoothConnectionClient extends nie.translator.rtranslator.bluetooth.Blu
         callback.onPeerUpdated(peerClone, newPeer);
     }
 
-    @SuppressWarnings("StatementWithEmptyBody")
     @Override
     protected void notifyDisconnection(nie.translator.rtranslator.bluetooth.Channel channel) {
         pendingConnections.remove(channel.getPeer());   // remove the peer in case it is trying to reconnect

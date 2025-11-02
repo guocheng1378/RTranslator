@@ -16,6 +16,7 @@
 
 package nie.translator.rtranslator.bluetooth;
 
+import android.bluetooth.BluetoothGatt;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
@@ -503,6 +504,8 @@ abstract class Channel {
     public static abstract class DisconnectionCallback {
         public void onAlreadyDisconnected(Peer peer) {
         }
+
+        public void onDisconnectionSuccess(BluetoothGatt gatt) {}
 
         public abstract void onDisconnectionFailed();
     }

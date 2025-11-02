@@ -53,20 +53,6 @@ abstract class BluetoothConnection {
         this.uniqueName = uniqueName;
         this.bluetoothAdapter = bluetoothAdapter;
         this.mainHandler = new Handler(Looper.getMainLooper());
-        this.disconnectionCallback = new Channel.DisconnectionCallback() {
-            @Override
-            public void onAlreadyDisconnected(Peer peer) {
-                int index = channels.indexOf(peer);
-                if (index != -1) {
-                    channels.remove(index);
-                }
-            }
-
-            @Override
-            public void onDisconnectionFailed() {
-                notifyDisconnectionFailed();
-            }
-        };
     }
 
     public abstract void updateName(String uniqueName);
