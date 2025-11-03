@@ -310,7 +310,7 @@ public class BluetoothCommunicator {
                             if (state == BluetoothAdapter.STATE_OFF) {
                                 if (bluetoothAdapter != null) {
                                     if (destroying) {
-                                        g
+                                        releaseResourcesAndRestoreBluetoothStatus();
                                     } else {
                                         stopAdvertising(false);
                                         stopDiscovery(false);
