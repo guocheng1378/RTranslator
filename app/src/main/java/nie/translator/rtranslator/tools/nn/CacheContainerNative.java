@@ -35,6 +35,11 @@ public class CacheContainerNative {
     private OnnxTensor[] cacheTensors;
     private long cacheContainerNativePointer;
 
+    //Used to load CacheContainerNative.cpp on application startup
+    static {
+        System.loadLibrary("cache_container_native");
+    }
+
     public CacheContainerNative(OrtEnvironment env, OrtSession.Result cache, int nLevels, int batchSize, int nHeads, int sequenceLength, int hiddenSize){
         try {
             cacheTensors = new OnnxTensor[nLevels*2];

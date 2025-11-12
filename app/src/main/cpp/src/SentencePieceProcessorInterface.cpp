@@ -17,7 +17,7 @@
 #include <jni.h>
 #include <stdio.h>
 #include <string>
-#include "sentencepiece_processor.h"
+#include "libs/sentencepiece/include/sentencepiece_processor.h"
 
 using namespace sentencepiece;
 
