@@ -32,7 +32,7 @@ android {
         compileSdk 36
         versionCode 24
         versionName '2.1.4'
-        minSdkVersion 24
+        minSdkVersion 28
         externalNativeBuild {
             cmake {
                 cppFlags ''
