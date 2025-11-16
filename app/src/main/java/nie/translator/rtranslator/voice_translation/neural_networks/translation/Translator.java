@@ -812,7 +812,6 @@ public class Translator extends NeuralNetworkApi {
         }
     }
 
-    // for now beam search is not included (and not updated, so it won't work with the final models) because with this implementation we have random crashes
     public void executeCacheDecoderBeam(String textToTranslate, TokenizerResult input, OnnxTensor encoderResult, ArrayList<Integer>[] completeBeamOutput, double[] beamsOutputsProbabilities, final CustomLocale outputLanguage, int beamSize, @Nullable final TranslateListener responseListener) {
         final int eos = tokenizer.PieceToID("</s>");
         int nLayers;
