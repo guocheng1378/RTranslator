@@ -1,8 +1,6 @@
 *.iml
 .gradle
 /local.properties
-.idea/
-!/.idea/runConfigurations.xml
 .DS_Store
 /build
 /captures
