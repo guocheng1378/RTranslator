@@ -54,7 +54,6 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.kyleduo.switchbutton.SwitchButton;
 import nie.translator.rtranslator.R;
 import nie.translator.rtranslator.tools.Tools;
 import nie.translator.rtranslator.tools.gui.ButtonKeyboard;
@@ -220,24 +219,6 @@ public class CustomAnimator {
         final int micFinalSize=Tools.convertDpToPixels(context,micSizeInDp);
         Animator micAnimator=createAnimatorSize(buttonMic,buttonMic.getWidth(),buttonMic.getHeight(),micFinalSize,micFinalSize,context.getResources().getInteger(R.integer.durationStandard));
         micAnimator.start();
-    }
-
-    public void animatePairingSwitchActivation(SwitchButton switchButton){
-        AnimatorSet animatorSet= new AnimatorSet();
-        int duration=switchButton.getResources().getInteger(R.integer.durationLong);
-        Animator animatorThumb=createAnimatorColor(switchButton,switchButton.getThumbColor().getDefaultColor(), GuiTools.getColor(switchButton.getContext(),R.color.switch_color),duration,false);
-        Animator animatorBack=createAnimatorColor(switchButton,switchButton.getBackColor().getDefaultColor(),GuiTools.getColor(switchButton.getContext(),R.color.switch_background_color),duration,true);
-        animatorSet.play(animatorThumb).with(animatorBack);
-        animatorSet.start();
-    }
-
-    public void animatePairingSwitchDeactivation(SwitchButton switchButton){
-        AnimatorSet animatorSet= new AnimatorSet();
-        int duration=switchButton.getResources().getInteger(R.integer.durationLong);
-        Animator animatorThumb=createAnimatorColor(switchButton,switchButton.getThumbColor().getDefaultColor(),GuiTools.getColor(switchButton.getContext(),R.color.gray),duration,false);
-        Animator animatorBack=createAnimatorColor(switchButton,switchButton.getBackColor().getDefaultColor(),GuiTools.getColor(switchButton.getContext(),R.color.very_light_gray),duration,true);
-        animatorSet.play(animatorThumb).with(animatorBack);
-        animatorSet.start();
     }
 
     public void animateOnVoiceStart(Context context, final ButtonMic buttonMic, boolean instant){
@@ -1516,32 +1497,6 @@ public class CustomAnimator {
                 card.setCardBackgroundColor((int) animator.getAnimatedValue());
             }
         });
-        animator.setDuration(duration);
-
-        return animator;
-    }
-
-    public Animator createAnimatorColor(final SwitchButton drawable, int initialColor, int finalColor, int duration, boolean background){
-        final int[][] states = new int[][] {
-                new int[] {android.R.attr.state_checked}, // checked
-                new int[] {-android.R.attr.state_checked}, // unchecked
-        };
-        ValueAnimator animator = ValueAnimator.ofObject(new ArgbEvaluator(), initialColor, finalColor);
-        if(background) {
-            animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animator) {
-                    drawable.setBackColor(new ColorStateList(states,new int[]{(int) animator.getAnimatedValue(),(int) animator.getAnimatedValue()}));
-                }
-            });
-        }else{
-            animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animator) {
-                    drawable.setThumbColor(new ColorStateList(states,new int[]{(int) animator.getAnimatedValue(),(int) animator.getAnimatedValue()}));
-                }
-            });
-        }
         animator.setDuration(duration);
 
         return animator;
