@@ -22,7 +22,7 @@ public class SentencePieceProcessorJava {
 
     //Used to load SentencePieceProcessorInterface.cpp with its sentencepiece.a library on application startup
     static {
-        System.loadLibrary("sentencepiece");
+        System.loadLibrary("sentencepiece-interface");
     }
 
     private final long spProcessorPointer;

@@ -15,16 +15,14 @@
 cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
 project(rtranslator_native)
 
-include_directories(
-        ${CMAKE_CURRENT_SOURCE_DIR}/libs/sentencepieceStatic/include/third_party/protobuf-lite
-)
+add_subdirectory(libs/sentencepiece)
 
-add_library(sentencepiece SHARED SentencePieceProcessorInterface.cpp)
+add_library(sentencepiece-interface SHARED SentencePieceProcessorInterface.cpp)
 
 add_library(cache_container_native SHARED CacheContainerNative.cpp)
 
-target_link_libraries(sentencepiece
-        ${CMAKE_CURRENT_SOURCE_DIR}/libs/sentencepiece/libsentencepiece.a
+target_link_libraries(sentencepiece-interface
+        sentencepiece-static
         android
         log
 )
