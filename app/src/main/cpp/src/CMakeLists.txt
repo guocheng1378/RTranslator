@@ -24,7 +24,7 @@ add_library(bergamot_translator_interface SHARED BergamotTranslator.cpp)
 
 
 target_link_libraries(sentencepiece-interface
-        sentencepiece-static
+        sentencepiece-static-android
         android
         log
 )

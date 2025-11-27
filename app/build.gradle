@@ -49,12 +49,14 @@ android {
                         '-DUSE_WASM_COMPATIBLE_SOURCE=OFF',
                         '-DTHREADS_PREFER_PTHREAD_FLAG=ON',
                         '-DUSE_TCMALLOC=OFF',
-                        '-DSSPLIT_USE_INTERNAL_PCRE2=ON',
+                        '-DSSPLIT_USE_INTERNAL_PCRE2:BOOL=ON',
                         '-DUSE_PATHIECPP=ON',
-                        '-DBUILD_ARCH=armv8-a'
+                        '-DBUILD_ARCH=armv8-a',
+                        '-G',
+                        'Ninja'
                         //'-DCMAKE_C_FLAGS="-O3 -fPIC -march=armv8-a -mtune=generic -ffast-math -funroll-loops -fdata-sections -ffunction-sections"',
                         //'-DCMAKE_CXX_FLAGS="-O3 -fPIC -march=armv8-a -mtune=generic -ffast-math -funroll-loops -fdata-sections -ffunction-sections"'
-                cppFlags ''
+                cppFlags '-std=c++17'
                 abiFilters 'arm64-v8a'
             }
         }
