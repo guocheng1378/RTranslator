@@ -35,6 +35,25 @@ android {
         minSdkVersion 28
         externalNativeBuild {
             cmake {
+                arguments '-DSPM_ENABLE_SHARED=OFF',  //sentencepiece flags
+                        '-DSPM_BUILD_TEST=OFF',
+                        '-DSPM_ENABLE_TCMALLOC=OFF',
+                        //bergamot flags
+                        '-DANDROID_ABI=arm64-v8a',
+                        '-DANDROID_PLATFORM=android-28',
+                        '-DANDROID_STL=c++_static',
+                        '-DCMAKE_BUILD_TYPE=Release',
+                        '-DBUILD_SHARED_LIBS=OFF',
+                        '-DUSE_STATIC_LIBS=ON',
+                        '-DCOMPILE_CUDA=OFF',
+                        '-DUSE_WASM_COMPATIBLE_SOURCE=OFF',
+                        '-DTHREADS_PREFER_PTHREAD_FLAG=ON',
+                        '-DUSE_TCMALLOC=OFF',
+                        '-DSSPLIT_USE_INTERNAL_PCRE2=ON',
+                        '-DUSE_PATHIECPP=ON',
+                        '-DBUILD_ARCH=armv8-a'
+                        //'-DCMAKE_C_FLAGS="-O3 -fPIC -march=armv8-a -mtune=generic -ffast-math -funroll-loops -fdata-sections -ffunction-sections"',
+                        //'-DCMAKE_CXX_FLAGS="-O3 -fPIC -march=armv8-a -mtune=generic -ffast-math -funroll-loops -fdata-sections -ffunction-sections"'
                 cppFlags ''
                 abiFilters 'arm64-v8a'
             }
