@@ -16,7 +16,7 @@ cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
 project(rtranslator_native)
 
 include_directories(
-        ${CMAKE_CURRENT_SOURCE_DIR}/libs/sentencepiece/include/third_party/protobuf-lite
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/sentencepieceStatic/include/third_party/protobuf-lite
 )
 
 add_library(sentencepiece SHARED SentencePieceProcessorInterface.cpp)

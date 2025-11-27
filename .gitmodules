@@ -1,0 +1,3 @@
+[submodule "app/src/main/cpp/src/libs/sentencepiece"]
+	path = app/src/main/cpp/src/libs/sentencepiece
+	url = https://github.com/niedev/sentencepiece
