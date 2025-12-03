@@ -63,29 +63,9 @@ public class SupportLanguagesQuality extends SwitchPreference {
     public void downloadLanguages() {
         if(global != null && fragment != null) {
             fragment.addDownload();
-            global.getLanguages(false, true, new Global.GetLocalesListListener() {
-                @Override
-                public void onSuccess(ArrayList<CustomLocale> result) {
-                    fragment.removeDownload();
-                    fragment.getLanguagePreference().initializeLanguagesList();
-                }
-
-                @Override
-                public void onFailure(int[] reasons, long value) {
-                    for (int aReason : reasons) {
-                        switch (aReason) {
-                            case ErrorCodes.MISSED_ARGUMENT:
-                            case ErrorCodes.SAFETY_NET_EXCEPTION:
-                            case ErrorCodes.MISSED_CONNECTION:
-                                fragment.onFailure(new int[]{aReason}, value, SettingsFragment.DOWNLOAD_LANGUAGES, null);
-                                break;
-                            default:
-                                activity.onError(aReason, value);
-                                break;
-                        }
-                    }
-                }
-            });
+            global.getLanguages(false);
+            fragment.removeDownload();
+            fragment.getLanguagePreference().initializeLanguagesList();
         }
     }
 

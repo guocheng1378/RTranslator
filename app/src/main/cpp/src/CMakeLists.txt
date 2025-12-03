@@ -21,6 +21,7 @@ add_subdirectory(libs/bergamot)
 add_library(sentencepiece-interface SHARED SentencePieceProcessorInterface.cpp)
 add_library(cache_container_native SHARED CacheContainerNative.cpp)
 add_library(bergamot_translator_interface SHARED BergamotTranslator.cpp)
+add_library(bergamot_translator_interface_old SHARED BergamotTranslator_old.cpp)
 
 
 target_link_libraries(sentencepiece-interface
@@ -35,6 +36,12 @@ target_link_libraries(cache_container_native
 )
 
 target_link_libraries(bergamot_translator_interface
+        bergamot-translator
+        android
+        log
+)
+
+target_link_libraries(bergamot_translator_interface_old
         bergamot-translator
         android
         log

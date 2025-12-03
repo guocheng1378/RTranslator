@@ -63,6 +63,7 @@ import nie.translator.rtranslator.bluetooth.Message;
 import nie.translator.rtranslator.tools.CustomLocale;
 import nie.translator.rtranslator.tools.ErrorCodes;
 import nie.translator.rtranslator.tools.FileTools;
+import nie.translator.rtranslator.tools.gui.animations.CustomAnimator;
 import nie.translator.rtranslator.tools.gui.messages.GuiMessage;
 import nie.translator.rtranslator.tools.nn.CacheContainerNative;
 import nie.translator.rtranslator.tools.nn.TensorUtils;
@@ -77,7 +78,10 @@ public class Translator extends NeuralNetworkApi {
     public static final int NLLB_CACHE = 6;
     public static final int MADLAD = 3;
     public static final int MADLAD_CACHE = 5;
+    public static final int MOZILLA = 7;
+    public static final int TRANSLATOR_MODE = MOZILLA;
     private final int mode;
+    private final BergamotModelsIndicator bergamotModelsIndicator = new BergamotModelsIndicator();
     private Tokenizer tokenizer;
     private OrtEnvironment onnxEnv;
     private OrtSession encoderSession;
@@ -96,9 +100,18 @@ public class Translator extends NeuralNetworkApi {
     private android.os.Handler mainHandler;   // handler that can be used to post to the main thread
     private ArrayDeque<DataContainer> dataToTranslate = new ArrayDeque<>();
     private final Object lock = new Object();
+    private final Object mozillaLock = new Object();
     private final int EMPTY_BATCH_SIZE = 1;
     private boolean translatingMessages = false;
     private boolean translating = false;
+    private static final String[] mozillaLanguages = new String[]{
+            "zh",
+            "it",
+            "fr",
+            "de",
+            "ko",
+            "ja"
+    };
 
 
     public Translator(@NonNull Global global, int mode, InitListener initListener) {
@@ -123,40 +136,71 @@ public class Translator extends NeuralNetworkApi {
                 }
 
                 try {
-                    OrtSession.SessionOptions decoderOptions = new OrtSession.SessionOptions();
-                    decoderOptions.setMemoryPatternOptimization(false);
-                    decoderOptions.setCPUArenaAllocator(false);
-                    decoderOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
-                    decoderSession = onnxEnv.createSession(decoderPath, decoderOptions);
+                    if(mode == MOZILLA){
+                        BergamotTranslator.initializeService();
+                        //initial loading of models for text translation and walkietalkie mode
+                        CustomLocale firstTextLanguage = global.getFirstTextLanguage(true);
+                        CustomLocale secondTextLanguage = global.getSecondTextLanguage(true);
+                        loadMozillaModels(firstTextLanguage, secondTextLanguage, Global.RTranslatorMode.TEXT_TRANSLATION_MODE, new GeneralListener() {
+                            @Override
+                            public void onSuccess() {
+                                CustomLocale firstLanguage = global.getFirstLanguage(true);
+                                CustomLocale secondLanguage = global.getSecondLanguage(true);
+                                loadMozillaModels(firstLanguage, secondLanguage, Global.RTranslatorMode.WALKIE_TALKIE_MODE, new GeneralListener() {
+                                    @Override
+                                    public void onSuccess() {
+                                        //mainHandler.post(() -> initListener.onInitializationFinished());
+                                        initListener.onInitializationFinished();
+                                    }
 
-                    OrtSession.SessionOptions encoderOptions = new OrtSession.SessionOptions();
-                    encoderOptions.setMemoryPatternOptimization(false);
-                    encoderOptions.setCPUArenaAllocator(false);
-                    encoderOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
-                    encoderSession = onnxEnv.createSession(encoderPath, encoderOptions);
+                                    @Override
+                                    public void onFailure(int[] reasons, long value) {
+                                        //todo: gestire errore
+                                    }
+                                });
+                            }
 
-                    OrtSession.SessionOptions cacheInitOptions = new OrtSession.SessionOptions();
-                    cacheInitOptions.setMemoryPatternOptimization(false);
-                    cacheInitOptions.setCPUArenaAllocator(false);
-                    cacheInitOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
-                    cacheInitSession = onnxEnv.createSession(cacheInitializerPath, cacheInitOptions);
-
-                    OrtSession.SessionOptions embedAndLmHeadOptions = new OrtSession.SessionOptions();
-                    embedAndLmHeadOptions.setMemoryPatternOptimization(false);
-                    embedAndLmHeadOptions.setCPUArenaAllocator(false);
-                    embedAndLmHeadOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
-                    if(mode == MADLAD_CACHE) {
-                        embedSession = onnxEnv.createSession(embedAndLmHeadPath, embedAndLmHeadOptions);
+                            @Override
+                            public void onFailure(int[] reasons, long value) {
+                                //todo: gestire errore
+                            }
+                        });
                     }else {
-                        embedAndLmHeadSession = onnxEnv.createSession(embedAndLmHeadPath, embedAndLmHeadOptions);
+                        OrtSession.SessionOptions decoderOptions = new OrtSession.SessionOptions();
+                        decoderOptions.setMemoryPatternOptimization(false);
+                        decoderOptions.setCPUArenaAllocator(false);
+                        decoderOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
+                        decoderSession = onnxEnv.createSession(decoderPath, decoderOptions);
+
+                        OrtSession.SessionOptions encoderOptions = new OrtSession.SessionOptions();
+                        encoderOptions.setMemoryPatternOptimization(false);
+                        encoderOptions.setCPUArenaAllocator(false);
+                        encoderOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
+                        encoderSession = onnxEnv.createSession(encoderPath, encoderOptions);
+
+                        OrtSession.SessionOptions cacheInitOptions = new OrtSession.SessionOptions();
+                        cacheInitOptions.setMemoryPatternOptimization(false);
+                        cacheInitOptions.setCPUArenaAllocator(false);
+                        cacheInitOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
+                        cacheInitSession = onnxEnv.createSession(cacheInitializerPath, cacheInitOptions);
+
+                        OrtSession.SessionOptions embedAndLmHeadOptions = new OrtSession.SessionOptions();
+                        embedAndLmHeadOptions.setMemoryPatternOptimization(false);
+                        embedAndLmHeadOptions.setCPUArenaAllocator(false);
+                        embedAndLmHeadOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
+                        if (mode == MADLAD_CACHE) {
+                            embedSession = onnxEnv.createSession(embedAndLmHeadPath, embedAndLmHeadOptions);
+                        } else {
+                            embedAndLmHeadSession = onnxEnv.createSession(embedAndLmHeadPath, embedAndLmHeadOptions);
+                        }
+
+                        decoderOptions.close();
+                        encoderOptions.close();
+                        cacheInitOptions.close();
+
+                        //mainHandler.post(() -> initListener.onInitializationFinished());
+                        initListener.onInitializationFinished();
                     }
-
-                    decoderOptions.close();
-                    encoderOptions.close();
-                    cacheInitOptions.close();
-
-                    //mainHandler.post(() -> initListener.onInitializationFinished());
-                    initListener.onInitializationFinished();
 
                 } catch (OrtException e) {
                     e.printStackTrace();
@@ -423,6 +467,58 @@ public class Translator extends NeuralNetworkApi {
         void onDetectedText(NeuralNetworkApiResult firstResult, NeuralNetworkApiResult secondResult, int message);
     }
 
+    public void loadMozillaModels(CustomLocale srcLang, CustomLocale trgLang, Global.RTranslatorMode mode, GeneralListener listener){
+        new Thread(() -> {
+            synchronized (mozillaLock) {
+                try {
+                    CustomLocale[] currentModeModels = null;
+                    switch (mode) {
+                        case TEXT_TRANSLATION_MODE:
+                            currentModeModels = bergamotModelsIndicator.textTranslationModels;
+                            break;
+                        case WALKIE_TALKIE_MODE:
+                            currentModeModels = bergamotModelsIndicator.walkieTalkieModels;
+                            break;
+                        case CONVERSATION_MODE:
+                            currentModeModels = bergamotModelsIndicator.conversationModels;
+                            break;
+                    }
+                    //we unload from bergamot the models of this mode that will no longer be used (if they are not used by other modes)
+                    for (CustomLocale model : currentModeModels) {
+                        if (model != null && !model.equals(srcLang) && !model.equals(trgLang) && !bergamotModelsIndicator.isModelContainedInOtherModes(model, mode)) {
+                            BergamotTranslator.unloadModelFromCache(model);
+                        }
+                    }
+                    //we load in bergamot translator the new models that are not already loaded
+                    ArrayList<CustomLocale> allUniqueModels = bergamotModelsIndicator.getAllUniqueModels();
+                    if (!allUniqueModels.contains(srcLang)) {
+                        BergamotTranslator.loadModelIntoCache(global, srcLang);
+                    }
+                    //we update the indicator to reflect the new models status
+                    currentModeModels[0] = srcLang;
+                    currentModeModels[1] = trgLang;
+                    //we notify the success of the loading
+                    listener.onSuccess();
+                } catch (Exception e) {
+                    Log.e("bergamot", e.getMessage());
+                    listener.onFailure(new int[]{0}, 0); //todo: implementare una vera gestione degli errori
+                }
+            }
+        }).start();
+    }
+
+    public void unloadAllMozillaModels(GeneralListener listener){
+        new Thread(() -> {
+            synchronized (mozillaLock) {
+                for (CustomLocale model : bergamotModelsIndicator.getAllUniqueModels()) {
+                    BergamotTranslator.unloadModelFromCache(model);
+                }
+                bergamotModelsIndicator.reset();
+                listener.onSuccess();
+            }
+        }).start();
+    }
+
     public void addCallback(final TranslateListener callback) {
         callbacks.add(callback);
     }
@@ -445,132 +541,140 @@ public class Translator extends NeuralNetworkApi {
 
     private void performTextTranslation(final String textToTranslate, final CustomLocale inputLanguage, final CustomLocale outputLanguage, int beamSize, boolean saveResults, @Nullable final TranslateListener responseListener) {
         long initTime = System.currentTimeMillis();
+        String finalResult;
         android.util.Log.i("result", "Translation input: " + textToTranslate);
         if(saveResults) {
             lastInputText = new GuiMessage(new Message(global, textToTranslate), false, true);
         }
 
-        //we split the input text in sentences
-        ArrayList<String> textSplit = new ArrayList<>();
-        BreakIterator iterator = BreakIterator.getSentenceInstance(inputLanguage.getLocale());
-        iterator.setText(textToTranslate);
-        int start = iterator.first();
-        for (int end = iterator.next(); end != BreakIterator.DONE; start = end, end = iterator.next()) {
-            textSplit.add(textToTranslate.substring(start,end));
-        }
-        //we rejoin separated substrings whose union does not exceed the maximum input size
-        boolean joined = true;
-        while (joined) {
-            joined = false;
-            for (int i = 1; i < textSplit.size(); i++) {
-                int numTokens = tokenizer.tokenize(getNllbLanguageCode(inputLanguage.getCode()), getNllbLanguageCode(outputLanguage.getCode()), textSplit.get(i-1)).getInputIDs().length;
-                int numTokens2 = tokenizer.tokenize(getNllbLanguageCode(inputLanguage.getCode()), getNllbLanguageCode(outputLanguage.getCode()), textSplit.get(i)).getInputIDs().length;
-                if ((numTokens + numTokens2 < 200) || (numTokens2 < 5)) {
-                    textSplit.set(i-1, textSplit.get(i-1) + textSplit.get(i));
-                    textSplit.remove(i);
-                    i = i - 1;
-                    joined = true;
+        if(mode != MOZILLA){
+            //we split the input text in sentences
+            ArrayList<String> textSplit = new ArrayList<>();
+            BreakIterator iterator = BreakIterator.getSentenceInstance(inputLanguage.getLocale());
+            iterator.setText(textToTranslate);
+            int start = iterator.first();
+            for (int end = iterator.next(); end != BreakIterator.DONE; start = end, end = iterator.next()) {
+                textSplit.add(textToTranslate.substring(start, end));
+            }
+            //we rejoin separated substrings whose union does not exceed the maximum input size
+            boolean joined = true;
+            while (joined) {
+                joined = false;
+                for (int i = 1; i < textSplit.size(); i++) {
+                    int numTokens = tokenizer.tokenize(getNllbLanguageCode(inputLanguage.getCode()), getNllbLanguageCode(outputLanguage.getCode()), textSplit.get(i - 1)).getInputIDs().length;
+                    int numTokens2 = tokenizer.tokenize(getNllbLanguageCode(inputLanguage.getCode()), getNllbLanguageCode(outputLanguage.getCode()), textSplit.get(i)).getInputIDs().length;
+                    if ((numTokens + numTokens2 < 200) || (numTokens2 < 5)) {
+                        textSplit.set(i - 1, textSplit.get(i - 1) + textSplit.get(i));
+                        textSplit.remove(i);
+                        i = i - 1;
+                        joined = true;
+                    }
                 }
             }
-        }
-        android.util.Log.i("result", "Input text splitted in "+textSplit.size()+" subtexts:");
-        for (String subtext : textSplit) {
-            android.util.Log.i("result", subtext);
-        }
-        android.util.Log.i("performance", "Text split done in: " + (System.currentTimeMillis() - initTime) + "ms");
+            android.util.Log.i("result", "Input text splitted in " + textSplit.size() + " subtexts:");
+            for (String subtext : textSplit) {
+                android.util.Log.i("result", subtext);
+            }
+            android.util.Log.i("performance", "Text split done in: " + (System.currentTimeMillis() - initTime) + "ms");
 
-        final String[] joinedStringOutput = {""};
-        for(int i=0; i<textSplit.size(); i++) {
-            ArrayList<Integer>[] completeBeamOutput = new ArrayList[beamSize];  //contains the "beamSize" strings produced by the decoder
-            for (int j = 0; j < beamSize; j++) {
-                completeBeamOutput[j] = new ArrayList<Integer>();
-            }
-            double[] beamsOutputsProbabilities = new double[beamSize];  //contains for each of the "beamSize" strings produced by the decoder its overall probability
-            //tokenization
-            long time = System.currentTimeMillis();
-            TokenizerResult input = null;
-            String correctedSubText = correctText(textSplit.get(i), inputLanguage.getLocale());
-            if (mode == MADLAD_CACHE) {
-                input = tokenizer.tokenize(inputLanguage.getCode(), outputLanguage.getCode(), correctedSubText);
-            } else {  //if mode == NLLB_CACHE
-                input = tokenizer.tokenize(getNllbLanguageCode(inputLanguage.getCode()), getNllbLanguageCode(outputLanguage.getCode()), correctedSubText);
-            }
-            android.util.Log.i("performance", "Tokenization done in: " + (System.currentTimeMillis() - time) + "ms");
-            //encoder execution
-            time = System.currentTimeMillis();
-            OnnxTensor encoderResult = executeEncoder(input.getInputIDs(), input.getAttentionMask());
-            android.util.Log.i("performance", "Encoder done in: " + (System.currentTimeMillis() - time) + "ms");
-            if(encoderResult == null){
-                if (responseListener != null) {
-                    mainHandler.post(() -> responseListener.onFailure(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
-                } else {
-                    mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
-                }
-                return;
-            }
-            //decoder execution
-            final int eos = tokenizer.PieceToID("</s>");
-            ArrayList<Integer> completeOutput = new ArrayList<Integer>();
-            completeOutput.add(0);   //tokenizer.PieceToID("<s>")
-            TranslateListener translateListener = new TranslateListener() {
-                @Override
-                public void onTranslatedText(String textToTranslate, String text, long resultID, boolean isFinal, CustomLocale languageOfText) {
-                    //we return the partial results
-                    String outputText;
-                    if(joinedStringOutput[0].equals("")){
-                        outputText = joinedStringOutput[0] + text;
-                    } else {
-                        outputText = joinedStringOutput[0] + " " + text;
-                    }
-                    if (saveResults) {
-                        lastOutputText = new GuiMessage(new Message(global, outputText), currentResultID, false, false);
-                    }
-                    final long currentResultIDCopy = currentResultID;  //we do a copy because otherwise the currentResultID is incremented before notifying the message (due to the notification being executed in the mainThread)
-                    if (responseListener != null) {
-                        mainHandler.post(() -> responseListener.onTranslatedText(textToTranslate, outputText, currentResultIDCopy, false, outputLanguage));
-                    } else {
-                        mainHandler.post(() -> notifyResult(textToTranslate, outputText, currentResultIDCopy, false, outputLanguage));
-                    }
-                }
-
-                @Override
-                public void onFailure(int[] reasons, long value) {
-                    //we do not return the partial results and notify an error
-                    if (responseListener != null) {
-                        mainHandler.post(() -> responseListener.onFailure(reasons, value));
-                    } else {
-                        mainHandler.post(() -> notifyError(reasons, value));
-                    }
-                }
-            };
-            if (beamSize > 1) {  //beam search
-                executeCacheDecoderBeam(textToTranslate, input, encoderResult, completeBeamOutput, beamsOutputsProbabilities, outputLanguage, beamSize, translateListener);
-            } else if (beamSize == 1) {  //greedy search (with kv cache)
-                executeCacheDecoderGreedy(textToTranslate, input, encoderResult, completeOutput, outputLanguage, translateListener);
-            }
-            //we convert the ids of completeOutputs into a string and return it
-            encoderResult.close();
-            int[] completeOutputArray;
-            if (mode == MADLAD_CACHE || mode == NLLB_CACHE && beamSize > 1) {
-                int indexMax = 0;
+            final String[] joinedStringOutput = {""};
+            for (int i = 0; i < textSplit.size(); i++) {
+                ArrayList<Integer>[] completeBeamOutput = new ArrayList[beamSize];  //contains the "beamSize" strings produced by the decoder
                 for (int j = 0; j < beamSize; j++) {
-                    indexMax = Utils.getIndexOfLargest(beamsOutputsProbabilities);
+                    completeBeamOutput[j] = new ArrayList<Integer>();
                 }
-                completeOutputArray = completeBeamOutput[indexMax].stream().mapToInt(k -> k).toArray();
-            } else {
-                completeOutputArray = completeOutput.stream().mapToInt(k -> k).toArray();  //converte completeOutput in un array di int
+                double[] beamsOutputsProbabilities = new double[beamSize];  //contains for each of the "beamSize" strings produced by the decoder its overall probability
+                //tokenization
+                long time = System.currentTimeMillis();
+                TokenizerResult input = null;
+                String correctedSubText = correctText(textSplit.get(i), inputLanguage.getLocale());
+                if (mode == MADLAD_CACHE) {
+                    input = tokenizer.tokenize(inputLanguage.getCode(), outputLanguage.getCode(), correctedSubText);
+                } else {  //if mode == NLLB_CACHE
+                    input = tokenizer.tokenize(getNllbLanguageCode(inputLanguage.getCode()), getNllbLanguageCode(outputLanguage.getCode()), correctedSubText);
+                }
+                android.util.Log.i("performance", "Tokenization done in: " + (System.currentTimeMillis() - time) + "ms");
+                //encoder execution
+                time = System.currentTimeMillis();
+                OnnxTensor encoderResult = executeEncoder(input.getInputIDs(), input.getAttentionMask());
+                android.util.Log.i("performance", "Encoder done in: " + (System.currentTimeMillis() - time) + "ms");
+                if (encoderResult == null) {
+                    if (responseListener != null) {
+                        mainHandler.post(() -> responseListener.onFailure(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
+                    } else {
+                        mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
+                    }
+                    return;
+                }
+                //decoder execution
+                final int eos = tokenizer.PieceToID("</s>");
+                ArrayList<Integer> completeOutput = new ArrayList<Integer>();
+                completeOutput.add(0);   //tokenizer.PieceToID("<s>")
+                TranslateListener translateListener = new TranslateListener() {
+                    @Override
+                    public void onTranslatedText(String textToTranslate, String text, long resultID, boolean isFinal, CustomLocale languageOfText) {
+                        //we return the partial results
+                        String outputText;
+                        if (joinedStringOutput[0].equals("")) {
+                            outputText = joinedStringOutput[0] + text;
+                        } else {
+                            outputText = joinedStringOutput[0] + " " + text;
+                        }
+                        if (saveResults) {
+                            lastOutputText = new GuiMessage(new Message(global, outputText), currentResultID, false, false);
+                        }
+                        final long currentResultIDCopy = currentResultID;  //we do a copy because otherwise the currentResultID is incremented before notifying the message (due to the notification being executed in the mainThread)
+                        if (responseListener != null) {
+                            mainHandler.post(() -> responseListener.onTranslatedText(textToTranslate, outputText, currentResultIDCopy, false, outputLanguage));
+                        } else {
+                            mainHandler.post(() -> notifyResult(textToTranslate, outputText, currentResultIDCopy, false, outputLanguage));
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(int[] reasons, long value) {
+                        //we do not return the partial results and notify an error
+                        if (responseListener != null) {
+                            mainHandler.post(() -> responseListener.onFailure(reasons, value));
+                        } else {
+                            mainHandler.post(() -> notifyError(reasons, value));
+                        }
+                    }
+                };
+                if (beamSize > 1) {  //beam search
+                    executeCacheDecoderBeam(textToTranslate, input, encoderResult, completeBeamOutput, beamsOutputsProbabilities, outputLanguage, beamSize, translateListener);
+                } else if (beamSize == 1) {  //greedy search (with kv cache)
+                    executeCacheDecoderGreedy(textToTranslate, input, encoderResult, completeOutput, outputLanguage, translateListener);
+                }
+                //we convert the ids of completeOutputs into a string and return it
+                encoderResult.close();
+                int[] completeOutputArray;
+                if (mode == MADLAD_CACHE || mode == NLLB_CACHE && beamSize > 1) {
+                    int indexMax = 0;
+                    for (int j = 0; j < beamSize; j++) {
+                        indexMax = Utils.getIndexOfLargest(beamsOutputsProbabilities);
+                    }
+                    completeOutputArray = completeBeamOutput[indexMax].stream().mapToInt(k -> k).toArray();
+                } else {
+                    completeOutputArray = completeOutput.stream().mapToInt(k -> k).toArray();  //converte completeOutput in un array di int
+                }
+                String finalSplitResult = tokenizer.decode(completeOutputArray);
+                if (joinedStringOutput[0].equals("")) {
+                    joinedStringOutput[0] = joinedStringOutput[0] + finalSplitResult;
+                } else {
+                    joinedStringOutput[0] = joinedStringOutput[0] + " " + finalSplitResult;
+                }
             }
-            String finalSplitResult = tokenizer.decode(completeOutputArray);
-            if(joinedStringOutput[0].equals("")){
-                joinedStringOutput[0] = joinedStringOutput[0] + finalSplitResult;
-            }else {
-                joinedStringOutput[0] = joinedStringOutput[0] + " " + finalSplitResult;
+            long time = System.currentTimeMillis();
+            //String finalResult = tokenizer.decode(completeOutputArray);
+            finalResult = joinedStringOutput[0];
+            android.util.Log.i("performance", "Detokenization done in: " + (System.currentTimeMillis() - time) + "ms");
+        }else{
+            //perform text translation using mozilla models
+            synchronized (mozillaLock) {
+                finalResult = BergamotTranslator.translateMultiple(new String[]{textToTranslate}, inputLanguage, outputLanguage)[0];
             }
         }
-        long time = System.currentTimeMillis();
-        //String finalResult = tokenizer.decode(completeOutputArray);
-        String finalResult = joinedStringOutput[0];
-        android.util.Log.i("performance", "Detokenization done in: " + (System.currentTimeMillis() - time) + "ms");
         android.util.Log.i("performance", "TRANSLATION DONE IN: " + (System.currentTimeMillis() - initTime) + "ms");
         if (saveResults) {
             lastOutputText = new GuiMessage(new Message(global, finalResult), currentResultID, false, true);
@@ -1258,20 +1362,26 @@ public class Translator extends NeuralNetworkApi {
         boolean qualityLow = sharedPreferences.getBoolean("languagesNNQualityLow", false);
         DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();
         try {
-            DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
-            Document document = null;
-            if(mode == MADLAD){
-                document = documentBuilder.parse(context.getResources().openRawResource(R.raw.madlad_supported_launguages));
-            }else{  //if mode == NLLB
-                if(!qualityLow) {
-                    document = documentBuilder.parse(context.getResources().openRawResource(R.raw.nllb_supported_languages));
-                }else{
-                    document = documentBuilder.parse(context.getResources().openRawResource(R.raw.nllb_supported_languages_all));
+            if(mode != MOZILLA) {
+                DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
+                Document document = null;
+                if (mode == MADLAD || mode == MADLAD_CACHE) {
+                    document = documentBuilder.parse(context.getResources().openRawResource(R.raw.madlad_supported_launguages));
+                } else if (mode == NLLB || mode == NLLB_CACHE) {  //if mode == NLLB
+                    if (!qualityLow) {
+                        document = documentBuilder.parse(context.getResources().openRawResource(R.raw.nllb_supported_languages));
+                    } else {
+                        document = documentBuilder.parse(context.getResources().openRawResource(R.raw.nllb_supported_languages_all));
+                    }
                 }
-            }
-            NodeList list = document.getElementsByTagName("code");
-            for (int i = 0; i < list.getLength(); i++) {
-                languages.add(CustomLocale.getInstance(list.item(i).getTextContent()));
+                NodeList list = document.getElementsByTagName("code");
+                for (int i = 0; i < list.getLength(); i++) {
+                    languages.add(CustomLocale.getInstance(list.item(i).getTextContent()));
+                }
+            }else{
+                for(String lang: mozillaLanguages){
+                    languages.add(new CustomLocale(lang));
+                }
             }
         } catch (IOException | SAXException | ParserConfigurationException e) {
             e.printStackTrace();
@@ -1282,5 +1392,9 @@ public class Translator extends NeuralNetworkApi {
 
     private interface TranslatorListener {
         void onFailure(int[] reasons, long value);
+    }
+
+    public interface GeneralListener extends TranslatorListener {
+        void onSuccess();
     }
 }

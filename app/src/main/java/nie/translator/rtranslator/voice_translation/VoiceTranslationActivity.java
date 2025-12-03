@@ -477,58 +477,31 @@ public class VoiceTranslationActivity extends GeneralActivity {
 
     public void startConversationService(final Notification notification, final Global.ResponseListener responseListener) {
         final Intent intent = new Intent(this, ConversationService.class);
-        global.getLanguage(false, new Global.GetLocaleListener() {
-            @Override
-            public void onSuccess(CustomLocale result) {
-                if(NotificationManagerCompat.from(VoiceTranslationActivity.this).areNotificationsEnabled()) {
-                    intent.putExtra("notification", notification);
-                }else{
-                    //Toast.makeText(VoiceTranslationActivity.this, getResources().getString(R.string.toast_missing_notification_permission), Toast.LENGTH_LONG).show();
-                }
-                startService(intent);
-                responseListener.onSuccess();
-            }
-
-            @Override
-            public void onFailure(int[] reasons, long value) {
-                responseListener.onFailure(reasons, value);
-            }
-        });
+        global.getLanguage(false);
+        if(NotificationManagerCompat.from(VoiceTranslationActivity.this).areNotificationsEnabled()) {
+            intent.putExtra("notification", notification);
+        }else{
+            //Toast.makeText(VoiceTranslationActivity.this, getResources().getString(R.string.toast_missing_notification_permission), Toast.LENGTH_LONG).show();
+        }
+        startService(intent);
+        responseListener.onSuccess();
 
     }
 
     public void startWalkieTalkieService(final Notification notification, final Global.ResponseListener responseListener) {
         final Intent intent = new Intent(this, WalkieTalkieService.class);
         // initialization of the WalkieTalkieService
-        global.getFirstLanguage(false, new Global.GetLocaleListener() {
-            @Override
-            public void onSuccess(CustomLocale result) {
-                intent.putExtra("firstLanguage", result);
-                global.getSecondLanguage(false, new Global.GetLocaleListener() {
-                    @Override
-                    public void onSuccess(CustomLocale result) {
-                        intent.putExtra("secondLanguage", result);
-                        if(NotificationManagerCompat.from(VoiceTranslationActivity.this).areNotificationsEnabled()) {
-                            intent.putExtra("notification", notification);
-                        }else{
-                            //Toast.makeText(VoiceTranslationActivity.this, getResources().getString(R.string.toast_missing_notification_permission), Toast.LENGTH_LONG).show();
-                        }
-                        startService(intent);
-                        responseListener.onSuccess();
-                    }
-
-                    @Override
-                    public void onFailure(int[] reasons, long value) {
-                        responseListener.onFailure(reasons, value);
-                    }
-                });
-            }
-
-            @Override
-            public void onFailure(int[] reasons, long value) {
-                responseListener.onFailure(reasons, value);
-            }
-        });
+        CustomLocale firstLanguage = global.getFirstLanguage(false);
+        intent.putExtra("firstLanguage", firstLanguage);
+        CustomLocale secondLanguage = global.getSecondLanguage(false);
+        intent.putExtra("secondLanguage", secondLanguage);
+        if(NotificationManagerCompat.from(VoiceTranslationActivity.this).areNotificationsEnabled()) {
+            intent.putExtra("notification", notification);
+        }else{
+            //Toast.makeText(VoiceTranslationActivity.this, getResources().getString(R.string.toast_missing_notification_permission), Toast.LENGTH_LONG).show();
+        }
+        startService(intent);
+        responseListener.onSuccess();
     }
 
     public synchronized void connectToConversationService(final VoiceTranslationService.VoiceTranslationServiceCallback callback, final ServiceCommunicatorListener responseListener) {

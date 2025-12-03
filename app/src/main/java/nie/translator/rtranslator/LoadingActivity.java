@@ -100,7 +100,7 @@ public class LoadingActivity extends GeneralActivity {
     }
 
     private void initializeApp(boolean ignoreTTSError) {
-        global.getLanguages(false, ignoreTTSError, new Global.GetLocalesListListener() {
+        global.getLanguagesAndCheckTTS(false, ignoreTTSError, new Global.GetLocalesListListener() {
             @Override
             public void onSuccess(ArrayList<CustomLocale> result) {
                 global.initializeTranslator(new Translator.InitListener() {

@@ -40,8 +40,6 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.AppCompatImageButton;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.LinearSmoothScroller;
-import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 import nie.translator.rtranslator.Global;
@@ -528,72 +526,48 @@ public class WalkieTalkieFragment extends VoiceTranslationFragment {
         progressBar = editDialogLayout.findViewById(R.id.progressBar3);
         reloadButton = editDialogLayout.findViewById(R.id.reloadButton);
 
-        Global.GetLocaleListener listener = new Global.GetLocaleListener() {
-            @Override
-            public void onSuccess(final CustomLocale result) {
-                reloadButton.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        showList(languageNumber, result);
-                    }
-                });
-                showList(languageNumber, result);
-            }
-
-            @Override
-            public void onFailure(int[] reasons, long value) {
-                onFailureShowingList(reasons, value);
-            }
-        };
-
-        switch (languageNumber) {
-            case 1: {
-                global.getFirstLanguage(false, listener);
-                break;
-            }
-            case 2: {
-                global.getSecondLanguage(false, listener);
-                break;
-            }
+        CustomLocale result;
+        if (languageNumber == 1) {
+            result = global.getFirstLanguage(false);
+        } else {  //languageNumber == 2
+            result = global.getSecondLanguage(false);
         }
 
+        reloadButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showList(languageNumber, result);
+            }
+        });
+        showList(languageNumber, result);
     }
 
     private void showList(final int languageNumber, final CustomLocale selectedLanguage) {
         reloadButton.setVisibility(View.GONE);
-        progressBar.setVisibility(View.VISIBLE);
+        //progressBar.setVisibility(View.VISIBLE);
 
-        global.getLanguages(true, true, new Global.GetLocalesListListener() {
+        final ArrayList<CustomLocale> languages = global.getLanguages(true);
+        //progressBar.setVisibility(View.GONE);
+        listViewGui.setVisibility(View.VISIBLE);
+
+        listView = new LanguageListAdapter(activity, languages, selectedLanguage);
+        listViewGui.setAdapter(listView);
+        listViewGui.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
-            public void onSuccess(final ArrayList<CustomLocale> languages) {
-                progressBar.setVisibility(View.GONE);
-                listViewGui.setVisibility(View.VISIBLE);
-
-                listView = new LanguageListAdapter(activity, languages, selectedLanguage);
-                listViewGui.setAdapter(listView);
-                listViewGui.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                    @Override
-                    public void onItemClick(AdapterView<?> parent, View view, final int position, long id) {
-                        if (languages.contains((CustomLocale) listView.getItem(position))) {
-                            switch (languageNumber) {
-                                case 1: {
-                                    setFirstLanguage((CustomLocale) listView.getItem(position));
-                                    break;
-                                }
-                                case 2: {
-                                    setSecondLanguage((CustomLocale) listView.getItem(position));
-                                    break;
-                                }
-                            }
+            public void onItemClick(AdapterView<?> parent, View view, final int position, long id) {
+                if (languages.contains((CustomLocale) listView.getItem(position))) {
+                    switch (languageNumber) {
+                        case 1: {
+                            setFirstLanguage((CustomLocale) listView.getItem(position));
+                            break;
                         }
-                        dialog.dismiss();
+                        case 2: {
+                            setSecondLanguage((CustomLocale) listView.getItem(position));
+                            break;
+                        }
                     }
-                });
-            }
-
-            @Override
-            public void onFailure(int[] reasons, long value) {
-                onFailureShowingList(reasons, value);
+                }
+                dialog.dismiss();
             }
         });
     }

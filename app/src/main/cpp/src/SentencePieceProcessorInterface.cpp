@@ -44,7 +44,7 @@ Java_nie_translator_rtranslator_voice_1translation_neural_1networks_translation_
     std::vector<int> ids(1024,0);
     std::string string = jstringToString(env,text);
     (*proc).Encode(string, &ids);
-    return intVectorTojintArray(env,ids);;
+    return intVectorTojintArray(env,ids);
 }
 
 extern "C" jint

@@ -88,20 +88,11 @@ public class ConversationService extends VoiceTranslationService {
             public void onVoice(@NonNull float[] data, int size) {
                 if (mVoiceRecognizer != null) {
                     super.onVoice(data,size);
-                    global.getLanguage(true, new Global.GetLocaleListener() {
-                        @Override
-                        public void onSuccess(CustomLocale result) {
-                            int sampleRate = getVoiceRecorderSampleRate();
-                            if (sampleRate != 0) {
-                                mVoiceRecognizer.recognize(data, SPEECH_BEAM_SIZE, result.getCode());
-                            }
-                        }
-
-                        @Override
-                        public void onFailure(int[] reasons, long value) {
-                            ConversationService.super.notifyError(reasons, value);
-                        }
-                    });
+                    CustomLocale language = global.getLanguage(true);
+                    int sampleRate = getVoiceRecorderSampleRate();
+                    if (sampleRate != 0) {
+                        mVoiceRecognizer.recognize(data, SPEECH_BEAM_SIZE, language.getCode());
+                    }
                 }
             }
 
@@ -135,25 +126,16 @@ public class ConversationService extends VoiceTranslationService {
                     if (!ConversationService.super.executeCommand(command, message.getData())) {
                         switch (command) {
                             case RECEIVE_TEXT:
-                                global.getLanguage(true,new Global.GetLocaleListener() {
-                                    @Override
-                                    public void onSuccess(CustomLocale language) {
-                                        if (text != null) {
-                                            GuiMessage guiMessage = new GuiMessage(new Message(global, text), global.getTranslator().incrementCurrentResultID(), true, true);
-                                            // send the message
-                                            sendMessage(new ConversationMessage(new NeuralNetworkApiText(text, language)));
+                                CustomLocale language = global.getLanguage(true);
+                                if (text != null) {
+                                    GuiMessage guiMessage = new GuiMessage(new Message(global, text), global.getTranslator().incrementCurrentResultID(), true, true);
+                                    // send the message
+                                    sendMessage(new ConversationMessage(new NeuralNetworkApiText(text, language)));
 
-                                            notifyMessage(guiMessage);
-                                            // we save every new message in the exchanged messages so that the fragment can restore them
-                                            addOrUpdateMessage(guiMessage);
-                                        }
-                                    }
-
-                                    @Override
-                                    public void onFailure(int[] reasons, long value) {
-                                        ConversationService.super.notifyError(reasons, value);
-                                    }
-                                });
+                                    notifyMessage(guiMessage);
+                                    // we save every new message in the exchanged messages so that the fragment can restore them
+                                    addOrUpdateMessage(guiMessage);
+                                }
                                 break;
                         }
                     }
@@ -165,41 +147,32 @@ public class ConversationService extends VoiceTranslationService {
             @Override
             public void onMessageReceived(final Message message) {
                 super.onMessageReceived(message);
-                global.getLanguage(false,new Global.GetLocaleListener() {
+                CustomLocale language = global.getLanguage(false);
+                String completeText = message.getText();
+                int languageCodeSize = Integer.valueOf(completeText.substring(completeText.length() - 1));
+                String text = completeText.substring(0, completeText.length() - (languageCodeSize + 1));
+                String languageCode = completeText.substring(completeText.length() - (languageCodeSize + 1), completeText.length() - 1);
+
+                ConversationMessage conversationMessage = new ConversationMessage(message.getSender(), new NeuralNetworkApiText(text, CustomLocale.getInstance(languageCode)));
+                translator.translateMessage(conversationMessage, language, TRANSLATOR_BEAM_SIZE, new Translator.TranslateMessageListener() {
                     @Override
-                    public void onSuccess(CustomLocale result) {
-                        String completeText = message.getText();
-                        int languageCodeSize = Integer.valueOf(completeText.substring(completeText.length() - 1));
-                        String text = completeText.substring(0, completeText.length() - (languageCodeSize + 1));
-                        String languageCode = completeText.substring(completeText.length() - (languageCodeSize + 1), completeText.length() - 1);
-
-                        ConversationMessage conversationMessage = new ConversationMessage(message.getSender(), new NeuralNetworkApiText(text, CustomLocale.getInstance(languageCode)));
-                        translator.translateMessage(conversationMessage, result, TRANSLATOR_BEAM_SIZE, new Translator.TranslateMessageListener() {
+                    public void onTranslatedMessage(ConversationMessage conversationMessage, long messageID, boolean isFinal) {
+                        global.getTTSLanguages(true, new Global.GetLocalesListListener() {
                             @Override
-                            public void onTranslatedMessage(ConversationMessage conversationMessage, long messageID, boolean isFinal) {
-                                global.getTTSLanguages(true, new Global.GetLocalesListListener() {
-                                    @Override
-                                    public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
-                                        if(isFinal && CustomLocale.containsLanguage(ttsLanguages, conversationMessage.getPayload().getLanguage())) { // check if the language can be speak
-                                            speak(conversationMessage.getPayload().getText(), conversationMessage.getPayload().getLanguage());
-                                        }
-                                        message.setText(conversationMessage.getPayload().getText());   // updating the text with the new translated text (and without the language code)
-                                        GuiMessage guiMessage = new GuiMessage(message, messageID, false, isFinal);
-                                        notifyMessage(guiMessage);
-                                        // we save every new message in the exchanged messages so that the fragment can restore them
-                                        addOrUpdateMessage(guiMessage);
-                                    }
-
-                                    @Override
-                                    public void onFailure(int[] reasons, long value) {
-                                        //never called in this case
-                                    }
-                                });
+                            public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
+                                if(isFinal && CustomLocale.containsLanguage(ttsLanguages, conversationMessage.getPayload().getLanguage())) { // check if the language can be speak
+                                    speak(conversationMessage.getPayload().getText(), conversationMessage.getPayload().getLanguage());
+                                }
+                                message.setText(conversationMessage.getPayload().getText());   // updating the text with the new translated text (and without the language code)
+                                GuiMessage guiMessage = new GuiMessage(message, messageID, false, isFinal);
+                                notifyMessage(guiMessage);
+                                // we save every new message in the exchanged messages so that the fragment can restore them
+                                addOrUpdateMessage(guiMessage);
                             }
 
                             @Override
                             public void onFailure(int[] reasons, long value) {
-                                ConversationService.super.notifyError(reasons, value);
+                                //never called in this case
                             }
                         });
                     }

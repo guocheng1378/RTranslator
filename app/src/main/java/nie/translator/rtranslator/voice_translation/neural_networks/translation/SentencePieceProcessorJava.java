@@ -20,7 +20,7 @@ public class SentencePieceProcessorJava {
     //specialTokens is an array containing the symbols that sentencepiece does not translate correctly (their index is equal to their ID)
     private final String[] specialTokens = {"<s>", "<pad>", "</s>", "<unk>"};
 
-    //Used to load SentencePieceProcessorInterface.cpp with its sentencepiece.a library on application startup
+    //Used to load SentencePieceProcessorInterface.cpp with sentencepiece library on application startup
     static {
         System.loadLibrary("sentencepiece-interface");
     }

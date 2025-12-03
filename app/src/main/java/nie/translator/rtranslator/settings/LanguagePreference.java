@@ -70,31 +70,20 @@ public class LanguagePreference extends Preference {
     public void initializeLanguagesList() {
         Global global = (Global) fragment.requireActivity().getApplication();
         final String summary = (String) getSummary();
-        global.getLanguage(false, new Global.GetLocaleListener() {
+        CustomLocale result = global.getLanguage(false);
+        global.getTTSLanguages(false, new Global.GetLocalesListListener() {
             @Override
-            public void onSuccess(CustomLocale result) {
-                global.getTTSLanguages(false, new Global.GetLocalesListListener() {
-                    @Override
-                    public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
-                        if (getSummary() == null || "".equals((String) getSummary())) {    // to avoid changing the summary after a language change after the initializeLanguageList () call
-                            setSummary(result.getDisplayName(ttsLanguages));  // if we have an error of lack of internet we simply don't insert the summary
-                        } else if (summary != null && summary.equals((String) getSummary())) {
-                            setSummary(result.getDisplayName(ttsLanguages));  // if we have an error of lack of internet we simply don't insert the summary
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(int[] reasons, long value) {
-                        //never called in this case
-                    }
-                });
+            public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
+                if (getSummary() == null || "".equals((String) getSummary())) {    // to avoid changing the summary after a language change after the initializeLanguageList () call
+                    setSummary(result.getDisplayName(ttsLanguages));  // if we have an error of lack of internet we simply don't insert the summary
+                } else if (summary != null && summary.equals((String) getSummary())) {
+                    setSummary(result.getDisplayName(ttsLanguages));  // if we have an error of lack of internet we simply don't insert the summary
+                }
             }
 
             @Override
             public void onFailure(int[] reasons, long value) {
-                if (activity != null) {
-                    onFailureUpdatingSummary(reasons, value);
-                }
+                //never called in this case
             }
         });
 
@@ -139,62 +128,33 @@ public class LanguagePreference extends Preference {
 
     private void showList() {
         reloadButton.setVisibility(View.GONE);
-        progressBar.setVisibility(View.VISIBLE);
 
-        global.getLanguages(true, true, new Global.GetLocalesListListener() {
+        final ArrayList<CustomLocale> languages = global.getLanguages(true);
+        CustomLocale selectedLanguage = global.getLanguage(false);
+        listViewGui.setVisibility(View.VISIBLE);
+
+        listView = new LanguageListAdapter(activity, languages, selectedLanguage);
+        listViewGui.setAdapter(listView);
+        listViewGui.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
-            public void onSuccess(final ArrayList<CustomLocale> languages) {
-                global.getLanguage(false, new Global.GetLocaleListener() {
+            public void onItemClick(AdapterView<?> parent, View view, final int position, long id) {
+                ArrayList<CustomLocale> result = global.getLanguages(true);
+                global.getTTSLanguages(true, new Global.GetLocalesListListener() {
                     @Override
-                    public void onSuccess(CustomLocale selectedLanguage) {
-                        progressBar.setVisibility(View.GONE);
-                        listViewGui.setVisibility(View.VISIBLE);
-
-                        listView = new LanguageListAdapter(activity, languages, selectedLanguage);
-                        listViewGui.setAdapter(listView);
-                        listViewGui.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                            @Override
-                            public void onItemClick(AdapterView<?> parent, View view, final int position, long id) {
-                                global.getLanguages(true, true, new Global.GetLocalesListListener() {
-                                    @Override
-                                    public void onSuccess(ArrayList<CustomLocale> result) {
-                                        global.getTTSLanguages(true, new Global.GetLocalesListListener() {
-                                            @Override
-                                            public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
-                                                if (result.contains((CustomLocale) listView.getItem(position))) {
-                                                    global.setLanguage((CustomLocale) listView.getItem(position));
-                                                    CustomLocale item=(CustomLocale) listView.getItem(position);
-                                                    setSummary(item.getDisplayName(ttsLanguages));
-                                                }
-                                            }
-
-                                            @Override
-                                            public void onFailure(int[] reasons, long value) {
-                                                //never called in this case
-                                            }
-                                        });
-                                    }
-
-                                    @Override
-                                    public void onFailure(int[] reasons, long value) {
-                                        onFailureUpdatingSummary(reasons, value);
-                                    }
-                                });
-                                dialog.dismiss();
-                            }
-                        });
+                    public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
+                        if (result.contains((CustomLocale) listView.getItem(position))) {
+                            global.setLanguage((CustomLocale) listView.getItem(position));
+                            CustomLocale item=(CustomLocale) listView.getItem(position);
+                            setSummary(item.getDisplayName(ttsLanguages));
+                        }
                     }
 
                     @Override
                     public void onFailure(int[] reasons, long value) {
-                        onFailureShowingList(reasons, value);
+                        //never called in this case
                     }
                 });
-            }
-
-            @Override
-            public void onFailure(int[] reasons, long value) {
-                onFailureShowingList(reasons, value);
+                dialog.dismiss();
             }
         });
     }

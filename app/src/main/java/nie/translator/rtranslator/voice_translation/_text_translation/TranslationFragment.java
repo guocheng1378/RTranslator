@@ -183,26 +183,28 @@ public class TranslationFragment extends Fragment {
         //inputText.setRawInputType(InputType.TYPE_CLASS_TEXT);
 
         // setting of the selected languages
-        global.getFirstTextLanguage(true, new Global.GetLocaleListener() {
+        setFirstLanguage(global.getFirstTextLanguage(true), new Translator.GeneralListener() {
             @Override
-            public void onSuccess(CustomLocale result) {
-                setFirstLanguage(result);
+            public void onSuccess() {
+                setSecondLanguage(global.getSecondTextLanguage(true), new Translator.GeneralListener() {
+                    @Override
+                    public void onSuccess() {
+
+                    }
+
+                    @Override
+                    public void onFailure(int[] reasons, long value) {
+                        //todo: gestire errore
+                    }
+                });
             }
+
             @Override
             public void onFailure(int[] reasons, long value) {
-
+                //todo: gestire errore
             }
         });
-        global.getSecondTextLanguage(true, new Global.GetLocaleListener() {
-            @Override
-            public void onSuccess(CustomLocale result) {
-                setSecondLanguage(result);
-            }
-            @Override
-            public void onFailure(int[] reasons, long value) {
 
-            }
-        });
         walkieTalkieButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -252,21 +254,12 @@ public class TranslationFragment extends Fragment {
                 }*/
 
                 if(!text.isEmpty()) {
-                    String finalText = text;
-                    global.getFirstAndSecondTextLanguages(true, new Global.GetTwoLocaleListener() {
-                        @Override
-                        public void onSuccess(CustomLocale firstLanguage, CustomLocale secondLanguage) {
-                            //we deactivate translate button
-                            deactivateTranslationButton();
-                            //we start the translation
-                            global.getTranslator().translate(finalText, firstLanguage, secondLanguage, global.getBeamSize(), true);
-                        }
-
-                        @Override
-                        public void onFailure(int[] reasons, long value) {
-
-                        }
-                    });
+                    CustomLocale firstLanguage = global.getFirstLanguage(true);
+                    CustomLocale secondLanguage = global.getSecondLanguage(true);
+                    //we deactivate translate button
+                    deactivateTranslationButton();
+                    //we start the translation
+                    global.getTranslator().translate(text, firstLanguage, secondLanguage, global.getBeamSize(), true);
                 }
             }
         });
@@ -464,22 +457,33 @@ public class TranslationFragment extends Fragment {
         invertLanguagesButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                global.getFirstAndSecondTextLanguages(true, new Global.GetTwoLocaleListener() {
+                CustomLocale firstLanguage = global.getFirstLanguage(true);
+                CustomLocale secondLanguage = global.getSecondLanguage(true);
+                animator.animateSwitchLanguages(activity, firstLanguageSelector, secondLanguageSelector, invertLanguagesButton, new CustomAnimator.Listener() {
                     @Override
-                    public void onSuccess(CustomLocale language1, CustomLocale language2) {
-                        animator.animateSwitchLanguages(activity, firstLanguageSelector, secondLanguageSelector, invertLanguagesButton, new CustomAnimator.Listener() {
+                    public void onAnimationEnd() {
+                        super.onAnimationEnd();
+                        setFirstLanguage(secondLanguage, new Translator.GeneralListener() {
                             @Override
-                            public void onAnimationEnd() {
-                                super.onAnimationEnd();
-                                setFirstLanguage(language2);
-                                setSecondLanguage(language1);
+                            public void onSuccess() {
+                                setSecondLanguage(firstLanguage, new Translator.GeneralListener() {
+                                    @Override
+                                    public void onSuccess() {
+
+                                    }
+
+                                    @Override
+                                    public void onFailure(int[] reasons, long value) {
+                                        //todo: gestire errore
+                                    }
+                                });
+                            }
+
+                            @Override
+                            public void onFailure(int[] reasons, long value) {
+                                //todo: gestire errore
                             }
                         });
-                    }
-
-                    @Override
-                    public void onFailure(int[] reasons, long value) {
-
                     }
                 });
             }
@@ -585,26 +589,17 @@ public class TranslationFragment extends Fragment {
                     tts.stop();
                     ttsListener.onDone("");  //we call this to make eventual visual updates to the tts buttons (stop() doesn't call onDone automatically)
                 }else {
-                    global.getFirstTextLanguage(true, new Global.GetLocaleListener() {
+                    CustomLocale firstLanguage = global.getFirstTextLanguage(true);
+                    global.getTTSLanguages(true, new Global.GetLocalesListListener() {
                         @Override
-                        public void onSuccess(CustomLocale firstLanguage) {
-                            global.getTTSLanguages(true, new Global.GetLocalesListListener() {
-                                @Override
-                                public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
-                                    if (CustomLocale.containsLanguage(ttsLanguages, firstLanguage)) { // check if the language can be speak
-                                        tts.stop();
-                                        ttsListener.onDone("");  //we call this to make eventual visual updates to the tts buttons (stop() doesn't call onDone automatically)
-                                        speak(inputText.getText().toString(), firstLanguage);
-                                        ttsInputButton.setImageResource(R.drawable.stop_icon);
-                                        ttsInputButton.setTag(R.drawable.stop_icon);
-                                    }
-                                }
-
-                                @Override
-                                public void onFailure(int[] reasons, long value) {
-                                    //we do nothing
-                                }
-                            });
+                        public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
+                            if (CustomLocale.containsLanguage(ttsLanguages, firstLanguage)) { // check if the language can be speak
+                                tts.stop();
+                                ttsListener.onDone("");  //we call this to make eventual visual updates to the tts buttons (stop() doesn't call onDone automatically)
+                                speak(inputText.getText().toString(), firstLanguage);
+                                ttsInputButton.setImageResource(R.drawable.stop_icon);
+                                ttsInputButton.setTag(R.drawable.stop_icon);
+                            }
                         }
 
                         @Override
@@ -623,26 +618,17 @@ public class TranslationFragment extends Fragment {
                     tts.stop();
                     ttsListener.onDone("");  //we call this to make eventual visual updates to the tts buttons (stop() doesn't call onDone automatically)
                 }else {
-                    global.getSecondTextLanguage(true, new Global.GetLocaleListener() {
+                    CustomLocale secondLanguage = global.getSecondTextLanguage(true);
+                    global.getTTSLanguages(true, new Global.GetLocalesListListener() {
                         @Override
-                        public void onSuccess(CustomLocale secondLanguage) {
-                            global.getTTSLanguages(true, new Global.GetLocalesListListener() {
-                                @Override
-                                public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
-                                    if (CustomLocale.containsLanguage(ttsLanguages, secondLanguage)) { // check if the language can be speak
-                                        tts.stop();
-                                        ttsListener.onDone("");  //we call this to make eventual visual updates to the tts buttons (stop() doesn't call onDone automatically)
-                                        speak(outputText.getText().toString(), secondLanguage);
-                                        ttsOutputButton.setImageResource(R.drawable.stop_icon);
-                                        ttsOutputButton.setTag(R.drawable.stop_icon);
-                                    }
-                                }
-
-                                @Override
-                                public void onFailure(int[] reasons, long value) {
-                                    //we do nothing
-                                }
-                            });
+                        public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
+                            if (CustomLocale.containsLanguage(ttsLanguages, secondLanguage)) { // check if the language can be speak
+                                tts.stop();
+                                ttsListener.onDone("");  //we call this to make eventual visual updates to the tts buttons (stop() doesn't call onDone automatically)
+                                speak(outputText.getText().toString(), secondLanguage);
+                                ttsOutputButton.setImageResource(R.drawable.stop_icon);
+                                ttsOutputButton.setTag(R.drawable.stop_icon);
+                            }
                         }
 
                         @Override
@@ -830,71 +816,63 @@ public class TranslationFragment extends Fragment {
         progressBar = editDialogLayout.findViewById(R.id.progressBar3);
         reloadButton = editDialogLayout.findViewById(R.id.reloadButton);
 
-        Global.GetLocaleListener listener = new Global.GetLocaleListener() {
-            @Override
-            public void onSuccess(final CustomLocale result) {
-                reloadButton.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        showList(languageNumber, result);
-                    }
-                });
-                showList(languageNumber, result);
-            }
-
-            @Override
-            public void onFailure(int[] reasons, long value) {
-                onFailureShowingList(reasons, value);
-            }
-        };
-
-        switch (languageNumber) {
-            case 1: {
-                global.getFirstTextLanguage(false, listener);
-                break;
-            }
-            case 2: {
-                global.getSecondTextLanguage(false, listener);
-                break;
-            }
+        CustomLocale result;
+        if (languageNumber == 1) {
+            result = global.getFirstTextLanguage(false);
+        } else {
+            result = global.getSecondTextLanguage(false);
         }
+
+        reloadButton.setOnClickListener(v -> showList(languageNumber, result));
+        showList(languageNumber, result);
     }
 
     private void showList(final int languageNumber, final CustomLocale selectedLanguage) {
         reloadButton.setVisibility(View.GONE);
         progressBar.setVisibility(View.VISIBLE);
 
-        global.getTranslatorLanguages(true, new Global.GetLocalesListListener() {
-            @Override
-            public void onSuccess(final ArrayList<CustomLocale> languages) {
-                progressBar.setVisibility(View.GONE);
-                listViewGui.setVisibility(View.VISIBLE);
+        final ArrayList<CustomLocale> languages = global.getTranslatorLanguages(true);
+        progressBar.setVisibility(View.GONE);
+        listViewGui.setVisibility(View.VISIBLE);
 
-                listView = new LanguageListAdapter(activity, true, languages, selectedLanguage);
-                listViewGui.setAdapter(listView);
-                listViewGui.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                    @Override
-                    public void onItemClick(AdapterView<?> parent, View view, final int position, long id) {
-                        if (languages.contains((CustomLocale) listView.getItem(position))) {
-                            switch (languageNumber) {
-                                case 1: {
-                                    setFirstLanguage((CustomLocale) listView.getItem(position));
-                                    break;
+        listView = new LanguageListAdapter(activity, true, languages, selectedLanguage);
+        listViewGui.setAdapter(listView);
+        listViewGui.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, final int position, long id) {
+                if (languages.contains((CustomLocale) listView.getItem(position))) {
+                    switch (languageNumber) {
+                        case 1: {
+                            setFirstLanguage((CustomLocale) listView.getItem(position), new Translator.GeneralListener() {
+                                @Override
+                                public void onSuccess() {
+
                                 }
-                                case 2: {
-                                    setSecondLanguage((CustomLocale) listView.getItem(position));
-                                    break;
+
+                                @Override
+                                public void onFailure(int[] reasons, long value) {
+                                    //todo: gestire errore
                                 }
-                            }
+                            });
+                            break;
                         }
-                        dialog.dismiss();
-                    }
-                });
-            }
+                        case 2: {
+                            setSecondLanguage((CustomLocale) listView.getItem(position), new Translator.GeneralListener() {
+                                @Override
+                                public void onSuccess() {
 
-            @Override
-            public void onFailure(int[] reasons, long value) {
-                onFailureShowingList(reasons, value);
+                                }
+
+                                @Override
+                                public void onFailure(int[] reasons, long value) {
+                                    //todo: gestire errore
+                                }
+                            });
+                            break;
+                        }
+                    }
+                }
+                dialog.dismiss();
             }
         });
     }
@@ -916,16 +894,16 @@ public class TranslationFragment extends Fragment {
         global.getTranslator().removeCallback(translateListener);
     }
 
-    private void setFirstLanguage(CustomLocale language) {
+    private void setFirstLanguage(CustomLocale language, Translator.GeneralListener listener) {
         // save firstLanguage selected
-        global.setFirstTextLanguage(language);
+        global.setFirstTextLanguage(language, listener);
         // change language displayed
         ((AnimatedTextView) firstLanguageSelector.findViewById(R.id.firstLanguageName)).setText(language.getDisplayNameWithoutTTS(), false);
     }
 
-    private void setSecondLanguage(CustomLocale language) {
+    private void setSecondLanguage(CustomLocale language, Translator.GeneralListener listener) {
         // save secondLanguage selected
-        global.setSecondTextLanguage(language);
+        global.setSecondTextLanguage(language, listener);
         // change language displayed
         ((AnimatedTextView) secondLanguageSelector.findViewById(R.id.secondLanguageName)).setText(language.getDisplayNameWithoutTTS(), false);
     }

@@ -9,6 +9,8 @@
         </intent>
     </queries>
 
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>  <!-- todo: rimuere questo permesso -->
+
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
