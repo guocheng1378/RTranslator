@@ -10,6 +10,28 @@ import javax.annotation.Nullable;
 
 import nie.translator.rtranslator.tools.CustomLocale;
 
+//default config:
+/*
+                    "models:\n" +
+                    "  - "+model.getPath()+"\n" +
+                    "vocabs:\n" +
+                    "  - "+srcVocab.getAbsolutePath()+"\n" +
+                    "  - "+trgVocab.getAbsolutePath()+"\n" +
+                    "beam-size: 1\n" +
+                    "normalize: 1.0\n" +
+                    "word-penalty: 0\n" +
+                    "max-length-break: 128\n" +
+                    "mini-batch-words: 1024\n" +
+                    "max-length-factor: 2.0\n" +
+                    "skip-cost: true\n" +
+                    "cpu-threads: 1\n" +
+                    "quiet: true\n" +
+                    "quiet-translation: true\n" +
+                    (model.getName().contains("intgemm8.bin") ? "gemm-precision: int8shiftAll\n" : "") +
+                    (model.getName().contains("intgemm.alphas.bin") ? "gemm-precision: int8shiftAlphaAll\n" : "") +
+                    "alignment: soft\n";
+ */
+
 public class BergamotTranslator {
 
     enum ModelType {
@@ -85,14 +107,18 @@ public class BergamotTranslator {
                     "vocabs:\n" +
                     "  - "+srcVocab.getAbsolutePath()+"\n" +
                     "  - "+trgVocab.getAbsolutePath()+"\n" +
-                    "beam-size: 1\n" +
-                    "normalize: 1.0\n" +
+                    "beam-size: 4\n" +
+                    "normalize: 0.7\n" +
                     "word-penalty: 0\n" +
-                    "max-length-break: 128\n" +
-                    "mini-batch-words: 1024\n" +
-                    "max-length-factor: 2.0\n" +
-                    "skip-cost: true\n" +
+                    "max-length-break: 256\n" +
+                    "max-length-factor: 3.0\n" +
+                    "mini-batch-words: 2048\n" +
+                    "maxi-batch: 100\n" +
+                    "maxi-batch-sort: src\n" +
+                    "skip-cost: false\n" +
+                    "workspace: 256\n" +
                     "cpu-threads: 1\n" +
+                    //"allow-unk: true\n" +
                     "quiet: true\n" +
                     "quiet-translation: true\n" +
                     (model.getName().contains("intgemm8.bin") ? "gemm-precision: int8shiftAll\n" : "") +
