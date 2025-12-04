@@ -59,6 +59,7 @@ import nie.translator.rtranslator.tools.services_communication.ServiceCommunicat
 import nie.translator.rtranslator.tools.services_communication.ServiceCommunicatorListener;
 import nie.translator.rtranslator.voice_translation.VoiceTranslationFragment;
 import nie.translator.rtranslator.voice_translation.VoiceTranslationService;
+import nie.translator.rtranslator.voice_translation.neural_networks.translation.Translator;
 
 
 public class WalkieTalkieFragment extends VoiceTranslationFragment {
@@ -585,18 +586,27 @@ public class WalkieTalkieFragment extends VoiceTranslationFragment {
         // new language setting in the WalkieTalkieService
         walkieTalkieServiceCommunicator.changeFirstLanguage(language);
         // save firstLanguage selected
-        global.setFirstLanguage(language);
-        // change language displayed
-        global.getTTSLanguages(true, new Global.GetLocalesListListener() {
+        global.setFirstLanguage(language, new Translator.GeneralListener() {
             @Override
-            public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
-                ((AnimatedTextView) firstLanguageSelector.findViewById(R.id.firstLanguageName)).setText(language.getDisplayNameWithoutTTS(), true);
-                leftMicLanguage.setText(language.getDisplayNameWithoutTTS(), true);
+            public void onSuccess() {
+                // change language displayed
+                global.getTTSLanguages(true, new Global.GetLocalesListListener() {
+                    @Override
+                    public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
+                        ((AnimatedTextView) firstLanguageSelector.findViewById(R.id.firstLanguageName)).setText(language.getDisplayNameWithoutTTS(), true);
+                        leftMicLanguage.setText(language.getDisplayNameWithoutTTS(), true);
+                    }
+
+                    @Override
+                    public void onFailure(int[] reasons, long value) {
+                        //never called in this case
+                    }
+                });
             }
 
             @Override
             public void onFailure(int[] reasons, long value) {
-                //never called in this case
+                //todo: gestire errore
             }
         });
     }
@@ -605,18 +615,27 @@ public class WalkieTalkieFragment extends VoiceTranslationFragment {
         // new language setting in the WalkieTalkieService
         walkieTalkieServiceCommunicator.changeSecondLanguage(language);
         // save secondLanguage selected
-        global.setSecondLanguage(language);
-        // change language displayed
-        global.getTTSLanguages(true, new Global.GetLocalesListListener() {
+        global.setSecondLanguage(language, new Translator.GeneralListener() {
             @Override
-            public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
-                ((AnimatedTextView) secondLanguageSelector.findViewById(R.id.secondLanguageName)).setText(language.getDisplayNameWithoutTTS(), true);
-                rightMicLanguage.setText(language.getDisplayNameWithoutTTS(), true);
+            public void onSuccess() {
+                // change language displayed
+                global.getTTSLanguages(true, new Global.GetLocalesListListener() {
+                    @Override
+                    public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
+                        ((AnimatedTextView) secondLanguageSelector.findViewById(R.id.secondLanguageName)).setText(language.getDisplayNameWithoutTTS(), true);
+                        rightMicLanguage.setText(language.getDisplayNameWithoutTTS(), true);
+                    }
+
+                    @Override
+                    public void onFailure(int[] reasons, long value) {
+                        //never called in this case
+                    }
+                });
             }
 
             @Override
             public void onFailure(int[] reasons, long value) {
-                //never called in this case
+                //todo: gestire errore
             }
         });
     }

@@ -468,7 +468,7 @@ public class Translator extends NeuralNetworkApi {
         void onDetectedText(NeuralNetworkApiResult firstResult, NeuralNetworkApiResult secondResult, int message);
     }
 
-    public void loadMozillaModels(CustomLocale srcLang, CustomLocale trgLang, Global.RTranslatorMode mode, GeneralListener listener){
+    public void loadMozillaModels(CustomLocale srcLang, CustomLocale trgLang, Global.RTranslatorMode mode, @Nullable GeneralListener listener){
         new Thread(() -> {
             synchronized (mozillaLock) {
                 try {
@@ -484,7 +484,7 @@ public class Translator extends NeuralNetworkApi {
                             currentModeModels = bergamotModelsIndicator.conversationModels;
                             break;
                     }
-                    //we unload from bergamot the models of this mode that will no longer be used (if they are not used by other modes)
+                    //we unload from bergamot the models of this mode that will no longer be used by this mode or the others
                     for (CustomLocale model : currentModeModels) {
                         if (model != null && !model.equals(srcLang) && !model.equals(trgLang) && !bergamotModelsIndicator.isModelContainedInOtherModes(model, mode)) {
                             BergamotTranslator.unloadModelFromCache(model);
@@ -502,10 +502,10 @@ public class Translator extends NeuralNetworkApi {
                     currentModeModels[0] = !srcLang.getLanguage().equals("en") ? srcLang : null;
                     currentModeModels[1] = !trgLang.getLanguage().equals("en") ? trgLang : null;
                     //we notify the success of the loading
-                    listener.onSuccess();
+                    if(listener != null) listener.onSuccess();
                 } catch (Exception e) {
                     Log.e("bergamot", e.getMessage());
-                    listener.onFailure(new int[]{0}, 0); //todo: implementare una vera gestione degli errori
+                    if(listener != null) listener.onFailure(new int[]{0}, 0); //todo: implementare una vera gestione degli errori
                 }
             }
         }).start();

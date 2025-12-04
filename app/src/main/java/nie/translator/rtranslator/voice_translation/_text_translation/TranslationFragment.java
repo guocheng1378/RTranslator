@@ -186,17 +186,7 @@ public class TranslationFragment extends Fragment {
         setFirstLanguage(global.getFirstTextLanguage(true), new Translator.GeneralListener() {
             @Override
             public void onSuccess() {
-                setSecondLanguage(global.getSecondTextLanguage(true), new Translator.GeneralListener() {
-                    @Override
-                    public void onSuccess() {
-
-                    }
-
-                    @Override
-                    public void onFailure(int[] reasons, long value) {
-                        //todo: gestire errore
-                    }
-                });
+                setSecondLanguage(global.getSecondTextLanguage(true), null);
             }
 
             @Override
@@ -457,33 +447,11 @@ public class TranslationFragment extends Fragment {
         invertLanguagesButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                CustomLocale firstLanguage = global.getFirstTextLanguage(true);
-                CustomLocale secondLanguage = global.getSecondTextLanguage(true);
                 animator.animateSwitchLanguages(activity, firstLanguageSelector, secondLanguageSelector, invertLanguagesButton, new CustomAnimator.Listener() {
                     @Override
                     public void onAnimationEnd() {
                         super.onAnimationEnd();
-                        setFirstLanguage(secondLanguage, new Translator.GeneralListener() {
-                            @Override
-                            public void onSuccess() {
-                                setSecondLanguage(firstLanguage, new Translator.GeneralListener() {
-                                    @Override
-                                    public void onSuccess() {
-
-                                    }
-
-                                    @Override
-                                    public void onFailure(int[] reasons, long value) {
-                                        //todo: gestire errore
-                                    }
-                                });
-                            }
-
-                            @Override
-                            public void onFailure(int[] reasons, long value) {
-                                //todo: gestire errore
-                            }
-                        });
+                        switchLanguages();
                     }
                 });
             }
@@ -843,31 +811,11 @@ public class TranslationFragment extends Fragment {
                 if (languages.contains((CustomLocale) listView.getItem(position))) {
                     switch (languageNumber) {
                         case 1: {
-                            setFirstLanguage((CustomLocale) listView.getItem(position), new Translator.GeneralListener() {
-                                @Override
-                                public void onSuccess() {
-
-                                }
-
-                                @Override
-                                public void onFailure(int[] reasons, long value) {
-                                    //todo: gestire errore
-                                }
-                            });
+                            setFirstLanguage((CustomLocale) listView.getItem(position), null);
                             break;
                         }
                         case 2: {
-                            setSecondLanguage((CustomLocale) listView.getItem(position), new Translator.GeneralListener() {
-                                @Override
-                                public void onSuccess() {
-
-                                }
-
-                                @Override
-                                public void onFailure(int[] reasons, long value) {
-                                    //todo: gestire errore
-                                }
-                            });
+                            setSecondLanguage((CustomLocale) listView.getItem(position), null);
                             break;
                         }
                     }
@@ -894,18 +842,45 @@ public class TranslationFragment extends Fragment {
         global.getTranslator().removeCallback(translateListener);
     }
 
-    private void setFirstLanguage(CustomLocale language, Translator.GeneralListener listener) {
+    private void setFirstLanguage(CustomLocale language, @Nullable Translator.GeneralListener listener) {
         // save firstLanguage selected
-        global.setFirstTextLanguage(language, listener);
-        // change language displayed
-        ((AnimatedTextView) firstLanguageSelector.findViewById(R.id.firstLanguageName)).setText(language.getDisplayNameWithoutTTS(), false);
+        global.setFirstTextLanguage(language, new Translator.GeneralListener() {
+            @Override
+            public void onSuccess() {
+                // change language displayed
+                ((AnimatedTextView) firstLanguageSelector.findViewById(R.id.firstLanguageName)).setText(language.getDisplayNameWithoutTTS(), false);
+                if(listener != null) listener.onSuccess();
+            }
+
+            @Override
+            public void onFailure(int[] reasons, long value) {
+                //todo: gestire errore
+            }
+        });
     }
 
-    private void setSecondLanguage(CustomLocale language, Translator.GeneralListener listener) {
+    private void setSecondLanguage(CustomLocale language, @Nullable Translator.GeneralListener listener) {
         // save secondLanguage selected
-        global.setSecondTextLanguage(language, listener);
+        global.setSecondTextLanguage(language, new Translator.GeneralListener() {
+            @Override
+            public void onSuccess() {
+                // change language displayed
+                ((AnimatedTextView) secondLanguageSelector.findViewById(R.id.secondLanguageName)).setText(language.getDisplayNameWithoutTTS(), false);
+                if(listener != null) listener.onSuccess();
+            }
+
+            @Override
+            public void onFailure(int[] reasons, long value) {
+                //todo: gestire errore
+            }
+        });
+    }
+
+    private void switchLanguages(){
+        global.switchTextLanguages();
         // change language displayed
-        ((AnimatedTextView) secondLanguageSelector.findViewById(R.id.secondLanguageName)).setText(language.getDisplayNameWithoutTTS(), false);
+        ((AnimatedTextView) firstLanguageSelector.findViewById(R.id.firstLanguageName)).setText(global.getFirstTextLanguage(true).getDisplayNameWithoutTTS(), false);
+        ((AnimatedTextView) secondLanguageSelector.findViewById(R.id.secondLanguageName)).setText(global.getSecondTextLanguage(true).getDisplayNameWithoutTTS(), false);
     }
 
     private void onFailureShowingList(int[] reasons, long value) {

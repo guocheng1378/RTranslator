@@ -405,41 +405,61 @@ public class Global extends Application implements DefaultLifecycleObserver {
         editor.apply();
     }
 
-    public void setFirstLanguage(CustomLocale language) {
+    public void setFirstLanguage(CustomLocale language, @Nullable Translator.GeneralListener listener) {
         this.firstLanguage = language;
         SharedPreferences sharedPreferences = this.getSharedPreferences("default", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("firstLanguage", language.getCode());
         editor.apply();
+        if(Translator.TRANSLATOR_MODE == Translator.MOZILLA) {
+            translator.loadMozillaModels(language, getSecondLanguage(true), RTranslatorMode.WALKIE_TALKIE_MODE, listener);
+        }
     }
 
-    public void setSecondLanguage(CustomLocale language) {
+    public void setSecondLanguage(CustomLocale language, @Nullable Translator.GeneralListener listener) {
         this.secondLanguage = language;
         SharedPreferences sharedPreferences = this.getSharedPreferences("default", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("secondLanguage", language.getCode());
         editor.apply();
+        if(Translator.TRANSLATOR_MODE == Translator.MOZILLA) {
+            translator.loadMozillaModels(getFirstLanguage(true), language, RTranslatorMode.WALKIE_TALKIE_MODE, listener);
+        }
     }
 
-    public void setFirstTextLanguage(CustomLocale language, Translator.GeneralListener listener) {
+    public void setFirstTextLanguage(CustomLocale language, @Nullable Translator.GeneralListener listener) {
         this.firstTextLanguage = language;
-        CustomLocale secondLanguage = getSecondTextLanguage(true);
         SharedPreferences sharedPreferences = this.getSharedPreferences("default", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("firstTextLanguage", language.getCode());
         editor.apply();
         if(Translator.TRANSLATOR_MODE == Translator.MOZILLA) {
-            translator.loadMozillaModels(language, secondLanguage, RTranslatorMode.TEXT_TRANSLATION_MODE, listener);
+            translator.loadMozillaModels(language, getSecondTextLanguage(true), RTranslatorMode.TEXT_TRANSLATION_MODE, listener);
         }
     }
 
-    public void setSecondTextLanguage(CustomLocale language, Translator.GeneralListener listener) {
+    public void setSecondTextLanguage(CustomLocale language, @Nullable Translator.GeneralListener listener) {
         this.secondTextLanguage = language;
         CustomLocale firstLanguage = getFirstTextLanguage(true);
-        if(Translator.TRANSLATOR_MODE == Translator.MOZILLA) translator.loadMozillaModels(firstLanguage, language, RTranslatorMode.TEXT_TRANSLATION_MODE, listener);
         SharedPreferences sharedPreferences = this.getSharedPreferences("default", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("secondTextLanguage", language.getCode());
+        editor.apply();
+        if(Translator.TRANSLATOR_MODE == Translator.MOZILLA) {
+            translator.loadMozillaModels(getFirstTextLanguage(true), language, RTranslatorMode.TEXT_TRANSLATION_MODE, listener);
+        }
+    }
+
+    public void switchTextLanguages(){
+        CustomLocale firstLanguage = getFirstTextLanguage(true);
+        CustomLocale secondLanguage = getSecondTextLanguage(true);
+        this.firstTextLanguage = secondLanguage;
+        this.secondTextLanguage = firstLanguage;
+        if(Translator.TRANSLATOR_MODE == Translator.MOZILLA) translator.loadMozillaModels(secondLanguage, firstLanguage, RTranslatorMode.TEXT_TRANSLATION_MODE, null);
+        SharedPreferences sharedPreferences = this.getSharedPreferences("default", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString("firstTextLanguage", this.firstLanguage.getCode());
+        editor.putString("secondTextLanguage", this.secondLanguage.getCode());
         editor.apply();
     }
 

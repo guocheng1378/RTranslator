@@ -3,7 +3,8 @@
 /usage.statistics.xml
 /workspace.xml
 #extra ignored files
-/caches/
+/caches
+/caches/*
 /gradle.xml
 /dataSources.ids
 /datasources.xml
