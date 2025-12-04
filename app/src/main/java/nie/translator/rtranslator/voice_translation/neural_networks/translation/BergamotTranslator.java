@@ -4,6 +4,7 @@ import android.content.Context;
 import android.os.Environment;
 
 import java.io.File;
+import java.util.Objects;
 
 import javax.annotation.Nullable;
 
@@ -27,9 +28,11 @@ public class BergamotTranslator {
 
     public static void loadModelIntoCache(Context context, CustomLocale lang) throws Exception{
         String langCode = lang.getLanguage();
-        String toEngCfg = modelConfigGeneration(context, langCode, ModelType.TO_ENGLISH);
-        String fromEngCfg = modelConfigGeneration(context, langCode, ModelType.FROM_ENGLISH);
-        loadModelIntoCacheNative(toEngCfg, fromEngCfg, langCode);
+        if(!Objects.equals(langCode, "en")) {
+            String toEngCfg = modelConfigGeneration(context, langCode, ModelType.TO_ENGLISH);
+            String fromEngCfg = modelConfigGeneration(context, langCode, ModelType.FROM_ENGLISH);
+            loadModelIntoCacheNative(toEngCfg, fromEngCfg, langCode);
+        }
     }
 
     public static void unloadModelFromCache(CustomLocale lang){

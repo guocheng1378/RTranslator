@@ -254,8 +254,8 @@ public class TranslationFragment extends Fragment {
                 }*/
 
                 if(!text.isEmpty()) {
-                    CustomLocale firstLanguage = global.getFirstLanguage(true);
-                    CustomLocale secondLanguage = global.getSecondLanguage(true);
+                    CustomLocale firstLanguage = global.getFirstTextLanguage(true);
+                    CustomLocale secondLanguage = global.getSecondTextLanguage(true);
                     //we deactivate translate button
                     deactivateTranslationButton();
                     //we start the translation
@@ -457,8 +457,8 @@ public class TranslationFragment extends Fragment {
         invertLanguagesButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                CustomLocale firstLanguage = global.getFirstLanguage(true);
-                CustomLocale secondLanguage = global.getSecondLanguage(true);
+                CustomLocale firstLanguage = global.getFirstTextLanguage(true);
+                CustomLocale secondLanguage = global.getSecondTextLanguage(true);
                 animator.animateSwitchLanguages(activity, firstLanguageSelector, secondLanguageSelector, invertLanguagesButton, new CustomAnimator.Listener() {
                     @Override
                     public void onAnimationEnd() {

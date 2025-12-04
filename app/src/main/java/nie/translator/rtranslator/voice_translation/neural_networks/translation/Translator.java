@@ -110,7 +110,8 @@ public class Translator extends NeuralNetworkApi {
             "fr",
             "de",
             "ko",
-            "ja"
+            "ja",
+            "en"
     };
 
 
@@ -491,12 +492,15 @@ public class Translator extends NeuralNetworkApi {
                     }
                     //we load in bergamot translator the new models that are not already loaded
                     ArrayList<CustomLocale> allUniqueModels = bergamotModelsIndicator.getAllUniqueModels();
-                    if (!allUniqueModels.contains(srcLang)) {
+                    if (!allUniqueModels.contains(srcLang) && !srcLang.getLanguage().equals("en")) {
                         BergamotTranslator.loadModelIntoCache(global, srcLang);
                     }
+                    if (!allUniqueModels.contains(trgLang) && !trgLang.getLanguage().equals("en")) {
+                        BergamotTranslator.loadModelIntoCache(global, trgLang);
+                    }
                     //we update the indicator to reflect the new models status
-                    currentModeModels[0] = srcLang;
-                    currentModeModels[1] = trgLang;
+                    currentModeModels[0] = !srcLang.getLanguage().equals("en") ? srcLang : null;
+                    currentModeModels[1] = !trgLang.getLanguage().equals("en") ? trgLang : null;
                     //we notify the success of the loading
                     listener.onSuccess();
                 } catch (Exception e) {
