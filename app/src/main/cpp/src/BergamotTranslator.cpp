@@ -37,7 +37,7 @@ void initializeService() {
 
     if (global_service == nullptr) {
         BlockingService::Config blockingConfig;
-        blockingConfig.cacheSize = 256;
+        blockingConfig.cacheSize = 0;  //todo: change it back to 256 in release
         blockingConfig.logger.level = "off";
         global_service = std::make_unique<BlockingService>(blockingConfig);
     }

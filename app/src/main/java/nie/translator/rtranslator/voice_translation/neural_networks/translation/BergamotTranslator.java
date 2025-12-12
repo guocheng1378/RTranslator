@@ -81,6 +81,7 @@ public class BergamotTranslator {
         File model = null;
         File srcVocab = null;
         File trgVocab = null;
+        File lexShort = null;
         if(modelFiles == null) throw new Exception("No models files found");
         for (File file : modelFiles) {
             if(file.getName().contains("model")){
@@ -100,15 +101,22 @@ public class BergamotTranslator {
                 trgVocab = file;
                 continue;
             }
+            if(file.getName().contains("lex.")){
+                lexShort = file;
+                continue;
+            }
         }
-        if (model != null && (srcVocab != null && trgVocab != null)) {
+        if (model != null && lexShort != null && (srcVocab != null && trgVocab != null)) {
             return "models:\n" +
                     "  - "+model.getPath()+"\n" +
                     "vocabs:\n" +
-                    "  - "+srcVocab.getAbsolutePath()+"\n" +
-                    "  - "+trgVocab.getAbsolutePath()+"\n" +
-                    "beam-size: 4\n" +
-                    "normalize: 0.7\n" +
+                    "  - "+srcVocab.getPath()+"\n" +
+                    "  - "+trgVocab.getPath()+"\n" +
+                    "shortlist: \n" +
+                    "  - "+lexShort.getPath()+"\n" +
+                    "  - false\n" +
+                    "beam-size: 1\n" +
+                    "normalize: 1.0\n" +
                     "word-penalty: 0\n" +
                     "max-length-break: 256\n" +
                     "max-length-factor: 3.0\n" +
