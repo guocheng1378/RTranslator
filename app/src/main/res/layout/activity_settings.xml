@@ -21,7 +21,8 @@
     android:layout_height="match_parent"
     android:layout_marginBottom="0dp"
     android:background="@color/primary_very_lite"
-    android:animateLayoutChanges="true">
+    android:animateLayoutChanges="true"
+    android:fitsSystemWindows="true">
 
     <android.widget.Toolbar
         android:id="@+id/toolbarSettings"
