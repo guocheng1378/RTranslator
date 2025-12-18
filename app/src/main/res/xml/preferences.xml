@@ -97,5 +97,10 @@
             android:key="PrevVoiceDurationSetting"
             android:layout="@layout/preference_seekbar"
             app:iconSpaceReserved="false" />
+        <androidx.preference.Preference
+            android:key="modelsManager"
+            android:title="Models Manager"
+            android:summary="Chose the model you want to use for translation"
+            app:iconSpaceReserved="false" />
     </androidx.preference.PreferenceCategory>
 </androidx.preference.PreferenceScreen>

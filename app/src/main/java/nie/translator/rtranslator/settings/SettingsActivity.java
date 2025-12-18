@@ -29,6 +29,7 @@ import nie.translator.rtranslator.R;
 
 public class SettingsActivity extends GeneralActivity {
     public static final String SETTINGS_FRAGMENT = "startSettings";
+    public static final String MODEL_MANAGER = "startModelManager";
     private Fragment fragment;
 
     @Override
@@ -66,6 +67,17 @@ public class SettingsActivity extends GeneralActivity {
                 fragment = accessFragment;
                 break;
             }
+            case MODEL_MANAGER: {
+                ModelManagerFragment modelManagerFragment = new ModelManagerFragment();
+                if (bundle != null) {
+                    modelManagerFragment.setArguments(bundle);
+                }
+                FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+                transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_CLOSE);
+                transaction.replace(R.id.fragment_settings_container, modelManagerFragment);
+                transaction.commit();
+                fragment = modelManagerFragment;
+            }
         }
     }
 
@@ -97,6 +109,8 @@ public class SettingsActivity extends GeneralActivity {
                 }else {
                     super.onBackPressed();
                 }
+            }else if (fragment instanceof ModelManagerFragment) {
+                startFragment(SETTINGS_FRAGMENT, null);
             }else{
                 super.onBackPressed();
             }

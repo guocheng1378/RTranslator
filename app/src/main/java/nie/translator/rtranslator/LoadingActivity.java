@@ -103,9 +103,9 @@ public class LoadingActivity extends GeneralActivity {
         global.getLanguagesAndCheckTTS(false, ignoreTTSError, new Global.GetLocalesListListener() {
             @Override
             public void onSuccess(ArrayList<CustomLocale> result) {
-                global.initializeTranslator(new Translator.InitListener() {
+                global.initializeTranslator(new Translator.GeneralListener() {
                     @Override
-                    public void onInitializationFinished() {
+                    public void onSuccess() {
                         global.initializeSpeechRecognizer(new NeuralNetworkApi.InitListener() {
                             @Override
                             public void onInitializationFinished() {
@@ -123,7 +123,7 @@ public class LoadingActivity extends GeneralActivity {
                     }
 
                     @Override
-                    public void onError(int[] reasons, long value) {
+                    public void onFailure(int[] reasons, long value) {
                         global.deleteTranslator();   //we do this to ensure the restart of the loading of models when the app is restarted
                         LoadingActivity.this.onFailure(reasons, value);
                     }

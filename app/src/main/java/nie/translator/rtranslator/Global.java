@@ -100,11 +100,13 @@ public class Global extends Application implements DefaultLifecycleObserver {
         createNotificationChannel();
     }
 
-    public void initializeTranslator(NeuralNetworkApi.InitListener initListener){
+    public void initializeTranslator(Translator.GeneralListener initListener){
         if(translator == null) {
-            translator = new Translator(this, Translator.TRANSLATOR_MODE, initListener);
+            SharedPreferences sharedPreferences = getSharedPreferences("default", Context.MODE_PRIVATE);
+            int mode = sharedPreferences.getInt("selectedTranslationModel", Translator.MOZILLA);
+            translator = new Translator(this, mode, initListener);
         }else{
-            initListener.onInitializationFinished();
+            initListener.onSuccess();
         }
     }
 
@@ -120,6 +122,13 @@ public class Global extends Application implements DefaultLifecycleObserver {
         if(bluetoothCommunicator == null){
             bluetoothCommunicator = new ConversationBluetoothCommunicator(this, getName(), BluetoothCommunicator.STRATEGY_P2P_WITH_RECONNECTION);
         }
+    }
+
+    public void restartTranslator(Translator.GeneralListener listener){
+        getLanguages(false);
+        SharedPreferences sharedPreferences = getSharedPreferences("default", Context.MODE_PRIVATE);
+        int mode = sharedPreferences.getInt("selectedTranslationModel", Translator.MOZILLA);
+        translator.restart(mode, listener);
     }
 
     @Nullable
@@ -172,7 +181,14 @@ public class Global extends Application implements DefaultLifecycleObserver {
         if (recycleResult && !translatorLanguages.isEmpty()) {
             return translatorLanguages;
         } else {
-            ArrayList<CustomLocale> languages = Translator.getSupportedLanguages(Global.this, Translator.TRANSLATOR_MODE);
+            int mode;
+            if(translator != null){
+                mode = translator.getMode();
+            }else{
+                SharedPreferences sharedPreferences = getSharedPreferences("default", Context.MODE_PRIVATE);
+                mode = sharedPreferences.getInt("selectedTranslationModel", Translator.MOZILLA);
+            }
+            ArrayList<CustomLocale> languages = Translator.getSupportedLanguages(Global.this, mode);
             translatorLanguages = languages;
             return languages;
         }
@@ -411,8 +427,10 @@ public class Global extends Application implements DefaultLifecycleObserver {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("firstLanguage", language.getCode());
         editor.apply();
-        if(Translator.TRANSLATOR_MODE == Translator.MOZILLA) {
+        if(translator.getMode() == Translator.MOZILLA) {
             translator.loadMozillaModels(language, getSecondLanguage(true), RTranslatorMode.WALKIE_TALKIE_MODE, listener);
+        }else{
+            if(listener != null) listener.onSuccess();
         }
     }
 
@@ -422,8 +440,10 @@ public class Global extends Application implements DefaultLifecycleObserver {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("secondLanguage", language.getCode());
         editor.apply();
-        if(Translator.TRANSLATOR_MODE == Translator.MOZILLA) {
+        if(translator.getMode() == Translator.MOZILLA) {
             translator.loadMozillaModels(getFirstLanguage(true), language, RTranslatorMode.WALKIE_TALKIE_MODE, listener);
+        }else{
+            if(listener != null) listener.onSuccess();
         }
     }
 
@@ -433,8 +453,10 @@ public class Global extends Application implements DefaultLifecycleObserver {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("firstTextLanguage", language.getCode());
         editor.apply();
-        if(Translator.TRANSLATOR_MODE == Translator.MOZILLA) {
+        if(translator.getMode() == Translator.MOZILLA) {
             translator.loadMozillaModels(language, getSecondTextLanguage(true), RTranslatorMode.TEXT_TRANSLATION_MODE, listener);
+        }else{
+            if(listener != null) listener.onSuccess();
         }
     }
 
@@ -445,8 +467,10 @@ public class Global extends Application implements DefaultLifecycleObserver {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("secondTextLanguage", language.getCode());
         editor.apply();
-        if(Translator.TRANSLATOR_MODE == Translator.MOZILLA) {
+        if(translator.getMode() == Translator.MOZILLA) {
             translator.loadMozillaModels(getFirstTextLanguage(true), language, RTranslatorMode.TEXT_TRANSLATION_MODE, listener);
+        }else{
+            if(listener != null) listener.onSuccess();
         }
     }
 
@@ -455,7 +479,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
         CustomLocale secondLanguage = getSecondTextLanguage(true);
         this.firstTextLanguage = secondLanguage;
         this.secondTextLanguage = firstLanguage;
-        if(Translator.TRANSLATOR_MODE == Translator.MOZILLA) translator.loadMozillaModels(secondLanguage, firstLanguage, RTranslatorMode.TEXT_TRANSLATION_MODE, null);
+        if(translator.getMode() == Translator.MOZILLA) translator.loadMozillaModels(secondLanguage, firstLanguage, RTranslatorMode.TEXT_TRANSLATION_MODE, null);
         SharedPreferences sharedPreferences = this.getSharedPreferences("default", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("firstTextLanguage", this.firstLanguage.getCode());

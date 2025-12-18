@@ -79,8 +79,8 @@ public class Translator extends NeuralNetworkApi {
     public static final int MADLAD = 3;
     public static final int MADLAD_CACHE = 5;
     public static final int MOZILLA = 7;
-    public static final int TRANSLATOR_MODE = MOZILLA;
-    private final int mode;
+    public static final int GEMMA = 8;
+    private int mode;
     private final BergamotModelsIndicator bergamotModelsIndicator = new BergamotModelsIndicator();
     private Tokenizer tokenizer;
     private OrtEnvironment onnxEnv;
@@ -115,12 +115,16 @@ public class Translator extends NeuralNetworkApi {
     };
 
 
-    public Translator(@NonNull Global global, int mode, InitListener initListener) {
+    public Translator(@NonNull Global global, int mode, GeneralListener initListener) {
         this.global = global;
         this.mode = mode;
         mainHandler = new android.os.Handler(Looper.getMainLooper());
         initializeNllbLanguagesCodes(global);
 
+        initialize(global, mode, initListener);
+    }
+
+    private void initialize(@NonNull Global global, int mode, GeneralListener initListener){
         String encoderPath = global.getFilesDir().getPath() + "/NLLB_encoder.onnx";
         String decoderPath = global.getFilesDir().getPath() + "/NLLB_decoder.onnx";
         String vocabPath = global.getFilesDir().getPath() + "/sentencepiece_bpe.model";
@@ -151,7 +155,7 @@ public class Translator extends NeuralNetworkApi {
                                     @Override
                                     public void onSuccess() {
                                         //mainHandler.post(() -> initListener.onInitializationFinished());
-                                        initListener.onInitializationFinished();
+                                        initListener.onSuccess();
                                     }
 
                                     @Override
@@ -166,7 +170,7 @@ public class Translator extends NeuralNetworkApi {
                                 //todo: gestire errore
                             }
                         });
-                    }else {
+                    } else {
                         OrtSession.SessionOptions decoderOptions = new OrtSession.SessionOptions();
                         decoderOptions.setMemoryPatternOptimization(false);
                         decoderOptions.setCPUArenaAllocator(false);
@@ -198,14 +202,15 @@ public class Translator extends NeuralNetworkApi {
                         decoderOptions.close();
                         encoderOptions.close();
                         cacheInitOptions.close();
+                        embedAndLmHeadOptions.close();
 
                         //mainHandler.post(() -> initListener.onInitializationFinished());
-                        initListener.onInitializationFinished();
+                        initListener.onSuccess();
                     }
 
                 } catch (OrtException e) {
                     e.printStackTrace();
-                    mainHandler.post(() -> initListener.onError(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0));
+                    mainHandler.post(() -> initListener.onFailure(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0));
                 }
                 if(mode == MADLAD_CACHE) {
                     tokenizer = new Tokenizer(vocabPath, Tokenizer.MADLAD);
@@ -217,6 +222,56 @@ public class Translator extends NeuralNetworkApi {
         t.start();
     }
 
+    private void destroy(GeneralListener listener){
+        final Thread t = new Thread("textTranslation") {
+            public void run() {
+                try {
+                    if (mode == NLLB || mode == NLLB_CACHE || mode == MADLAD || mode == MADLAD_CACHE) {
+                        encoderSession.close();
+                        decoderSession.close();
+                        cacheInitSession.close();
+                        if (mode == MADLAD_CACHE) {
+                            embedSession.close();
+                        } else {
+                            embedAndLmHeadSession.close();
+                        }
+                        mainHandler.post(() -> listener.onSuccess());
+                    } else if (mode == MOZILLA) {
+                        unloadAllMozillaModels(listener);
+                    }
+                } catch (OrtException e) {
+                    e.printStackTrace();
+                    mainHandler.post(() -> listener.onFailure(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0));
+                }
+            }
+        };
+        t.start();
+    }
+
+    public void restart(int mode, GeneralListener listener){
+        destroy(new GeneralListener() {
+            @Override
+            public void onSuccess() {
+                initialize(global, mode, new GeneralListener() {
+                    @Override
+                    public void onSuccess() {
+                        Translator.this.mode = mode;
+                        listener.onSuccess();
+                    }
+
+                    @Override
+                    public void onFailure(int[] reasons, long value) {
+                        listener.onFailure(reasons, value);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(int[] reasons, long value) {
+                listener.onFailure(reasons, value);
+            }
+        });
+    }
 
     public void translate(final String textToTranslate, final CustomLocale languageInput, final CustomLocale languageOutput, int beamSize, boolean saveResults) {
         final Thread t = new Thread("textTranslation") {
@@ -521,6 +576,10 @@ public class Translator extends NeuralNetworkApi {
                 listener.onSuccess();
             }
         }).start();
+    }
+
+    public int getMode(){
+        return mode;
     }
 
     public void addCallback(final TranslateListener callback) {

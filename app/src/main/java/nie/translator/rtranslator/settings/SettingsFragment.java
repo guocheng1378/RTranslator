@@ -189,6 +189,16 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             }
         });
 
+        // link models manager initialization
+        Preference modelsManagerPreference = findPreference("modelsManager");
+        modelsManagerPreference.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+            @Override
+            public boolean onPreferenceClick(Preference preference) {
+                activity.startFragment(SettingsActivity.MODEL_MANAGER, null);
+                return true;
+            }
+        });
+
         // change microphone sensibility initialization
         SeekBarPreference beamSizePreference = (SeekBarPreference) findPreference("BeamSizeSetting");
         beamSizePreference.initialize(activity, SeekBarPreference.BEAM_SIZE_MODE);
