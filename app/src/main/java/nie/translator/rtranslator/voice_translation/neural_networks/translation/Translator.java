@@ -19,6 +19,7 @@ package nie.translator.rtranslator.voice_translation.neural_networks.translation
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.icu.text.BreakIterator;
+import android.os.Environment;
 import android.os.Looper;
 import android.util.Log;
 
@@ -125,12 +126,37 @@ public class Translator extends NeuralNetworkApi {
     }
 
     private void initialize(@NonNull Global global, int mode, GeneralListener initListener){
-        String encoderPath = global.getFilesDir().getPath() + "/NLLB_encoder.onnx";
-        String decoderPath = global.getFilesDir().getPath() + "/NLLB_decoder.onnx";
-        String vocabPath = global.getFilesDir().getPath() + "/sentencepiece_bpe.model";
-        String embedAndLmHeadPath = global.getFilesDir().getPath() + "/NLLB_embed_and_lm_head.onnx";
-        String cacheInitializerPath = global.getFilesDir().getPath() + "/NLLB_cache_initializer.onnx";
+        String encoderPath;
+        String decoderPath;
+        String vocabPath;
+        String embedAndLmHeadPath;
+        String cacheInitializerPath;
+        if(mode == NLLB || mode == NLLB_CACHE) {
+            //8 bit
+            /*encoderPath = global.getFilesDir().getPath() + "/NLLB_encoder.onnx";
+            decoderPath = global.getFilesDir().getPath() + "/NLLB_decoder.onnx";
+            vocabPath = global.getFilesDir().getPath() + "/sentencepiece_bpe.model";
+            embedAndLmHeadPath = global.getFilesDir().getPath() + "/NLLB_embed_and_lm_head.onnx";
+            cacheInitializerPath = global.getFilesDir().getPath() + "/NLLB_cache_initializer.onnx";*/
+            //4 bit
+            encoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/NLLB" + "/nllb_encoder_4bit.onnx";
+            decoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/NLLB" + "/nllb_decoder_4bit.onnx";
+            vocabPath = global.getFilesDir().getPath() + "/sentencepiece_bpe.model";
+            embedAndLmHeadPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/NLLB" + "/nllb_embed_and_lm_head_4bit.onnx";
+            cacheInitializerPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/NLLB" + "/nllb_cache_initializer_4bit.onnx";
+        }else {  //madlad
+            encoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/madlad_encoder_4bit.onnx";
+            decoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/madlad_decoder_4bit.onnx";
+            vocabPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/spiece.model";
+            embedAndLmHeadPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/madlad_embed_4bit.onnx";
+            cacheInitializerPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/madlad_cache_initializer_4bit.onnx";
+        }
 
+        String finalDecoderPath = decoderPath;
+        String finalEncoderPath = encoderPath;
+        String finalCacheInitializerPath = cacheInitializerPath;
+        String finalEmbedAndLmHeadPath = embedAndLmHeadPath;
+        String finalVocabPath = vocabPath;
         final Thread t = new Thread("textTranslation") {
             public void run() {
                 onnxEnv = OrtEnvironment.getEnvironment();
@@ -171,32 +197,34 @@ public class Translator extends NeuralNetworkApi {
                             }
                         });
                     } else {
+                        final OrtSession.SessionOptions.OptLevel optDefaultLevel = OrtSession.SessionOptions.OptLevel.BASIC_OPT;
+
                         OrtSession.SessionOptions decoderOptions = new OrtSession.SessionOptions();
                         decoderOptions.setMemoryPatternOptimization(false);
                         decoderOptions.setCPUArenaAllocator(false);
-                        decoderOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
-                        decoderSession = onnxEnv.createSession(decoderPath, decoderOptions);
+                        decoderOptions.setOptimizationLevel(optDefaultLevel);
+                        decoderSession = onnxEnv.createSession(finalDecoderPath, decoderOptions);
 
                         OrtSession.SessionOptions encoderOptions = new OrtSession.SessionOptions();
                         encoderOptions.setMemoryPatternOptimization(false);
                         encoderOptions.setCPUArenaAllocator(false);
-                        encoderOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
-                        encoderSession = onnxEnv.createSession(encoderPath, encoderOptions);
+                        encoderOptions.setOptimizationLevel(optDefaultLevel);
+                        encoderSession = onnxEnv.createSession(finalEncoderPath, encoderOptions);
 
                         OrtSession.SessionOptions cacheInitOptions = new OrtSession.SessionOptions();
                         cacheInitOptions.setMemoryPatternOptimization(false);
                         cacheInitOptions.setCPUArenaAllocator(false);
-                        cacheInitOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
-                        cacheInitSession = onnxEnv.createSession(cacheInitializerPath, cacheInitOptions);
+                        cacheInitOptions.setOptimizationLevel(optDefaultLevel);
+                        cacheInitSession = onnxEnv.createSession(finalCacheInitializerPath, cacheInitOptions);
 
                         OrtSession.SessionOptions embedAndLmHeadOptions = new OrtSession.SessionOptions();
                         embedAndLmHeadOptions.setMemoryPatternOptimization(false);
                         embedAndLmHeadOptions.setCPUArenaAllocator(false);
-                        embedAndLmHeadOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT);
+                        embedAndLmHeadOptions.setOptimizationLevel(optDefaultLevel);
                         if (mode == MADLAD_CACHE) {
-                            embedSession = onnxEnv.createSession(embedAndLmHeadPath, embedAndLmHeadOptions);
+                            embedSession = onnxEnv.createSession(finalEmbedAndLmHeadPath, embedAndLmHeadOptions);
                         } else {
-                            embedAndLmHeadSession = onnxEnv.createSession(embedAndLmHeadPath, embedAndLmHeadOptions);
+                            embedAndLmHeadSession = onnxEnv.createSession(finalEmbedAndLmHeadPath, embedAndLmHeadOptions);
                         }
 
                         decoderOptions.close();
@@ -213,9 +241,9 @@ public class Translator extends NeuralNetworkApi {
                     mainHandler.post(() -> initListener.onFailure(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0));
                 }
                 if(mode == MADLAD_CACHE) {
-                    tokenizer = new Tokenizer(vocabPath, Tokenizer.MADLAD);
+                    tokenizer = new Tokenizer(finalVocabPath, Tokenizer.MADLAD);
                 }else{
-                    tokenizer = new Tokenizer(vocabPath, Tokenizer.NLLB);
+                    tokenizer = new Tokenizer(finalVocabPath, Tokenizer.NLLB);
                 }
             }
         };
@@ -712,7 +740,7 @@ public class Translator extends NeuralNetworkApi {
                 //we convert the ids of completeOutputs into a string and return it
                 encoderResult.close();
                 int[] completeOutputArray;
-                if (mode == MADLAD_CACHE || mode == NLLB_CACHE && beamSize > 1) {
+                if ((mode == MADLAD_CACHE || mode == NLLB_CACHE) && beamSize > 1) {
                     int indexMax = 0;
                     for (int j = 0; j < beamSize; j++) {
                         indexMax = Utils.getIndexOfLargest(beamsOutputsProbabilities);
@@ -870,7 +898,7 @@ public class Translator extends NeuralNetworkApi {
                     embedResult = embedSession.run(embedInput, requestedOutputs);
 
                     decoderInput.put("embed_matrix", (OnnxTensor) embedResult.get(0));
-                    decoderInput.put("encoder_hidden_states", encoderResult);
+                    //decoderInput.put("encoder_hidden_states", encoderResult);
                 }
                 if(j == 1){
                     long[] shape = {1, 16, 0, hiddenSize};
@@ -1109,14 +1137,14 @@ public class Translator extends NeuralNetworkApi {
                     embedResult = embedSession.run(embedInput, requestedOutputs);
 
                     decoderInput.put("embed_matrix", (OnnxTensor) embedResult.get(0));
-                    decoderInput.put("encoder_hidden_states", encoderResult);
+                    //decoderInput.put("encoder_hidden_states", encoderResult);
                 }
                 decoderInput.put("input_ids", inputIDsTensor);
                 if(j == 1){  //se è la prima iterazione
                     //we run the decoder with a batch_size = 1
                     decoderInput.put("encoder_attention_mask", encoderAttentionMaskTensor);
                     if(mode == MADLAD_CACHE) {
-                        decoderInput.put("encoder_hidden_states", encoderResult);
+                        //decoderInput.put("encoder_hidden_states", encoderResult);
                     }
                     long[] shape = {1, 16, 0, hiddenSize};
                     OnnxTensor decoderPastTensor = TensorUtils.createFloatTensorWithSingleValue(onnxEnv,0, shape);
@@ -1135,7 +1163,7 @@ public class Translator extends NeuralNetworkApi {
                     //we run the decoder with batch_size = beamSize
                     decoderInput.put("encoder_attention_mask", encoderAttentionMaskTensorBatched);
                     if(mode == MADLAD_CACHE) {
-                        decoderInput.put("encoder_hidden_states", encoderResultBatched);
+                        //decoderInput.put("encoder_hidden_states", encoderResultBatched);
                     }
                     for (int i = 0; i < nLayers; i++) {
                         decoderInput.put("past_key_values." + i + ".decoder.key", (OnnxTensor) result.get("present." + i + ".decoder.key").get());

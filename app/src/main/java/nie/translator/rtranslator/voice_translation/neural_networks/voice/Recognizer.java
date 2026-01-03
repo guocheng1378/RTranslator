@@ -414,16 +414,16 @@ public class Recognizer extends NeuralNetworkApi {
                             }
                         }
                         oldResult = result;
-                        android.util.Log.i("performance", "pre-execution of" + j + "th word done in: " + (System.currentTimeMillis() - time) + "ms");
+                        android.util.Log.i("performance", "pre-execution of " + j + "th word done in: " + (System.currentTimeMillis() - time) + "ms");
                         time = System.currentTimeMillis();
                         //execution of decoder (with cache)
                         result = decoderSession.run(decoderInput);
-                        android.util.Log.i("performance", "execution of" + j + "th word done in: " + (System.currentTimeMillis() - time) + "ms");
+                        android.util.Log.i("performance", "execution of " + j + "th word done in: " + (System.currentTimeMillis() - time) + "ms");
                         time = System.currentTimeMillis();
 
                         if (oldResult != null) {
                             oldResult.close(); //serve a rilasciare la memoria occupata dal risultato (altrimenti di accumula e aumenta molto)
-                            android.util.Log.i("performance", "release RAM of" + j + "th word done in: " + (System.currentTimeMillis() - time) + "ms");
+                            android.util.Log.i("performance", "release RAM of " + j + "th word done in: " + (System.currentTimeMillis() - time) + "ms");
                         }
                         //we extract the logits and the highest value
                         decoderOutput = (OnnxTensor) result.get("logits").get();
