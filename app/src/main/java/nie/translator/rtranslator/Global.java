@@ -482,8 +482,8 @@ public class Global extends Application implements DefaultLifecycleObserver {
         if(translator.getMode() == Translator.MOZILLA) translator.loadMozillaModels(secondLanguage, firstLanguage, RTranslatorMode.TEXT_TRANSLATION_MODE, null);
         SharedPreferences sharedPreferences = this.getSharedPreferences("default", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putString("firstTextLanguage", this.firstLanguage.getCode());
-        editor.putString("secondTextLanguage", this.secondLanguage.getCode());
+        editor.putString("firstTextLanguage", this.firstTextLanguage.getCode());
+        editor.putString("secondTextLanguage", this.secondTextLanguage.getCode());
         editor.apply();
     }
 
