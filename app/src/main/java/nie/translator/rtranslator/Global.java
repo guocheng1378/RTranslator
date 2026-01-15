@@ -55,6 +55,7 @@ import nie.translator.rtranslator.voice_translation.neural_networks.voice.Record
 
 
 public class Global extends Application implements DefaultLifecycleObserver {
+    public static final boolean ONLY_TEXT_TRANSLATION_MODE = true;
     public enum RTranslatorMode {
         TEXT_TRANSLATION_MODE,
         WALKIE_TALKIE_MODE,
@@ -73,7 +74,6 @@ public class Global extends Application implements DefaultLifecycleObserver {
     private Translator translator;
     private Recognizer speechRecognizer;
     private String name = "";
-    private String apiKeyFileName = "";
     private int micSensitivity = -1;
     private int speechTimeout = -1;
     private int prevVoiceDuration = -1;

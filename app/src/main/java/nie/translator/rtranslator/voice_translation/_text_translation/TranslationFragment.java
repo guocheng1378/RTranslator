@@ -195,30 +195,30 @@ public class TranslationFragment extends Fragment {
             }
         });
 
-        walkieTalkieButton.setOnClickListener(new View.OnClickListener() {
+        View.OnClickListener walkieTalkieButtonListener = new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                activity.setFragment(VoiceTranslationActivity.WALKIE_TALKIE_FRAGMENT);
+                if(!Global.ONLY_TEXT_TRANSLATION_MODE) {
+                    activity.setFragment(VoiceTranslationActivity.WALKIE_TALKIE_FRAGMENT);
+                }else{
+                    Toast.makeText(global, "'Only text translation mode' is active", Toast.LENGTH_SHORT).show();
+                }
             }
-        });
-        conversationButton.setOnClickListener(new View.OnClickListener() {
+        };
+        View.OnClickListener conversationButtonListener = new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                activity.setFragment(VoiceTranslationActivity.PAIRING_FRAGMENT);
+                if(!Global.ONLY_TEXT_TRANSLATION_MODE) {
+                    activity.setFragment(VoiceTranslationActivity.PAIRING_FRAGMENT);
+                }else{
+                    Toast.makeText(global, "'Only text translation mode' is active", Toast.LENGTH_SHORT).show();
+                }
             }
-        });
-        walkieTalkieButtonSmall.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                activity.setFragment(VoiceTranslationActivity.WALKIE_TALKIE_FRAGMENT);
-            }
-        });
-        conversationButtonSmall.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                activity.setFragment(VoiceTranslationActivity.PAIRING_FRAGMENT);
-            }
-        });
+        };
+        walkieTalkieButton.setOnClickListener(walkieTalkieButtonListener);
+        conversationButton.setOnClickListener(conversationButtonListener);
+        walkieTalkieButtonSmall.setOnClickListener(walkieTalkieButtonListener);
+        conversationButtonSmall.setOnClickListener(conversationButtonListener);
         translateListener = new Translator.TranslateListener() {
             @Override
             public void onTranslatedText(String textToTranslate, String text, long resultID, boolean isFinal, CustomLocale languageOfText) {

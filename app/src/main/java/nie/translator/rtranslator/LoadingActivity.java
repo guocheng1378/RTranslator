@@ -85,7 +85,7 @@ public class LoadingActivity extends GeneralActivity {
             startActivity(intent);
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
             finish();
-        } else if (global.getTranslator() != null && global.getSpeechRecognizer() != null) {
+        } else if (global.getTranslator() != null && (Global.ONLY_TEXT_TRANSLATION_MODE || global.getSpeechRecognizer() != null)) {
             startVoiceTranslationActivity();
         } else {
             initializeApp(false);
@@ -106,7 +106,7 @@ public class LoadingActivity extends GeneralActivity {
                 global.initializeTranslator(new Translator.GeneralListener() {
                     @Override
                     public void onSuccess() {
-                        global.initializeSpeechRecognizer(new NeuralNetworkApi.InitListener() {
+                        NeuralNetworkApi.InitListener speechRecognizerInitListener = new NeuralNetworkApi.InitListener() {
                             @Override
                             public void onInitializationFinished() {
                                 if (isVisible) {
@@ -119,7 +119,12 @@ public class LoadingActivity extends GeneralActivity {
                                 global.deleteSpeechRecognizer();  //we do this to ensure the restart of the loading of models when the app is restarted
                                 LoadingActivity.this.onFailure(reasons, value);
                             }
-                        });
+                        };
+                        if(Global.ONLY_TEXT_TRANSLATION_MODE) {
+                            speechRecognizerInitListener.onInitializationFinished();
+                        }else{
+                            global.initializeSpeechRecognizer(speechRecognizerInitListener);
+                        }
                     }
 
                     @Override
