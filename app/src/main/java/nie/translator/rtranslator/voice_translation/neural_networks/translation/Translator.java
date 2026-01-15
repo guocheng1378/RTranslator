@@ -145,11 +145,11 @@ public class Translator extends NeuralNetworkApi {
             embedAndLmHeadPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/NLLB" + "/nllb_embed_and_lm_head_4bit.onnx";
             cacheInitializerPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/NLLB" + "/nllb_cache_initializer_4bit.onnx";
         }else {  //madlad
-            encoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/madlad_encoder_4bit.onnx";
-            decoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/madlad_decoder_4bit.onnx";
+            encoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/Int4Acc4/madlad_encoder_4bit.onnx";
+            decoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/Int4Acc4/madlad_decoder_4bit.onnx";
             vocabPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/spiece.model";
-            embedAndLmHeadPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/madlad_embed_4bit.onnx";
-            cacheInitializerPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/madlad_cache_initializer_4bit.onnx";
+            embedAndLmHeadPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/madlad_embed_8bit.onnx";
+            cacheInitializerPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/Int4Acc4/madlad_cache_initializer_4bit.onnx";
         }
 
         String finalDecoderPath = decoderPath;
@@ -198,28 +198,29 @@ public class Translator extends NeuralNetworkApi {
                         });
                     } else {
                         final OrtSession.SessionOptions.OptLevel optDefaultLevel = OrtSession.SessionOptions.OptLevel.BASIC_OPT;
+                        boolean arena = true;
 
                         OrtSession.SessionOptions decoderOptions = new OrtSession.SessionOptions();
-                        decoderOptions.setMemoryPatternOptimization(false);
-                        decoderOptions.setCPUArenaAllocator(false);
+                        decoderOptions.setMemoryPatternOptimization(arena);
+                        decoderOptions.setCPUArenaAllocator(arena);
                         decoderOptions.setOptimizationLevel(optDefaultLevel);
                         decoderSession = onnxEnv.createSession(finalDecoderPath, decoderOptions);
 
                         OrtSession.SessionOptions encoderOptions = new OrtSession.SessionOptions();
-                        encoderOptions.setMemoryPatternOptimization(false);
-                        encoderOptions.setCPUArenaAllocator(false);
+                        encoderOptions.setMemoryPatternOptimization(arena);
+                        encoderOptions.setCPUArenaAllocator(arena);
                         encoderOptions.setOptimizationLevel(optDefaultLevel);
                         encoderSession = onnxEnv.createSession(finalEncoderPath, encoderOptions);
 
                         OrtSession.SessionOptions cacheInitOptions = new OrtSession.SessionOptions();
-                        cacheInitOptions.setMemoryPatternOptimization(false);
-                        cacheInitOptions.setCPUArenaAllocator(false);
+                        cacheInitOptions.setMemoryPatternOptimization(arena);
+                        cacheInitOptions.setCPUArenaAllocator(arena);
                         cacheInitOptions.setOptimizationLevel(optDefaultLevel);
                         cacheInitSession = onnxEnv.createSession(finalCacheInitializerPath, cacheInitOptions);
 
                         OrtSession.SessionOptions embedAndLmHeadOptions = new OrtSession.SessionOptions();
-                        embedAndLmHeadOptions.setMemoryPatternOptimization(false);
-                        embedAndLmHeadOptions.setCPUArenaAllocator(false);
+                        embedAndLmHeadOptions.setMemoryPatternOptimization(arena);
+                        embedAndLmHeadOptions.setCPUArenaAllocator(arena);
                         embedAndLmHeadOptions.setOptimizationLevel(optDefaultLevel);
                         if (mode == MADLAD_CACHE) {
                             embedSession = onnxEnv.createSession(finalEmbedAndLmHeadPath, embedAndLmHeadOptions);
