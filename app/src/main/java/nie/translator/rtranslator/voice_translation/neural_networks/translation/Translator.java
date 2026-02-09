@@ -64,7 +64,6 @@ import nie.translator.rtranslator.bluetooth.Message;
 import nie.translator.rtranslator.tools.CustomLocale;
 import nie.translator.rtranslator.tools.ErrorCodes;
 import nie.translator.rtranslator.tools.FileTools;
-import nie.translator.rtranslator.tools.gui.animations.CustomAnimator;
 import nie.translator.rtranslator.tools.gui.messages.GuiMessage;
 import nie.translator.rtranslator.tools.nn.CacheContainerNative;
 import nie.translator.rtranslator.tools.nn.TensorUtils;
@@ -133,17 +132,17 @@ public class Translator extends NeuralNetworkApi {
         String cacheInitializerPath;
         if(mode == NLLB || mode == NLLB_CACHE) {
             //8 bit
-            /*encoderPath = global.getFilesDir().getPath() + "/NLLB_encoder.onnx";
+            encoderPath = global.getFilesDir().getPath() + "/NLLB_encoder.onnx";
             decoderPath = global.getFilesDir().getPath() + "/NLLB_decoder.onnx";
             vocabPath = global.getFilesDir().getPath() + "/sentencepiece_bpe.model";
             embedAndLmHeadPath = global.getFilesDir().getPath() + "/NLLB_embed_and_lm_head.onnx";
-            cacheInitializerPath = global.getFilesDir().getPath() + "/NLLB_cache_initializer.onnx";*/
+            cacheInitializerPath = global.getFilesDir().getPath() + "/NLLB_cache_initializer.onnx";
             //4 bit
-            encoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/NLLB" + "/nllb_encoder_4bit.onnx";
+            /*encoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/NLLB" + "/nllb_encoder_4bit.onnx";
             decoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/NLLB" + "/nllb_decoder_4bit.onnx";
             vocabPath = global.getFilesDir().getPath() + "/sentencepiece_bpe.model";
             embedAndLmHeadPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/NLLB" + "/nllb_embed_and_lm_head_4bit.onnx";
-            cacheInitializerPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/NLLB" + "/nllb_cache_initializer_4bit.onnx";
+            cacheInitializerPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/NLLB" + "/nllb_cache_initializer_4bit.onnx";*/
         }else {  //madlad
             encoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/Int4Acc4/madlad_encoder_4bit.onnx";
             decoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/Int4Acc4/madlad_decoder_4bit.onnx";
@@ -699,9 +698,6 @@ public class Translator extends NeuralNetworkApi {
                     return;
                 }
                 //decoder execution
-                final int eos = tokenizer.PieceToID("</s>");
-                ArrayList<Integer> completeOutput = new ArrayList<Integer>();
-                completeOutput.add(0);   //tokenizer.PieceToID("<s>")
                 TranslateListener translateListener = new TranslateListener() {
                     @Override
                     public void onTranslatedText(String textToTranslate, String text, long resultID, boolean isFinal, CustomLocale languageOfText) {
@@ -734,11 +730,11 @@ public class Translator extends NeuralNetworkApi {
                     }
                 };
                 if (beamSize > 1) {  //beam search
-                    executeCacheDecoderBeam(textToTranslate, input, encoderResult, completeBeamOutput, beamsOutputsProbabilities, outputLanguage, beamSize, translateListener);
+                    executeCacheDecoder(textToTranslate, input, encoderResult, completeBeamOutput, beamsOutputsProbabilities, outputLanguage, beamSize, translateListener);
                 } else if (beamSize == 1) {  //greedy search (with kv cache)
-                    executeCacheDecoderGreedy(textToTranslate, input, encoderResult, completeOutput, outputLanguage, translateListener);
+                    executeCacheDecoder(textToTranslate, input, encoderResult, completeBeamOutput, null, outputLanguage, 1, translateListener);
                 }
-                //we convert the ids of completeOutputs into a string and return it
+                //we convert the ids of completeBeamOutputs into a string and return it
                 encoderResult.close();
                 int[] completeOutputArray;
                 if ((mode == MADLAD_CACHE || mode == NLLB_CACHE) && beamSize > 1) {
@@ -748,7 +744,7 @@ public class Translator extends NeuralNetworkApi {
                     }
                     completeOutputArray = completeBeamOutput[indexMax].stream().mapToInt(k -> k).toArray();
                 } else {
-                    completeOutputArray = completeOutput.stream().mapToInt(k -> k).toArray();  //converte completeOutput in un array di int
+                    completeOutputArray = completeBeamOutput[0].stream().mapToInt(k -> k).toArray();  //converte completeBeamOutput in un array di int
                 }
                 String finalSplitResult = tokenizer.decode(completeOutputArray);
                 if (joinedStringOutput[0].equals("")) {
@@ -828,6 +824,7 @@ public class Translator extends NeuralNetworkApi {
         }
     }
 
+    //todo: remove this method in the future
     public void executeCacheDecoderGreedy(String textToTranslate, TokenizerResult input, OnnxTensor encoderResult, ArrayList<Integer> completeOutput, final CustomLocale outputLanguage, @Nullable final TranslateListener responseListener){
         try {
             long time = System.currentTimeMillis();
@@ -899,7 +896,6 @@ public class Translator extends NeuralNetworkApi {
                     embedResult = embedSession.run(embedInput, requestedOutputs);
 
                     decoderInput.put("embed_matrix", (OnnxTensor) embedResult.get(0));
-                    //decoderInput.put("encoder_hidden_states", encoderResult);
                 }
                 if(j == 1){
                     long[] shape = {1, 16, 0, hiddenSize};
@@ -1008,7 +1004,7 @@ public class Translator extends NeuralNetworkApi {
         }
     }
 
-    public void executeCacheDecoderBeam(String textToTranslate, TokenizerResult input, OnnxTensor encoderResult, ArrayList<Integer>[] completeBeamOutput, double[] beamsOutputsProbabilities, final CustomLocale outputLanguage, int beamSize, @Nullable final TranslateListener responseListener) {
+    public void executeCacheDecoder(String textToTranslate, TokenizerResult input, OnnxTensor encoderResult, ArrayList<Integer>[] completeBeamOutput, @Nullable double[] beamsOutputsProbabilities, final CustomLocale outputLanguage, int beamSize, @Nullable final TranslateListener responseListener) {
         final int eos = tokenizer.PieceToID("</s>");
         int nLayers;
         int hiddenSize;
@@ -1031,11 +1027,10 @@ public class Translator extends NeuralNetworkApi {
                 inputIDsTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, new int[]{2});  //for the first iteration we use input_ids = 2, with batch_size = 1
             }
             OnnxTensor encoderAttentionMaskTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, input.getAttentionMask());
-            int encoderInputIdsLength = input.getInputIDs().length;
             CacheContainerNative cacheContainer = null;
             OnnxTensor decoderOutput = null;
             Map<String,OnnxTensor> decoderInput = new HashMap<String,OnnxTensor>();
-            float [][][] outputValues = null;
+            float [][][] logits = null;
 
             time = System.currentTimeMillis();
             //preparing cache initializer input
@@ -1044,61 +1039,11 @@ public class Translator extends NeuralNetworkApi {
             //execution of the cache initializer
             OrtSession.Result initResult = cacheInitSession.run(initInput);
             android.util.Log.i("performance", "Cache initialization done in: " + (System.currentTimeMillis()-time) + "ms");
+            encoderResult.close();  //we close it because from now on we only need initResult
 
-            time = System.currentTimeMillis();
             //we convert the fixed decoder inputs to have batch_size==beamSize
-            OnnxTensor encoderResultBatched = null;
-            if(mode == MADLAD_CACHE) {
-                float[][] encoderValue = ((float[][][]) encoderResult.getValue())[0];
-                float[] encoderValueFlatBatched = TensorUtils.flattenFloatArrayBatched(encoderValue, beamSize);
-                encoderResultBatched = TensorUtils.createFloatTensor(onnxEnv, encoderValueFlatBatched, new long[]{beamSize, encoderValue.length, encoderValue[0].length});
-                encoderValue = null;  //free the memory
-                encoderValueFlatBatched = null;  //free the memory
-                //System.gc();
-                android.util.Log.i("performance", "Encoder batch initialization done in: " + (System.currentTimeMillis()-time) + "ms");
-            }
-            time = System.currentTimeMillis();
-            OnnxTensor encoderAttentionMaskTensorBatched;
-            int[] encoderMaskFlatBatched = TensorUtils.flattenIntArrayBatched(input.getAttentionMask(), beamSize);
-            encoderAttentionMaskTensorBatched = TensorUtils.createIntTensor(onnxEnv, encoderMaskFlatBatched, new long[]{beamSize, input.getAttentionMask().length});
-            encoderMaskFlatBatched = null;  //free the memory
-            //System.gc();
-            android.util.Log.i("performance", "Mask batch initialization done in: " + (System.currentTimeMillis()-time) + "ms");
-            time = System.currentTimeMillis();
-            OrtSession.Result initResultBatched;
-            String[] names = new String[2*nLayers];
-            OnnxValue[] values = new OnnxValue[2*nLayers];
-            boolean[] ownedByResult = new boolean[2*nLayers];
-            Arrays.fill(ownedByResult, true);
-            String[] suffixes = {"key", "value"};
-            long timeExtract = 0;
-            long timeBatch = 0;
-            long timeCreate = 0;
-            int count = 0;
-            for (int i = 0; i < nLayers; i++) {
-                for (String suffix: suffixes) {
-                    //System.gc();
-                    names[count] = "present." + i + ".encoder."+suffix;
-                    long timeInner = System.currentTimeMillis();
-                    float[][][] keyValue = ((float[][][][]) TensorUtils.extractValue(initResult, "present." + i + ".encoder."+suffix))[0];
-                    timeExtract += System.currentTimeMillis() - timeInner;
-                    timeInner = System.currentTimeMillis();
-                    float[][][][] keyValueFlatBatched = TensorUtils.batchTensor(keyValue, beamSize);
-                    timeBatch += System.currentTimeMillis() - timeInner;
-                    timeInner = System.currentTimeMillis();
-                    values[count] = TensorUtils.createFloatTensorOptimized(onnxEnv, keyValueFlatBatched, new long[]{beamSize, keyValue.length, keyValue[0].length, keyValue[0][0].length});;
-                    timeCreate += System.currentTimeMillis() - timeInner;
-                    count++;
-                }
-            }
-            //the Result constructor is private but this way we can use it anyway
-            Constructor<OrtSession.Result> constructor = OrtSession.Result.class.getDeclaredConstructor(names.getClass(), values.getClass(), ownedByResult.getClass());
-            constructor.setAccessible(true);
-            initResultBatched = constructor.newInstance(names, values, ownedByResult);
-            android.util.Log.i("performance", "InitResult extract done in: " + timeExtract + "ms");
-            android.util.Log.i("performance", "InitResult batch done in: " + timeBatch + "ms");
-            android.util.Log.i("performance", "InitResult create done in: " + timeCreate + "ms");
-            android.util.Log.i("performance", "InitResult batch initialization done in: " + (System.currentTimeMillis()-time) + "ms");
+            OnnxTensor encoderAttentionMaskTensorBatched = beamSize > 1 ? batchEncoderAttentionMask(input.getAttentionMask(), beamSize, true) : null;
+            OrtSession.Result initResultBatched = beamSize > 1 ? batchEncoderKvCache(initResult, nLayers, beamSize, true) : null;
 
             //we begin the iterative execution of the decoder
             String[] partialResults = new String[beamSize];  //used for log
@@ -1112,14 +1057,15 @@ public class Translator extends NeuralNetworkApi {
             OnnxTensor emptyInputIds = TensorUtils.createInt64TensorWithSingleValue(onnxEnv, 0, new long[]{EMPTY_BATCH_SIZE, 2});
             OnnxTensor emptyInputIdsBatch = TensorUtils.createInt64TensorWithSingleValue(onnxEnv, 0, new long[]{beamSize, 2});
 
-            while(input_ids[0] != eos){   //input_ids[0] should always contain the ultimate value generated from the text with highest probability (to be verified)
+            while(max[0] != eos){   //max[0] should always contain the ultimate value generated from the text with highest probability (to be verified)
                 initialTime = System.currentTimeMillis();
                 time = System.currentTimeMillis();
+
                 //we prepare the decoder input
                 decoderInput = new HashMap<String,OnnxTensor>();
                 OrtSession.Result embedResult = null;
                 if(mode == NLLB_CACHE){
-                    //we do the embedding separately and then we pass the result to the encoder
+                    //we do the embedding separately and then we pass the result to the decoder
                     Map<String,OnnxTensor> embedInput = new HashMap<String,OnnxTensor>();
                     embedInput.put("input_ids", inputIDsTensor);
                     embedInput.put("pre_logits", j == 1 ? emptyPreLogits : emptyPreLogitsBatch);
@@ -1131,6 +1077,7 @@ public class Translator extends NeuralNetworkApi {
                     decoderInput.put("embed_matrix", (OnnxTensor) embedResult.get(0));
                 }
                 if(mode == MADLAD_CACHE) {
+                    //we do the embedding separately and then we pass the result to the decoder
                     Map<String,OnnxTensor> embedInput = new HashMap<String,OnnxTensor>();
                     embedInput.put("input_ids", inputIDsTensor);
                     ArraySet<String> requestedOutputs = new ArraySet<>();
@@ -1138,15 +1085,11 @@ public class Translator extends NeuralNetworkApi {
                     embedResult = embedSession.run(embedInput, requestedOutputs);
 
                     decoderInput.put("embed_matrix", (OnnxTensor) embedResult.get(0));
-                    //decoderInput.put("encoder_hidden_states", encoderResult);
                 }
                 decoderInput.put("input_ids", inputIDsTensor);
-                if(j == 1){  //se è la prima iterazione
+                if(j == 1){  //if it is the first iteration
                     //we run the decoder with a batch_size = 1
                     decoderInput.put("encoder_attention_mask", encoderAttentionMaskTensor);
-                    if(mode == MADLAD_CACHE) {
-                        //decoderInput.put("encoder_hidden_states", encoderResult);
-                    }
                     long[] shape = {1, 16, 0, hiddenSize};
                     OnnxTensor decoderPastTensor = TensorUtils.createFloatTensorWithSingleValue(onnxEnv,0, shape);
                     for (int i = 0; i < nLayers; i++) {
@@ -1156,26 +1099,23 @@ public class Translator extends NeuralNetworkApi {
                         decoderInput.put("past_key_values." + i + ".encoder.value", (OnnxTensor) initResult.get("present." + i + ".encoder.value").get());
                     }
                 }else {
-                    if(j == 2) {
+                    if(j == 2 && beamSize > 1) {
                         encoderAttentionMaskTensor.close();   //we close it because from now on we only need encoderAttentionMaskTensorBatched
-                        encoderResult.close();  //we close it because from now on we only need encoderResultBatched
                         initResult.close();     //we close it because from now on we only need initResultBatched
                     }
                     //we run the decoder with batch_size = beamSize
-                    decoderInput.put("encoder_attention_mask", encoderAttentionMaskTensorBatched);
-                    if(mode == MADLAD_CACHE) {
-                        //decoderInput.put("encoder_hidden_states", encoderResultBatched);
-                    }
+                    decoderInput.put("encoder_attention_mask", beamSize > 1 ? encoderAttentionMaskTensorBatched : encoderAttentionMaskTensor);
                     for (int i = 0; i < nLayers; i++) {
                         decoderInput.put("past_key_values." + i + ".decoder.key", (OnnxTensor) result.get("present." + i + ".decoder.key").get());
                         decoderInput.put("past_key_values." + i + ".decoder.value", (OnnxTensor) result.get("present." + i + ".decoder.value").get());
-                        decoderInput.put("past_key_values." + i + ".encoder.key", (OnnxTensor) initResultBatched.get("present." + i + ".encoder.key").get());
-                        decoderInput.put("past_key_values." + i + ".encoder.value", (OnnxTensor) initResultBatched.get("present." + i + ".encoder.value").get());
+                        decoderInput.put("past_key_values." + i + ".encoder.key", (OnnxTensor) (beamSize > 1 ? initResultBatched : initResult).get("present." + i + ".encoder.key").get());
+                        decoderInput.put("past_key_values." + i + ".encoder.value", (OnnxTensor) (beamSize > 1 ? initResultBatched : initResult).get("present." + i + ".encoder.value").get());
                     }
                 }
                 oldResult = result;
                 android.util.Log.i("performance", "pre-execution of"+j+"th word done in: " + (System.currentTimeMillis()-time) + "ms");
                 time = System.currentTimeMillis();
+
                 //decoder execution (with cache)
                 result = decoderSession.run(decoderInput);
                 android.util.Log.i("performance", "execution of"+j+"th word done in: " + (System.currentTimeMillis()-time) + "ms");
@@ -1188,7 +1128,7 @@ public class Translator extends NeuralNetworkApi {
                     embedResult.close();
                 }
                 android.util.Log.i("performance", "release RAM of"+j+"th word done in: " + (System.currentTimeMillis()-time) + "ms");
-                //we take the logits and the max value
+                //we take the logits
                 OrtSession.Result lmHeadResult = null;
                 if(mode == NLLB_CACHE) {
                     //we execute the lmHead separately to get the logits
@@ -1204,24 +1144,16 @@ public class Translator extends NeuralNetworkApi {
                     decoderOutput = (OnnxTensor) result.get("logits").get();
                 }
                 //we take the logits and the larger "beamSize" values
+                logits = (float[][][]) decoderOutput.getValue();
                 if(j == 1) {  //if we are at the first iteration
-                    //decoderOutput = (OnnxTensor) result.get("logits").get();
-                    outputValues = (float[][][]) decoderOutput.getValue();
-                    //the "beamSize" words with highest probability are inserted into max and added to completeBeamOutput
-                    ArrayList<Integer> indexesToAvoid = new ArrayList<>();
-                    for (int i = 0; i < beamSize; i++) {
-                        max[i] = Utils.getIndexOfLargest(outputValues[0][0], indexesToAvoid);
-                        indexesToAvoid.add(max[i]);
-                        completeBeamOutput[i].add(max[i]);
+                    if(beamSize > 1) {
+                        //based on the logits, we initialize max, completeBeamOutput and beamsOutputsProbabilities
+                        initBeamSearchData(logits, beamSize, max, completeBeamOutput, beamsOutputsProbabilities);
+                    }else{
+                        max[0] = Utils.getIndexOfLargest(logits[0][0]);
+                        completeBeamOutput[0].add(max[0]);
                     }
-                    //we insert the initial probabilities of the "beamSize" output strings into beamsOutputsProbabilities
-                    for (int i = 0; i < beamSize; i++) {
-                        float maxLogit = outputValues[0][0][max[i]];
-                        //old version of probability calculation (softmax)
-                        //beamsOutputsProbabilities[i] = Math.log(Utils.softmax(maxLogit, outputValues[0][0]));
-                        //new version of probability calculation (logSumExp)
-                        beamsOutputsProbabilities[i] = maxLogit - Utils.logSumExpFast(outputValues[0][0]);
-                    }
+
                     //we prepare the inputs of the next iteration
                     if(mode == NLLB_CACHE){
                         for(int i=0; i<input_ids.length; i++){
@@ -1232,107 +1164,32 @@ public class Translator extends NeuralNetworkApi {
                     }
                     inputIDsTensor = TensorUtils.createIntTensor(onnxEnv, input_ids, new long[]{beamSize,1});
                     //we convert the cache making it have a batch_size=beamSize ("beamSize" copies of the same cache)
-                    names = new String[2*nLayers+1];
-                    values = new OnnxValue[2*nLayers+1];
-                    ownedByResult = new boolean[2*nLayers+1];
-                    Arrays.fill(ownedByResult, true);
-                    names[0] = "logits";
-                    values[0] = decoderOutput;  //result.get("logits").get();
-                    suffixes = new String[]{"key", "value"};
-                    count = 1;
-                    for (int i = 0; i < nLayers; i++) {
-                        for (String suffix: suffixes) {
-                            names[count] = "present." + i + ".decoder."+suffix;
-                            float[][][] keyValue = ((float[][][][]) TensorUtils.extractValue(result, "present." + i + ".decoder."+suffix))[0];
-                            float[] keyValueFlatBatched = TensorUtils.flattenFloatArrayBatched(keyValue, beamSize);
-                            values[count] = TensorUtils.createFloatTensor(onnxEnv, keyValueFlatBatched, new long[]{beamSize, keyValue.length, keyValue[0].length, keyValue[0][0].length});;
-                            count++;
-                        }
-                    }
-                    result.close();
-                    //the Result constructor is private but this way we can use it anyway
-                    constructor = OrtSession.Result.class.getDeclaredConstructor(names.getClass(), values.getClass(), ownedByResult.getClass());
-                    constructor.setAccessible(true);
-                    result = constructor.newInstance(names, values, ownedByResult);
+                    result = batchDecoderKvCache(result, decoderOutput, nLayers, beamSize, true);
 
                 }else{
-                    //decoderOutput = (OnnxTensor) result.get("logits").get();
-                    outputValues = (float[][][]) decoderOutput.getValue();
-                    //for each of the "beamSize" decoder outputs, the "beamSize" words with the highest probability are inserted into beamMax
-                    for(int k=0; k < beamSize; k++) {
-                        ArrayList<Integer> indexesToAvoid = new ArrayList<>();
-                        for (int i = 0; i < beamSize; i++) {
-                            beamMax[k][i] = Utils.getIndexOfLargest(outputValues[k][0], indexesToAvoid);
-                            indexesToAvoid.add(beamMax[k][i]);
-                        }
+                    if(beamSize > 1) {
+                        //based on the logits we update beam search data
+                        int[] maxProbabilities = new int[beamSize];
+                        cacheContainer = updateBeamSearchData(logits, beamSize, eos, result, j, nLayers, 16, hiddenSize, cacheContainer, maxProbabilities, beamMax, max, completeBeamOutput, beamsOutputsProbabilities);
+                    }else{
+                        max[0] = Utils.getIndexOfLargest(logits[0][0]);
+                        completeBeamOutput[0].add(max[0]);
                     }
-                    //Now beamMax will contain for each decoder output ("beamSize" outputs) the "beamSize" words with highest probability,
-                    // so for each output we calculate its overall probability for each of its "beamSize" words with highest probability
-                    long timeSoftmax = System.currentTimeMillis();
-                    double[] beamsOutputsProbabilitiesTemp = new double[beamSize*beamSize];
-                    for(int k=0; k < beamSize; k++) {
-                        //old version of probability calculation (softmax)
-                        /*for (int i = 0; i < beamSize; i++) {
-                            beamsOutputsProbabilitiesTemp[(k*beamSize)+i] = beamsOutputsProbabilities[k] + Math.log(Utils.softmax(outputValues[k][0][beamMax[k][i]], outputValues[k][0]));
-                            if(beamMax[k][i] == eos){
-                                beamsOutputsProbabilitiesTemp[(k*beamSize)+i] = beamsOutputsProbabilitiesTemp[(k*beamSize)+i]/EOS_PENALTY;
-                            }
-                        }*/
-                        //new version of probability calculation (logSumExp)
-                        double logSumExp = Utils.logSumExpFast(outputValues[k][0]);
-                        for (int i = 0; i < beamSize; i++) {
-                            float maxLogit = outputValues[k][0][beamMax[k][i]];
-                            beamsOutputsProbabilitiesTemp[(k*beamSize)+i] = beamsOutputsProbabilities[k] + maxLogit - logSumExp;
-                            if(beamMax[k][i] == eos){
-                                beamsOutputsProbabilitiesTemp[(k*beamSize)+i] = beamsOutputsProbabilitiesTemp[(k*beamSize)+i]/EOS_PENALTY;
-                            }
-                        }
-                    }
-                    android.util.Log.i("performance", "softmax done in: " + (System.currentTimeMillis()-timeSoftmax) + "ms");
-                    // Now we save in maxProbabilities the indices of the "beamSize" words generated by the decoder that have the
-                    // highest overall probability with their respective output sentences and then we will use them as the next inputs
-                    ArrayList<Integer> indexesToAvoid = new ArrayList<>();
-                    int[] maxProbabilities = new int[beamSize];
-                    for(int i=0; i<beamSize; i++){
-                        maxProbabilities[i] = Utils.getIndexOfLargest(beamsOutputsProbabilitiesTemp, indexesToAvoid);
-                        indexesToAvoid.add(maxProbabilities[i]);
-                    }
-                    // we update the probabilities of the "beamSize" output strings in beamsOutputsProbabilities,
-                    // and add the "beamSize" words with higher probability (each to its own output string) to completeBeamOutput
-                    ArrayList<Integer>[]  oldCompleteBeamOutput = completeBeamOutput.clone();
-                    for (int i = 0; i < beamSize; i++) {
-                        beamsOutputsProbabilities[i] = beamsOutputsProbabilitiesTemp[maxProbabilities[i]];
-                        completeBeamOutput[i] = (ArrayList<Integer>) oldCompleteBeamOutput[maxProbabilities[i]/beamSize].clone();
-                        completeBeamOutput[i].add(beamMax[maxProbabilities[i]/beamSize][maxProbabilities[i]%beamSize]);
-                    }
+
                     //we prepare the inputs of the next iteration
-                    for (int i = 0; i < beamSize; i++) {
-                        input_ids[i] = beamMax[maxProbabilities[i]/beamSize][maxProbabilities[i]%beamSize];
-                    }
+                    input_ids = max;
                     inputIDsTensor = TensorUtils.createIntTensor(onnxEnv, input_ids, new long[]{beamSize,1});
-                    long timeCache = System.currentTimeMillis();
-                    CacheContainerNative oldCache = cacheContainer;
-                    cacheContainer = new CacheContainerNative(onnxEnv, result, nLayers, beamSize, 16, j, hiddenSize);
-                    if(oldCache != null){
-                        oldCache.close();
-                    }
-                    android.util.Log.i("performance", "cache creation done in: " + (System.currentTimeMillis()-timeCache) + "ms");
-                    int[] indexes = new int[beamSize];
-                    for(int i=0; i<beamSize; i++){
-                        indexes[i] = maxProbabilities[i]/beamSize;
-                    }
-                    timeCache = System.currentTimeMillis();
-                    cacheContainer.reorder(indexes);
-                    android.util.Log.i("performance", "cache reorder done in: " + (System.currentTimeMillis()-timeCache) + "ms");
                 }
                 android.util.Log.i("performance", "post-execution of" + j + "th word done in: " + (System.currentTimeMillis() - time) + "ms");
                 android.util.Log.i("performance", "Generation of" + j + "th word done in: " + (System.currentTimeMillis() - initialTime) + "ms");
                 // we return the partial result with the highest probability
                 int indexMax = 0;
-                for(int i=0; i<beamSize; i++){
-                    indexMax = Utils.getIndexOfLargest(beamsOutputsProbabilities);
+                if(beamSize > 1) {
+                    for (int i = 0; i < beamSize; i++) {
+                        indexMax = Utils.getIndexOfLargest(beamsOutputsProbabilities);
+                    }
                 }
-                int [] outputIDs = completeBeamOutput[indexMax].stream().mapToInt(k -> k).toArray();
+                int[] outputIDs = completeBeamOutput[indexMax].stream().mapToInt(k -> k).toArray();
                 String partialResult = tokenizer.decode(outputIDs);
                 if(responseListener != null) {
                     responseListener.onTranslatedText(textToTranslate, partialResult, currentResultID, false, outputLanguage);
@@ -1346,20 +1203,11 @@ public class Translator extends NeuralNetworkApi {
                 }
             }
 
-            if(result != null) {
-                result.close();
-            }
+            if(result != null) result.close();
             initResult.close();
-            if(cacheContainer != null) {
-                cacheContainer.close();
-            }
-            if (encoderAttentionMaskTensorBatched != null) {
-                encoderAttentionMaskTensorBatched.close();
-            }
-            if(encoderResultBatched != null) {
-                encoderResultBatched.close();
-            }
-            initResultBatched.close();
+            if(cacheContainer != null) cacheContainer.close();
+            if(encoderAttentionMaskTensorBatched != null) encoderAttentionMaskTensorBatched.close();
+            if(initResultBatched != null) initResultBatched.close();
 
         } catch (OrtException | InvocationTargetException | NoSuchMethodException |
                  IllegalAccessException | InstantiationException e) {
@@ -1395,6 +1243,169 @@ public class Translator extends NeuralNetworkApi {
             }
         }
         return text;
+    }
+
+    private OnnxTensor batchEncoderAttentionMask(int[] attentionMask, int batchSize, boolean log) throws OrtException {
+        long time = System.currentTimeMillis();
+        int[] encoderMaskFlatBatched = TensorUtils.flattenIntArrayBatched(attentionMask, batchSize);
+        OnnxTensor encoderAttentionMaskTensorBatched = TensorUtils.createIntTensor(onnxEnv, encoderMaskFlatBatched, new long[]{batchSize, attentionMask.length});
+        encoderMaskFlatBatched = null;  //free the memory
+        //System.gc();
+        if(log) {
+            android.util.Log.i("performance", "Mask batch initialization done in: " + (System.currentTimeMillis() - time) + "ms");
+        }
+        return encoderAttentionMaskTensorBatched;
+    }
+
+    @NonNull
+    private OrtSession.Result batchEncoderKvCache(OrtSession.Result result, int nLayers, int batchSize, boolean log) throws InvocationTargetException, IllegalAccessException, InstantiationException, NoSuchMethodException, OrtException {
+        long time = System.currentTimeMillis();
+        String[] names = new String[2*nLayers];
+        OnnxValue[] values = new OnnxValue[2*nLayers];
+        boolean[] ownedByResult = new boolean[2*nLayers];
+        Arrays.fill(ownedByResult, true);
+        String[] suffixes = {"key", "value"};
+        long timeExtract = 0;
+        long timeBatch = 0;
+        long timeCreate = 0;
+        int count = 0;
+        for (int i = 0; i < nLayers; i++) {
+            for (String suffix: suffixes) {
+                //System.gc();
+                names[count] = "present." + i + ".encoder."+suffix;
+                long timeInner = System.currentTimeMillis();
+                float[][][] keyValue = ((float[][][][]) TensorUtils.extractValue(result, "present." + i + ".encoder."+suffix))[0];
+                timeExtract += System.currentTimeMillis() - timeInner;
+                timeInner = System.currentTimeMillis();
+                float[][][][] keyValueFlatBatched = TensorUtils.batchTensor(keyValue, batchSize);
+                timeBatch += System.currentTimeMillis() - timeInner;
+                timeInner = System.currentTimeMillis();
+                values[count] = TensorUtils.createFloatTensorOptimized(onnxEnv, keyValueFlatBatched, new long[]{batchSize, keyValue.length, keyValue[0].length, keyValue[0][0].length});;
+                timeCreate += System.currentTimeMillis() - timeInner;
+                count++;
+            }
+        }
+        //the Result constructor is private but this way we can use it anyway
+        Constructor<OrtSession.Result> constructor = OrtSession.Result.class.getDeclaredConstructor(names.getClass(), values.getClass(), ownedByResult.getClass());
+        constructor.setAccessible(true);
+        OrtSession.Result initResultBatched = constructor.newInstance(names, values, ownedByResult);
+        if(log) {
+            android.util.Log.i("performance", "InitResult extract done in: " + timeExtract + "ms");
+            android.util.Log.i("performance", "InitResult batch done in: " + timeBatch + "ms");
+            android.util.Log.i("performance", "InitResult create done in: " + timeCreate + "ms");
+            android.util.Log.i("performance", "InitResult batch initialization done in: " + (System.currentTimeMillis() - time) + "ms");
+        }
+
+        return initResultBatched;
+    }
+
+    private OrtSession.Result batchDecoderKvCache(OrtSession.Result result, OnnxTensor decoderOutput, int nLayers, int batchSize, boolean log) throws InvocationTargetException, IllegalAccessException, InstantiationException, NoSuchMethodException, OrtException {
+        long time = System.currentTimeMillis();
+        String[] names = new String[2*nLayers+1];
+        OnnxValue[] values = new OnnxValue[2*nLayers+1];
+        boolean[] ownedByResult = new boolean[2*nLayers+1];
+        Arrays.fill(ownedByResult, true);
+        names[0] = "logits";
+        values[0] = decoderOutput;  //result.get("logits").get();
+        String[] suffixes = new String[]{"key", "value"};
+        int count = 1;
+        for (int i = 0; i < nLayers; i++) {
+            for (String suffix: suffixes) {
+                names[count] = "present." + i + ".decoder."+suffix;
+                float[][][] keyValue = ((float[][][][]) TensorUtils.extractValue(result, "present." + i + ".decoder."+suffix))[0];
+                float[] keyValueFlatBatched = TensorUtils.flattenFloatArrayBatched(keyValue, batchSize);
+                values[count] = TensorUtils.createFloatTensor(onnxEnv, keyValueFlatBatched, new long[]{batchSize, keyValue.length, keyValue[0].length, keyValue[0][0].length});  //todo: evaluate the use of createFloatTensorOptimized
+                count++;
+            }
+        }
+        if(log) {
+            android.util.Log.i("performance", "Decoder kvCache batch initialization done in: " + (System.currentTimeMillis() - time) + "ms");
+        }
+        result.close();
+        //the Result constructor is private but this way we can use it anyway
+        Constructor<OrtSession.Result> constructor = OrtSession.Result.class.getDeclaredConstructor(names.getClass(), values.getClass(), ownedByResult.getClass());
+        constructor.setAccessible(true);
+        return constructor.newInstance(names, values, ownedByResult);
+    }
+
+    private void initBeamSearchData(float [][][] logits, int beamSize, int[] max, ArrayList<Integer>[] completeBeamOutput, double[] beamsOutputsProbabilities){
+        //the "beamSize" words with highest probability are inserted into max and added to completeBeamOutput
+        ArrayList<Integer> indexesToAvoid = new ArrayList<>();
+        for (int i = 0; i < beamSize; i++) {
+            max[i] = Utils.getIndexOfLargest(logits[0][0], indexesToAvoid);
+            indexesToAvoid.add(max[i]);
+            completeBeamOutput[i].add(max[i]);
+        }
+        //we insert the initial probabilities of the "beamSize" output strings into beamsOutputsProbabilities
+        for (int i = 0; i < beamSize; i++) {
+            float maxLogit = logits[0][0][max[i]];
+            beamsOutputsProbabilities[i] = maxLogit - Utils.logSumExpFast(logits[0][0]);
+        }
+    }
+
+    private CacheContainerNative updateBeamSearchData(
+            float [][][] logits, int beamSize, int eos, OrtSession.Result decoderResult, int sequenceLength, int nLayers, int nHeads, int hiddenSize,
+            CacheContainerNative cacheContainer, int[] maxProbabilities, int[][] beamMax, int[] max, ArrayList<Integer>[] completeBeamOutput, double[] beamsOutputsProbabilities
+    ){
+        //for each of the "beamSize" decoder outputs, the "beamSize" words with the highest probability are inserted into beamMax
+        for(int k=0; k < beamSize; k++) {
+            ArrayList<Integer> indexesToAvoid = new ArrayList<>();
+            for (int i = 0; i < beamSize; i++) {
+                beamMax[k][i] = Utils.getIndexOfLargest(logits[k][0], indexesToAvoid);
+                indexesToAvoid.add(beamMax[k][i]);
+            }
+        }
+        //Now beamMax will contain for each decoder output ("beamSize" outputs) the "beamSize" words with highest probability,
+        // so for each output we calculate its overall probability for each of its "beamSize" words with highest probability
+        long timeSoftmax = System.currentTimeMillis();
+        double[] beamsOutputsProbabilitiesTemp = new double[beamSize*beamSize];
+        for(int k=0; k < beamSize; k++) {
+            //new version of probability calculation (logSumExp)
+            double logSumExp = Utils.logSumExpFast(logits[k][0]);
+            for (int i = 0; i < beamSize; i++) {
+                float maxLogit = logits[k][0][beamMax[k][i]];
+                beamsOutputsProbabilitiesTemp[(k*beamSize)+i] = beamsOutputsProbabilities[k] + maxLogit - logSumExp;
+                if(beamMax[k][i] == eos){
+                    beamsOutputsProbabilitiesTemp[(k*beamSize)+i] = beamsOutputsProbabilitiesTemp[(k*beamSize)+i]/EOS_PENALTY;
+                }
+            }
+        }
+        android.util.Log.i("performance", "softmax done in: " + (System.currentTimeMillis()-timeSoftmax) + "ms");
+        // Now we save in maxProbabilities the indices of the "beamSize" words generated by the decoder that have the
+        // highest overall probability with their respective output sentences and then we will use them as the next inputs
+        ArrayList<Integer> indexesToAvoid = new ArrayList<>();
+        for(int i=0; i<beamSize; i++){
+            maxProbabilities[i] = Utils.getIndexOfLargest(beamsOutputsProbabilitiesTemp, indexesToAvoid);
+            indexesToAvoid.add(maxProbabilities[i]);
+        }
+        // we update the probabilities of the "beamSize" output strings in beamsOutputsProbabilities,
+        // and add the "beamSize" words with higher probability (each to its own output string) to completeBeamOutput
+        ArrayList<Integer>[]  oldCompleteBeamOutput = completeBeamOutput.clone();
+        for (int i = 0; i < beamSize; i++) {
+            beamsOutputsProbabilities[i] = beamsOutputsProbabilitiesTemp[maxProbabilities[i]];
+            completeBeamOutput[i] = (ArrayList<Integer>) oldCompleteBeamOutput[maxProbabilities[i]/beamSize].clone();
+            completeBeamOutput[i].add(beamMax[maxProbabilities[i]/beamSize][maxProbabilities[i]%beamSize]);
+        }
+        // reorder of the kvCache to match the new selected inputs for the next iteration
+        long timeCache = System.currentTimeMillis();
+        CacheContainerNative oldCache = cacheContainer;
+        cacheContainer = new CacheContainerNative(onnxEnv, decoderResult, nLayers, beamSize, nHeads, sequenceLength, hiddenSize);
+        if(oldCache != null){
+            oldCache.close();
+        }
+        android.util.Log.i("performance", "cache creation done in: " + (System.currentTimeMillis()-timeCache) + "ms");
+        int[] indexes = new int[beamSize];
+        for(int i=0; i<beamSize; i++){
+            indexes[i] = maxProbabilities[i]/beamSize;
+        }
+        timeCache = System.currentTimeMillis();
+        cacheContainer.reorder(indexes);
+        android.util.Log.i("performance", "cache reorder done in: " + (System.currentTimeMillis()-timeCache) + "ms");
+        //insert of the next tokens inputs in max
+        for (int i = 0; i < beamSize; i++) {
+            max[i] = beamMax[maxProbabilities[i]/beamSize][maxProbabilities[i]%beamSize];
+        }
+        return cacheContainer;
     }
 
     private static String getSentenceTerminator(Locale locale) {

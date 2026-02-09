@@ -291,7 +291,7 @@ public class Recognizer extends NeuralNetworkApi {
         DataContainer data = dataToRecognize.pollFirst();
         if (initSession != null && encoderSession != null && cacheInitSession != null && decoderSession != null && detokenizerSession != null) {
             if (data != null) {
-                //we convert data in un audioTensor and start the transcription
+                //we convert data in an audioTensor and start the transcription
                 try {
                     FloatBuffer floatAudioDataBuffer = FloatBuffer.wrap(data.data);
                     OnnxTensor audioTensor = OnnxTensor.createTensor(onnxEnv, floatAudioDataBuffer, TensorUtils.tensorShape(1L, (long) data.data.length));

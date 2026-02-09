@@ -1,8 +1,6 @@
-# Default ignored files
 /shelf/
 /usage.statistics.xml
 /workspace.xml
-#extra ignored files
 /caches
 /caches/*
 /gradle.xml
