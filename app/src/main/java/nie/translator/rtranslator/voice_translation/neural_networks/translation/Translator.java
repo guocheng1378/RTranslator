@@ -79,7 +79,7 @@ public class Translator extends NeuralNetworkApi {
     public static final int MADLAD = 3;
     public static final int MADLAD_CACHE = 5;
     public static final int MOZILLA = 7;
-    public static final int GEMMA = 8;
+    public static final int HY_MT = 8;
     private int mode;
     private final BergamotModelsIndicator bergamotModelsIndicator = new BergamotModelsIndicator();
     private Tokenizer tokenizer;
@@ -89,7 +89,8 @@ public class Translator extends NeuralNetworkApi {
     private OrtSession cacheInitSession;
     private OrtSession embedAndLmHeadSession;
     private OrtSession embedSession;
-    private Map<String, String> nllbLanguagesCodes = new HashMap<String, String>();
+    private final Map<String, String> nllbLanguagesCodes = new HashMap<>();
+    private final Map<String, HyLanguageInfo> hyLanguagesInfo = new HashMap<>();
     private static final double EOS_PENALTY = 0.9;
     @Nullable
     private GuiMessage lastInputText;
@@ -120,16 +121,17 @@ public class Translator extends NeuralNetworkApi {
         this.mode = mode;
         mainHandler = new android.os.Handler(Looper.getMainLooper());
         initializeNllbLanguagesCodes(global);
+        initializeHyLanguagesInfo(global);
 
         initialize(global, mode, initListener);
     }
 
     private void initialize(@NonNull Global global, int mode, GeneralListener initListener){
-        String encoderPath;
-        String decoderPath;
-        String vocabPath;
-        String embedAndLmHeadPath;
-        String cacheInitializerPath;
+        String encoderPath = "";
+        String decoderPath = "";
+        String vocabPath = "";
+        String embedAndLmHeadPath = "";
+        String cacheInitializerPath = "";
         if(mode == NLLB || mode == NLLB_CACHE) {
             //8 bit
             encoderPath = global.getFilesDir().getPath() + "/NLLB_encoder.onnx";
@@ -143,12 +145,15 @@ public class Translator extends NeuralNetworkApi {
             vocabPath = global.getFilesDir().getPath() + "/sentencepiece_bpe.model";
             embedAndLmHeadPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/NLLB" + "/nllb_embed_and_lm_head_4bit.onnx";
             cacheInitializerPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/NLLB" + "/nllb_cache_initializer_4bit.onnx";*/
-        }else {  //madlad
+        }else if(mode == MADLAD || mode == MADLAD_CACHE){  //madlad
             encoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/Int4Acc4/madlad_encoder_4bit.onnx";
             decoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/Int4Acc4/madlad_decoder_4bit.onnx";
             vocabPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/spiece.model";
             embedAndLmHeadPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/madlad_embed_8bit.onnx";
             cacheInitializerPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/Int4Acc4/madlad_cache_initializer_4bit.onnx";
+        }else {  //hy-mt
+            decoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/HY-MT" + "/model_int8_final.onnx";
+            vocabPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/HY-MT" + "/tokenizer.json";
         }
 
         String finalDecoderPath = decoderPath;
@@ -209,13 +214,13 @@ public class Translator extends NeuralNetworkApi {
                         encoderOptions.setMemoryPatternOptimization(arena);
                         encoderOptions.setCPUArenaAllocator(arena);
                         encoderOptions.setOptimizationLevel(optDefaultLevel);
-                        encoderSession = onnxEnv.createSession(finalEncoderPath, encoderOptions);
+                        if(mode != HY_MT) encoderSession = onnxEnv.createSession(finalEncoderPath, encoderOptions);
 
                         OrtSession.SessionOptions cacheInitOptions = new OrtSession.SessionOptions();
                         cacheInitOptions.setMemoryPatternOptimization(arena);
                         cacheInitOptions.setCPUArenaAllocator(arena);
                         cacheInitOptions.setOptimizationLevel(optDefaultLevel);
-                        cacheInitSession = onnxEnv.createSession(finalCacheInitializerPath, cacheInitOptions);
+                        if(mode != HY_MT) cacheInitSession = onnxEnv.createSession(finalCacheInitializerPath, cacheInitOptions);
 
                         OrtSession.SessionOptions embedAndLmHeadOptions = new OrtSession.SessionOptions();
                         embedAndLmHeadOptions.setMemoryPatternOptimization(arena);
@@ -223,7 +228,7 @@ public class Translator extends NeuralNetworkApi {
                         embedAndLmHeadOptions.setOptimizationLevel(optDefaultLevel);
                         if (mode == MADLAD_CACHE) {
                             embedSession = onnxEnv.createSession(finalEmbedAndLmHeadPath, embedAndLmHeadOptions);
-                        } else {
+                        } else if(mode != HY_MT){
                             embedAndLmHeadSession = onnxEnv.createSession(finalEmbedAndLmHeadPath, embedAndLmHeadOptions);
                         }
 
@@ -236,14 +241,17 @@ public class Translator extends NeuralNetworkApi {
                         initListener.onSuccess();
                     }
 
-                } catch (OrtException e) {
+                    if(mode == MADLAD || mode == MADLAD_CACHE) {
+                        tokenizer = new Tokenizer(finalVocabPath, Tokenizer.MADLAD);
+                    }else if(mode == NLLB || mode == NLLB_CACHE) {
+                        tokenizer = new Tokenizer(finalVocabPath, Tokenizer.NLLB);
+                    }else if(mode == HY_MT) {
+                        tokenizer = new Tokenizer(finalVocabPath, Tokenizer.HY_MT);
+                    }
+
+                } catch (OrtException | IOException e) {
                     e.printStackTrace();
                     mainHandler.post(() -> initListener.onFailure(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0));
-                }
-                if(mode == MADLAD_CACHE) {
-                    tokenizer = new Tokenizer(finalVocabPath, Tokenizer.MADLAD);
-                }else{
-                    tokenizer = new Tokenizer(finalVocabPath, Tokenizer.NLLB);
                 }
             }
         };
@@ -639,6 +647,14 @@ public class Translator extends NeuralNetworkApi {
         }
 
         if(mode != MOZILLA){
+            int maxLength = 200;
+            if(mode == NLLB || mode == NLLB_CACHE){
+                maxLength = 200;
+            }else if(mode == MADLAD || mode == MADLAD_CACHE){
+                maxLength = 200;  //todo: research the best value for madlad
+            }else if(mode == HY_MT){
+                maxLength = 5000;   //todo: research the best value for hy-mt
+            }
             //we split the input text in sentences
             ArrayList<String> textSplit = new ArrayList<>();
             BreakIterator iterator = BreakIterator.getSentenceInstance(inputLanguage.getLocale());
@@ -652,9 +668,9 @@ public class Translator extends NeuralNetworkApi {
             while (joined) {
                 joined = false;
                 for (int i = 1; i < textSplit.size(); i++) {
-                    int numTokens = tokenizer.tokenize(getNllbLanguageCode(inputLanguage.getCode()), getNllbLanguageCode(outputLanguage.getCode()), textSplit.get(i - 1)).getInputIDs().length;
-                    int numTokens2 = tokenizer.tokenize(getNllbLanguageCode(inputLanguage.getCode()), getNllbLanguageCode(outputLanguage.getCode()), textSplit.get(i)).getInputIDs().length;
-                    if ((numTokens + numTokens2 < 200) || (numTokens2 < 5)) {
+                    int numTokens = tokenize(textSplit.get(i - 1), inputLanguage, outputLanguage).getInputIDs().length;
+                    int numTokens2 = tokenize(textSplit.get(i), inputLanguage, outputLanguage).getInputIDs().length;
+                    if ((numTokens + numTokens2 < maxLength) || (numTokens2 < 5)) {
                         textSplit.set(i - 1, textSplit.get(i - 1) + textSplit.get(i));
                         textSplit.remove(i);
                         i = i - 1;
@@ -679,23 +695,22 @@ public class Translator extends NeuralNetworkApi {
                 long time = System.currentTimeMillis();
                 TokenizerResult input = null;
                 String correctedSubText = correctText(textSplit.get(i), inputLanguage.getLocale());
-                if (mode == MADLAD_CACHE) {
-                    input = tokenizer.tokenize(inputLanguage.getCode(), outputLanguage.getCode(), correctedSubText);
-                } else {  //if mode == NLLB_CACHE
-                    input = tokenizer.tokenize(getNllbLanguageCode(inputLanguage.getCode()), getNllbLanguageCode(outputLanguage.getCode()), correctedSubText);
-                }
+                input = tokenize(correctedSubText, inputLanguage, outputLanguage);
                 android.util.Log.i("performance", "Tokenization done in: " + (System.currentTimeMillis() - time) + "ms");
                 //encoder execution
                 time = System.currentTimeMillis();
-                OnnxTensor encoderResult = executeEncoder(input.getInputIDs(), input.getAttentionMask());
-                android.util.Log.i("performance", "Encoder done in: " + (System.currentTimeMillis() - time) + "ms");
-                if (encoderResult == null) {
-                    if (responseListener != null) {
-                        mainHandler.post(() -> responseListener.onFailure(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
-                    } else {
-                        mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
+                OnnxTensor encoderResult = null;
+                if(mode != HY_MT) {
+                    encoderResult = executeEncoder(input.getInputIDs(), input.getAttentionMask());
+                    android.util.Log.i("performance", "Encoder done in: " + (System.currentTimeMillis() - time) + "ms");
+                    if (encoderResult == null) {
+                        if (responseListener != null) {
+                            mainHandler.post(() -> responseListener.onFailure(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
+                        } else {
+                            mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
+                        }
+                        return;
                     }
-                    return;
                 }
                 //decoder execution
                 TranslateListener translateListener = new TranslateListener() {
@@ -735,7 +750,7 @@ public class Translator extends NeuralNetworkApi {
                     executeCacheDecoder(textToTranslate, input, encoderResult, completeBeamOutput, null, outputLanguage, 1, translateListener);
                 }
                 //we convert the ids of completeBeamOutputs into a string and return it
-                encoderResult.close();
+                if(encoderResult != null) encoderResult.close();
                 int[] completeOutputArray;
                 if ((mode == MADLAD_CACHE || mode == NLLB_CACHE) && beamSize > 1) {
                     int indexMax = 0;
@@ -1004,16 +1019,32 @@ public class Translator extends NeuralNetworkApi {
         }
     }
 
-    public void executeCacheDecoder(String textToTranslate, TokenizerResult input, OnnxTensor encoderResult, ArrayList<Integer>[] completeBeamOutput, @Nullable double[] beamsOutputsProbabilities, final CustomLocale outputLanguage, int beamSize, @Nullable final TranslateListener responseListener) {
-        final int eos = tokenizer.PieceToID("</s>");
+    public void executeCacheDecoder(String textToTranslate, TokenizerResult input, @Nullable OnnxTensor encoderResult, ArrayList<Integer>[] completeBeamOutput, @Nullable double[] beamsOutputsProbabilities, final CustomLocale outputLanguage, int beamSize, @Nullable final TranslateListener responseListener) {
+        int eos;
+        if(mode == HY_MT){
+            eos = tokenizer.PieceToID("<｜hy_place▁holder▁no▁2｜>");
+        }else{
+            eos = tokenizer.PieceToID("</s>");
+        }
         int nLayers;
         int hiddenSize;
+        int hiddenSizeAttention;
+        int nHeads;
         if(mode == MADLAD_CACHE){
             nLayers = 32;
-            hiddenSize = 128;
-        }else{   //if mode == NLLB_CACHE
+            hiddenSize = 1024;
+            hiddenSizeAttention = 128;
+            nHeads = 16;
+        }else if(mode == NLLB_CACHE){
             nLayers = 12;
-            hiddenSize = 64;
+            hiddenSize = 1024;
+            hiddenSizeAttention = 64;
+            nHeads = 16;
+        }else{  //if mode == HY_MT
+            nLayers = 32;
+            hiddenSize = 2048;
+            hiddenSizeAttention = 128;
+            nHeads = 4;  //nHeads in this case refers only to the number of heads used in kvCache, the real number of heads are 16, but this model uses group query attention, with a group size of 4
         }
 
         try {
@@ -1023,10 +1054,13 @@ public class Translator extends NeuralNetworkApi {
             OnnxTensor inputIDsTensor;
             if(mode == MADLAD_CACHE){
                 inputIDsTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, new int[]{0});  //for the first iteration we use input_ids = 0, with batch_size = 1
-            }else{   //if mode == NLLB_CACHE
+            }else if(mode == NLLB_CACHE){
                 inputIDsTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, new int[]{2});  //for the first iteration we use input_ids = 2, with batch_size = 1
+            }else{  // if mode == HY_MT
+                inputIDsTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, input.getInputIDs());  //for the first iteration we use the input_ids generated by the tokenizer (with the prompt), with batch_size = 1
             }
-            OnnxTensor encoderAttentionMaskTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, input.getAttentionMask());
+            int[] attentionMask = input.getAttentionMask();
+            OnnxTensor attentionMaskTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, attentionMask);
             CacheContainerNative cacheContainer = null;
             OnnxTensor decoderOutput = null;
             Map<String,OnnxTensor> decoderInput = new HashMap<String,OnnxTensor>();
@@ -1034,16 +1068,21 @@ public class Translator extends NeuralNetworkApi {
 
             time = System.currentTimeMillis();
             //preparing cache initializer input
-            Map<String,OnnxTensor> initInput = new HashMap<String,OnnxTensor>();
-            initInput.put("encoder_hidden_states", encoderResult);
-            //execution of the cache initializer
-            OrtSession.Result initResult = cacheInitSession.run(initInput);
-            android.util.Log.i("performance", "Cache initialization done in: " + (System.currentTimeMillis()-time) + "ms");
-            encoderResult.close();  //we close it because from now on we only need initResult
-
+            OrtSession.Result initResult = null;
+            OnnxTensor attentionMaskTensorBatched = null;
+            OrtSession.Result initResultBatched = null;
+            if(mode != HY_MT) {
+                Map<String, OnnxTensor> initInput = new HashMap<String, OnnxTensor>();
+                initInput.put("encoder_hidden_states", encoderResult);
+                //execution of the cache initializer
+                initResult = cacheInitSession.run(initInput);
+                android.util.Log.i("performance", "Cache initialization done in: " + (System.currentTimeMillis() - time) + "ms");
+                if (encoderResult != null)
+                    encoderResult.close();  //we close it because from now on we only need initResult
+            }
             //we convert the fixed decoder inputs to have batch_size==beamSize
-            OnnxTensor encoderAttentionMaskTensorBatched = beamSize > 1 ? batchEncoderAttentionMask(input.getAttentionMask(), beamSize, true) : null;
-            OrtSession.Result initResultBatched = beamSize > 1 ? batchEncoderKvCache(initResult, nLayers, beamSize, true) : null;
+            attentionMaskTensorBatched = beamSize > 1 ? batchEncoderAttentionMask(attentionMask, beamSize, true) : null;
+            initResultBatched = initResult != null && beamSize > 1 ? batchEncoderKvCache(initResult, nLayers, beamSize, true) : null;  //this is not executed for HY_MT
 
             //we begin the iterative execution of the decoder
             String[] partialResults = new String[beamSize];  //used for log
@@ -1052,8 +1091,8 @@ public class Translator extends NeuralNetworkApi {
             int[] max = new int[beamSize];
             int[][] beamMax = new int[beamSize][beamSize];
             int j = 1;
-            OnnxTensor emptyPreLogits = TensorUtils.createFloatTensorWithSingleValue(onnxEnv, 0, new long[]{EMPTY_BATCH_SIZE, 1, 1024});
-            OnnxTensor emptyPreLogitsBatch = TensorUtils.createFloatTensorWithSingleValue(onnxEnv, 0, new long[]{beamSize, 1, 1024});
+            OnnxTensor emptyPreLogits = TensorUtils.createFloatTensorWithSingleValue(onnxEnv, 0, new long[]{EMPTY_BATCH_SIZE, 1, hiddenSize});
+            OnnxTensor emptyPreLogitsBatch = TensorUtils.createFloatTensorWithSingleValue(onnxEnv, 0, new long[]{beamSize, 1, hiddenSize});
             OnnxTensor emptyInputIds = TensorUtils.createInt64TensorWithSingleValue(onnxEnv, 0, new long[]{EMPTY_BATCH_SIZE, 2});
             OnnxTensor emptyInputIdsBatch = TensorUtils.createInt64TensorWithSingleValue(onnxEnv, 0, new long[]{beamSize, 2});
 
@@ -1089,27 +1128,39 @@ public class Translator extends NeuralNetworkApi {
                 decoderInput.put("input_ids", inputIDsTensor);
                 if(j == 1){  //if it is the first iteration
                     //we run the decoder with a batch_size = 1
-                    decoderInput.put("encoder_attention_mask", encoderAttentionMaskTensor);
-                    long[] shape = {1, 16, 0, hiddenSize};
+                    if(mode != HY_MT) {
+                        decoderInput.put("encoder_attention_mask", attentionMaskTensor);
+                    }else{
+                        decoderInput.put("attention_mask", attentionMaskTensor);
+                    }
+                    long[] shape = {1, nHeads, 0, hiddenSizeAttention};
                     OnnxTensor decoderPastTensor = TensorUtils.createFloatTensorWithSingleValue(onnxEnv,0, shape);
                     for (int i = 0; i < nLayers; i++) {
-                        decoderInput.put("past_key_values." + i + ".decoder.key", decoderPastTensor);
-                        decoderInput.put("past_key_values." + i + ".decoder.value", decoderPastTensor);
-                        decoderInput.put("past_key_values." + i + ".encoder.key", (OnnxTensor) initResult.get("present." + i + ".encoder.key").get());
-                        decoderInput.put("past_key_values." + i + ".encoder.value", (OnnxTensor) initResult.get("present." + i + ".encoder.value").get());
+                        decoderInput.put("past_key_values." + i + (mode != HY_MT ? ".decoder" : "") + ".key", decoderPastTensor);
+                        decoderInput.put("past_key_values." + i + (mode != HY_MT ? ".decoder" : "") + ".value", decoderPastTensor);
+                        if(mode != HY_MT){
+                            decoderInput.put("past_key_values." + i + ".encoder.key", (OnnxTensor) initResult.get("present." + i + ".encoder.key").get());
+                            decoderInput.put("past_key_values." + i + ".encoder.value", (OnnxTensor) initResult.get("present." + i + ".encoder.value").get());
+                        }
                     }
                 }else {
                     if(j == 2 && beamSize > 1) {
-                        encoderAttentionMaskTensor.close();   //we close it because from now on we only need encoderAttentionMaskTensorBatched
-                        initResult.close();     //we close it because from now on we only need initResultBatched
+                        attentionMaskTensor.close();   //we close it because from now on we only need attentionMaskTensorBatched
+                        if(initResult != null) initResult.close();     //we close it because from now on we only need initResultBatched
                     }
                     //we run the decoder with batch_size = beamSize
-                    decoderInput.put("encoder_attention_mask", beamSize > 1 ? encoderAttentionMaskTensorBatched : encoderAttentionMaskTensor);
+                    if(mode != HY_MT) {
+                        decoderInput.put("encoder_attention_mask", beamSize > 1 ? attentionMaskTensorBatched : attentionMaskTensor);
+                    }else{
+                        decoderInput.put("attention_mask", beamSize > 1 ? attentionMaskTensorBatched : attentionMaskTensor);
+                    }
                     for (int i = 0; i < nLayers; i++) {
-                        decoderInput.put("past_key_values." + i + ".decoder.key", (OnnxTensor) result.get("present." + i + ".decoder.key").get());
-                        decoderInput.put("past_key_values." + i + ".decoder.value", (OnnxTensor) result.get("present." + i + ".decoder.value").get());
-                        decoderInput.put("past_key_values." + i + ".encoder.key", (OnnxTensor) (beamSize > 1 ? initResultBatched : initResult).get("present." + i + ".encoder.key").get());
-                        decoderInput.put("past_key_values." + i + ".encoder.value", (OnnxTensor) (beamSize > 1 ? initResultBatched : initResult).get("present." + i + ".encoder.value").get());
+                        decoderInput.put("past_key_values." + i + (mode != HY_MT ? ".decoder" : "") + ".key", (OnnxTensor) result.get("present." + i + (mode != HY_MT ? ".decoder" : "") + ".key").get());
+                        decoderInput.put("past_key_values." + i + (mode != HY_MT ? ".decoder" : "") + ".value", (OnnxTensor) result.get("present." + i + (mode != HY_MT ? ".decoder" : "") + ".value").get());
+                        if(mode != HY_MT) {
+                            decoderInput.put("past_key_values." + i + ".encoder.key", (OnnxTensor) (beamSize > 1 ? initResultBatched : initResult).get("present." + i + ".encoder.key").get());
+                            decoderInput.put("past_key_values." + i + ".encoder.value", (OnnxTensor) (beamSize > 1 ? initResultBatched : initResult).get("present." + i + ".encoder.value").get());
+                        }
                     }
                 }
                 oldResult = result;
@@ -1170,7 +1221,7 @@ public class Translator extends NeuralNetworkApi {
                     if(beamSize > 1) {
                         //based on the logits we update beam search data
                         int[] maxProbabilities = new int[beamSize];
-                        cacheContainer = updateBeamSearchData(logits, beamSize, eos, result, j, nLayers, 16, hiddenSize, cacheContainer, maxProbabilities, beamMax, max, completeBeamOutput, beamsOutputsProbabilities);
+                        cacheContainer = updateBeamSearchData(logits, beamSize, eos, result, j, nLayers, nHeads, hiddenSizeAttention, cacheContainer, maxProbabilities, beamMax, max, completeBeamOutput, beamsOutputsProbabilities);
                     }else{
                         max[0] = Utils.getIndexOfLargest(logits[0][0]);
                         completeBeamOutput[0].add(max[0]);
@@ -1179,6 +1230,16 @@ public class Translator extends NeuralNetworkApi {
                     //we prepare the inputs of the next iteration
                     input_ids = max;
                     inputIDsTensor = TensorUtils.createIntTensor(onnxEnv, input_ids, new long[]{beamSize,1});
+                }
+                if(mode == HY_MT) {  //todo: make this part more optimized (measure and increase the speed and efficiency)
+                    //we increment the attentionMask size of 1 for the nex iteration
+                    attentionMask = new int[attentionMask.length + 1];
+                    Arrays.fill(attentionMask, 1);
+                    if(beamSize > 1) {
+                        attentionMaskTensorBatched = batchEncoderAttentionMask(attentionMask, beamSize, true);
+                    }else{
+                        attentionMaskTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, attentionMask);
+                    }
                 }
                 android.util.Log.i("performance", "post-execution of" + j + "th word done in: " + (System.currentTimeMillis() - time) + "ms");
                 android.util.Log.i("performance", "Generation of" + j + "th word done in: " + (System.currentTimeMillis() - initialTime) + "ms");
@@ -1204,9 +1265,9 @@ public class Translator extends NeuralNetworkApi {
             }
 
             if(result != null) result.close();
-            initResult.close();
+            if(initResult != null) initResult.close();
             if(cacheContainer != null) cacheContainer.close();
-            if(encoderAttentionMaskTensorBatched != null) encoderAttentionMaskTensorBatched.close();
+            if(attentionMaskTensorBatched != null) attentionMaskTensorBatched.close();
             if(initResultBatched != null) initResultBatched.close();
 
         } catch (OrtException | InvocationTargetException | NoSuchMethodException |
@@ -1311,8 +1372,8 @@ public class Translator extends NeuralNetworkApi {
         int count = 1;
         for (int i = 0; i < nLayers; i++) {
             for (String suffix: suffixes) {
-                names[count] = "present." + i + ".decoder."+suffix;
-                float[][][] keyValue = ((float[][][][]) TensorUtils.extractValue(result, "present." + i + ".decoder."+suffix))[0];
+                names[count] = "present." + i + (mode!=HY_MT ? ".decoder." : ".") + suffix;
+                float[][][] keyValue = ((float[][][][]) TensorUtils.extractValue(result, "present." + i + (mode!=HY_MT ? ".decoder." : ".") + suffix))[0];
                 float[] keyValueFlatBatched = TensorUtils.flattenFloatArrayBatched(keyValue, batchSize);
                 values[count] = TensorUtils.createFloatTensor(onnxEnv, keyValueFlatBatched, new long[]{batchSize, keyValue.length, keyValue[0].length, keyValue[0][0].length});  //todo: evaluate the use of createFloatTensorOptimized
                 count++;
@@ -1389,7 +1450,7 @@ public class Translator extends NeuralNetworkApi {
         // reorder of the kvCache to match the new selected inputs for the next iteration
         long timeCache = System.currentTimeMillis();
         CacheContainerNative oldCache = cacheContainer;
-        cacheContainer = new CacheContainerNative(onnxEnv, decoderResult, nLayers, beamSize, nHeads, sequenceLength, hiddenSize);
+        cacheContainer = new CacheContainerNative(onnxEnv, decoderResult, nLayers, beamSize, nHeads, sequenceLength, hiddenSize, mode);
         if(oldCache != null){
             oldCache.close();
         }
@@ -1427,6 +1488,16 @@ public class Translator extends NeuralNetworkApi {
         }
     }
 
+    private TokenizerResult tokenize(String text, final CustomLocale inputLanguage, final CustomLocale outputLanguage){
+        if (mode == MADLAD_CACHE || mode == MADLAD) {
+            return tokenizer.tokenize(text, inputLanguage.getCode(), outputLanguage.getCode());
+        } else if(mode == NLLB_CACHE || mode == NLLB){
+            return tokenizer.tokenize(text, getNllbLanguageCode(inputLanguage.getCode()), getNllbLanguageCode(outputLanguage.getCode()));
+        }else{   //if mode == HY_MT
+            return tokenizer.tokenize(text, inputLanguage.getCode(), outputLanguage.getCode(), getHyLanguageInfo(inputLanguage.getCode()), getHyLanguageInfo(outputLanguage.getCode()));
+        }
+    }
+
 
     private void initializeNllbLanguagesCodes(Context context){
         DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();
@@ -1443,18 +1514,39 @@ public class Translator extends NeuralNetworkApi {
         }
     }
 
-    private String getNllbLanguageCode(String languageCode){
-        if(nllbLanguagesCodes != null) {
-            String nllbCode = nllbLanguagesCodes.get(languageCode);
-            if (nllbCode == null) {
-                Log.e("error", "Error Converting Language code " + languageCode + " to NLLB code");
-                return languageCode;
-            } else {
-                return nllbCode;
+    private void initializeHyLanguagesInfo(Context context){
+        DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();
+        try {
+            DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
+            Document document = documentBuilder.parse(context.getResources().openRawResource(R.raw.hy_mt_supported_languages));
+            NodeList listCode = document.getElementsByTagName("code");
+            NodeList listEnNames = document.getElementsByTagName("en_name");
+            NodeList listZhNames = document.getElementsByTagName("zh_name");
+            for (int i = 0; i < listCode.getLength(); i++) {
+                hyLanguagesInfo.put(listCode.item(i).getTextContent(), new HyLanguageInfo(listEnNames.item(i).getTextContent(), listZhNames.item(i).getTextContent()));
             }
-        }else{
-            Log.e("error", "Error Converting Language code " + languageCode + " to NLLB code, the NllbLanguagesCodes are not initialized");
+        } catch (IOException | SAXException | ParserConfigurationException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String getNllbLanguageCode(String languageCode){
+        String nllbCode = nllbLanguagesCodes.get(languageCode);
+        if (nllbCode == null) {
+            Log.e("error", "Error Converting Language code " + languageCode + " to NLLB code");
             return languageCode;
+        } else {
+            return nllbCode;
+        }
+    }
+
+    private HyLanguageInfo getHyLanguageInfo(String languageCode){
+        HyLanguageInfo hyLanguageInfo = hyLanguagesInfo.get(languageCode);
+        if (hyLanguageInfo == null) {
+            Log.e("error", "Error Converting Language code " + languageCode + " to HY language info");
+            return new HyLanguageInfo(languageCode, languageCode);
+        } else {
+            return hyLanguageInfo;
         }
     }
 
@@ -1470,12 +1562,14 @@ public class Translator extends NeuralNetworkApi {
                 Document document = null;
                 if (mode == MADLAD || mode == MADLAD_CACHE) {
                     document = documentBuilder.parse(context.getResources().openRawResource(R.raw.madlad_supported_launguages));
-                } else if (mode == NLLB || mode == NLLB_CACHE) {  //if mode == NLLB
+                } else if (mode == NLLB || mode == NLLB_CACHE) {
                     if (!qualityLow) {
                         document = documentBuilder.parse(context.getResources().openRawResource(R.raw.nllb_supported_languages));
                     } else {
                         document = documentBuilder.parse(context.getResources().openRawResource(R.raw.nllb_supported_languages_all));
                     }
+                }else if (mode == HY_MT) {
+                    document = documentBuilder.parse(context.getResources().openRawResource(R.raw.hy_mt_supported_languages));
                 }
                 NodeList list = document.getElementsByTagName("code");
                 for (int i = 0; i < list.getLength(); i++) {
@@ -1492,6 +1586,15 @@ public class Translator extends NeuralNetworkApi {
         return languages;
     }
 
+    public static class HyLanguageInfo{
+        public String enName;
+        public String zhName;
+
+        public HyLanguageInfo(String enName, String zhName) {
+            this.enName = enName;
+            this.zhName = zhName;
+        }
+    }
 
     private interface TranslatorListener {
         void onFailure(int[] reasons, long value);

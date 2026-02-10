@@ -13,13 +13,9 @@ import android.widget.RadioGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.DefaultItemAnimator;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import nie.translator.rtranslator.Global;
 import nie.translator.rtranslator.R;
-import nie.translator.rtranslator.voice_translation.VoiceTranslationActivity;
 import nie.translator.rtranslator.voice_translation.neural_networks.translation.Translator;
 
 public class ModelManagerFragment extends Fragment {
@@ -71,8 +67,8 @@ public class ModelManagerFragment extends Fragment {
             case Translator.MADLAD_CACHE:
                 radioGroup.check(R.id.madlad_radio);
                 break;
-            case Translator.GEMMA:
-                radioGroup.check(R.id.gemma_radio);
+            case Translator.HY_MT:
+                radioGroup.check(R.id.hy_radio);
                 break;
         }
 
@@ -87,8 +83,8 @@ public class ModelManagerFragment extends Fragment {
                 case R.id.madlad_radio:
                     changeModel(Translator.MADLAD_CACHE);
                     break;
-                case R.id.gemma_radio:
-                    changeModel(Translator.GEMMA);
+                case R.id.hy_radio:
+                    changeModel(Translator.HY_MT);
                     break;
             }
         });
