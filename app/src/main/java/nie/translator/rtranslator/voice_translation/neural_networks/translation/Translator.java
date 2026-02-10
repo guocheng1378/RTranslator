@@ -201,7 +201,7 @@ public class Translator extends NeuralNetworkApi {
                             }
                         });
                     } else {
-                        final OrtSession.SessionOptions.OptLevel optDefaultLevel = OrtSession.SessionOptions.OptLevel.BASIC_OPT;
+                        final OrtSession.SessionOptions.OptLevel optDefaultLevel = OrtSession.SessionOptions.OptLevel.EXTENDED_OPT;
                         boolean arena = true;
 
                         OrtSession.SessionOptions decoderOptions = new OrtSession.SessionOptions();
@@ -668,8 +668,8 @@ public class Translator extends NeuralNetworkApi {
             while (joined) {
                 joined = false;
                 for (int i = 1; i < textSplit.size(); i++) {
-                    int numTokens = tokenize(textSplit.get(i - 1), inputLanguage, outputLanguage).getInputIDs().length;
-                    int numTokens2 = tokenize(textSplit.get(i), inputLanguage, outputLanguage).getInputIDs().length;
+                    int numTokens = tokenize(textSplit.get(i - 1), inputLanguage, outputLanguage, true).getInputIDs().length;
+                    int numTokens2 = tokenize(textSplit.get(i), inputLanguage, outputLanguage, true).getInputIDs().length;
                     if ((numTokens + numTokens2 < maxLength) || (numTokens2 < 5)) {
                         textSplit.set(i - 1, textSplit.get(i - 1) + textSplit.get(i));
                         textSplit.remove(i);
@@ -1019,6 +1019,7 @@ public class Translator extends NeuralNetworkApi {
         }
     }
 
+    //todo: now beam search not work for hy-mt, fix that
     public void executeCacheDecoder(String textToTranslate, TokenizerResult input, @Nullable OnnxTensor encoderResult, ArrayList<Integer>[] completeBeamOutput, @Nullable double[] beamsOutputsProbabilities, final CustomLocale outputLanguage, int beamSize, @Nullable final TranslateListener responseListener) {
         int eos;
         if(mode == HY_MT){
@@ -1201,7 +1202,8 @@ public class Translator extends NeuralNetworkApi {
                         //based on the logits, we initialize max, completeBeamOutput and beamsOutputsProbabilities
                         initBeamSearchData(logits, beamSize, max, completeBeamOutput, beamsOutputsProbabilities);
                     }else{
-                        max[0] = Utils.getIndexOfLargest(logits[0][0]);
+                        int seqLen = logits[0].length;
+                        max[0] = Utils.getIndexOfLargest(logits[0][seqLen-1]);
                         completeBeamOutput[0].add(max[0]);
                     }
 
@@ -1223,7 +1225,8 @@ public class Translator extends NeuralNetworkApi {
                         int[] maxProbabilities = new int[beamSize];
                         cacheContainer = updateBeamSearchData(logits, beamSize, eos, result, j, nLayers, nHeads, hiddenSizeAttention, cacheContainer, maxProbabilities, beamMax, max, completeBeamOutput, beamsOutputsProbabilities);
                     }else{
-                        max[0] = Utils.getIndexOfLargest(logits[0][0]);
+                        int seqLen = logits[0].length;
+                        max[0] = Utils.getIndexOfLargest(logits[0][seqLen-1]);
                         completeBeamOutput[0].add(max[0]);
                     }
 
@@ -1391,16 +1394,17 @@ public class Translator extends NeuralNetworkApi {
 
     private void initBeamSearchData(float [][][] logits, int beamSize, int[] max, ArrayList<Integer>[] completeBeamOutput, double[] beamsOutputsProbabilities){
         //the "beamSize" words with highest probability are inserted into max and added to completeBeamOutput
+        int seqLen = logits[0].length;
         ArrayList<Integer> indexesToAvoid = new ArrayList<>();
         for (int i = 0; i < beamSize; i++) {
-            max[i] = Utils.getIndexOfLargest(logits[0][0], indexesToAvoid);
+            max[i] = Utils.getIndexOfLargest(logits[0][seqLen-1], indexesToAvoid);
             indexesToAvoid.add(max[i]);
             completeBeamOutput[i].add(max[i]);
         }
         //we insert the initial probabilities of the "beamSize" output strings into beamsOutputsProbabilities
         for (int i = 0; i < beamSize; i++) {
-            float maxLogit = logits[0][0][max[i]];
-            beamsOutputsProbabilities[i] = maxLogit - Utils.logSumExpFast(logits[0][0]);
+            float maxLogit = logits[0][seqLen-1][max[i]];
+            beamsOutputsProbabilities[i] = maxLogit - Utils.logSumExpFast(logits[0][seqLen-1]);
         }
     }
 
@@ -1412,7 +1416,8 @@ public class Translator extends NeuralNetworkApi {
         for(int k=0; k < beamSize; k++) {
             ArrayList<Integer> indexesToAvoid = new ArrayList<>();
             for (int i = 0; i < beamSize; i++) {
-                beamMax[k][i] = Utils.getIndexOfLargest(logits[k][0], indexesToAvoid);
+                int seqLen = logits[k].length;
+                beamMax[k][i] = Utils.getIndexOfLargest(logits[k][seqLen-1], indexesToAvoid);
                 indexesToAvoid.add(beamMax[k][i]);
             }
         }
@@ -1422,9 +1427,10 @@ public class Translator extends NeuralNetworkApi {
         double[] beamsOutputsProbabilitiesTemp = new double[beamSize*beamSize];
         for(int k=0; k < beamSize; k++) {
             //new version of probability calculation (logSumExp)
-            double logSumExp = Utils.logSumExpFast(logits[k][0]);
+            int seqLen = logits[k].length;
+            double logSumExp = Utils.logSumExpFast(logits[k][seqLen-1]);
             for (int i = 0; i < beamSize; i++) {
-                float maxLogit = logits[k][0][beamMax[k][i]];
+                float maxLogit = logits[k][seqLen-1][beamMax[k][i]];
                 beamsOutputsProbabilitiesTemp[(k*beamSize)+i] = beamsOutputsProbabilities[k] + maxLogit - logSumExp;
                 if(beamMax[k][i] == eos){
                     beamsOutputsProbabilitiesTemp[(k*beamSize)+i] = beamsOutputsProbabilitiesTemp[(k*beamSize)+i]/EOS_PENALTY;
@@ -1494,7 +1500,17 @@ public class Translator extends NeuralNetworkApi {
         } else if(mode == NLLB_CACHE || mode == NLLB){
             return tokenizer.tokenize(text, getNllbLanguageCode(inputLanguage.getCode()), getNllbLanguageCode(outputLanguage.getCode()));
         }else{   //if mode == HY_MT
-            return tokenizer.tokenize(text, inputLanguage.getCode(), outputLanguage.getCode(), getHyLanguageInfo(inputLanguage.getCode()), getHyLanguageInfo(outputLanguage.getCode()));
+            return tokenizer.tokenize(text, inputLanguage.getCode(), outputLanguage.getCode(), getHyLanguageInfo(inputLanguage.getCode()), getHyLanguageInfo(outputLanguage.getCode()), false);
+        }
+    }
+
+    private TokenizerResult tokenize(String text, final CustomLocale inputLanguage, final CustomLocale outputLanguage, boolean excludePrompt){
+        if (mode == MADLAD_CACHE || mode == MADLAD) {
+            return tokenizer.tokenize(text, inputLanguage.getCode(), outputLanguage.getCode());
+        } else if(mode == NLLB_CACHE || mode == NLLB){
+            return tokenizer.tokenize(text, getNllbLanguageCode(inputLanguage.getCode()), getNllbLanguageCode(outputLanguage.getCode()));
+        }else{   //if mode == HY_MT
+            return tokenizer.tokenize(text, inputLanguage.getCode(), outputLanguage.getCode(), getHyLanguageInfo(inputLanguage.getCode()), getHyLanguageInfo(outputLanguage.getCode()), excludePrompt);
         }
     }
 

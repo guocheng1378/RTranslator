@@ -51,10 +51,10 @@ public class Tokenizer {
     }
 
     public TokenizerResult tokenize(String text, String srcLanguage, String tgtLanguage){
-        return tokenize(text, srcLanguage, tgtLanguage, null, null);
+        return tokenize(text, srcLanguage, tgtLanguage, null, null, false);
     }
 
-    public TokenizerResult tokenize(String text, String srcLanguage, String tgtLanguage, @Nullable Translator.HyLanguageInfo srcLangInfo, @Nullable Translator.HyLanguageInfo tgtLangInfo) {
+    public TokenizerResult tokenize(String text, String srcLanguage, String tgtLanguage, @Nullable Translator.HyLanguageInfo srcLangInfo, @Nullable Translator.HyLanguageInfo tgtLangInfo, boolean excludePrompt) {
         if(mode != HY_MT) {
             //for madlad we add <2tgtLanguage> at the beginning of the text (srcLanguage is not specified)
             if (mode == MADLAD || mode == MADLAD_FIXED) {
@@ -158,7 +158,7 @@ public class Tokenizer {
             } else {
                 prompt = "<｜hy_begin▁of▁sentence｜><｜hy_User｜>Translate the following segment into "+tgtLangEnName+", without additional explanation.\n\n"+text+"<｜hy_Assistant｜>";
             }
-            Encoding result = hfTokenizer.encode(new String[]{prompt}, false, false);
+            Encoding result = hfTokenizer.encode(new String[]{excludePrompt ? text : prompt}, false, false);
 
             //we convert inputIds and attention mask from long[] to int[]
             long[] inputIdsLong = result.getIds();
@@ -166,7 +166,7 @@ public class Tokenizer {
             for (int i = 0; i < inputIds.length; i++) {
                 inputIds[i] = (int) inputIdsLong[i];
             }
-            long[] attentionMaskLong = result.getIds();
+            long[] attentionMaskLong = result.getAttentionMask();
             int[] attentionMask = new int[attentionMaskLong.length];
             for (int i = 0; i < attentionMask.length; i++) {
                 attentionMask[i] = (int) attentionMaskLong[i];
