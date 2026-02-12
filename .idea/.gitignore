@@ -1,11 +1,11 @@
 /shelf/
-/usage.statistics.xml
-/workspace.xml
 /caches
 /caches/*
+/dictionaries
+/libraries
+/usage.statistics.xml
+/workspace.xml
 /gradle.xml
 /dataSources.ids
 /datasources.xml
 /modules.xml
-/dictionaries
-/libraries
