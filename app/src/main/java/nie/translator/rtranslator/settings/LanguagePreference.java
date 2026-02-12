@@ -127,6 +127,7 @@ public class LanguagePreference extends Preference {
     }
 
     private void showList() {
+        progressBar.setVisibility(View.GONE);
         reloadButton.setVisibility(View.GONE);
 
         final ArrayList<CustomLocale> languages = global.getLanguages(true);
