@@ -245,7 +245,7 @@ public class Translator extends NeuralNetworkApi {
                         embedAndLmHeadOptions.close();
 
                         //mainHandler.post(() -> initListener.onInitializationFinished());
-                        initListener.onSuccess();
+                        mainHandler.post(() -> initListener.onSuccess());
                     }
 
                     if(mode == MADLAD || mode == MADLAD_CACHE) {
@@ -1584,7 +1584,11 @@ public class Translator extends NeuralNetworkApi {
                 DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
                 Document document = null;
                 if (mode == MADLAD || mode == MADLAD_CACHE) {
-                    document = documentBuilder.parse(context.getResources().openRawResource(R.raw.madlad_supported_launguages));
+                    if (!qualityLow) {
+                        document = documentBuilder.parse(context.getResources().openRawResource(R.raw.madlad_supported_launguages));
+                    }else{
+                        document = documentBuilder.parse(context.getResources().openRawResource(R.raw.madlad_supported_launguages_all));
+                    }
                 } else if (mode == NLLB || mode == NLLB_CACHE) {
                     if (!qualityLow) {
                         document = documentBuilder.parse(context.getResources().openRawResource(R.raw.nllb_supported_languages));
