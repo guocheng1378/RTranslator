@@ -128,7 +128,18 @@ public class Global extends Application implements DefaultLifecycleObserver {
         getLanguages(false);
         SharedPreferences sharedPreferences = getSharedPreferences("default", Context.MODE_PRIVATE);
         int mode = sharedPreferences.getInt("selectedTranslationModel", Translator.MOZILLA);
-        translator.restart(mode, listener);
+        translator.restart(mode, new Translator.GeneralListener() {
+            @Override
+            public void onSuccess() {
+                getTranslatorLanguages(false);  //refresh languages
+                listener.onSuccess();
+            }
+
+            @Override
+            public void onFailure(int[] reasons, long value) {
+                listener.onFailure(reasons, value);
+            }
+        });
     }
 
     @Nullable
