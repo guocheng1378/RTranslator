@@ -83,7 +83,6 @@ public class LoadingActivity extends GeneralActivity {
         super.onResume();
         isVisible = true;
         global = (Global) getApplication();
-        checkAllFilesPermission(); //todo: remove before the final release
         if (global.isFirstStart()) {
             Intent intent = new Intent(this, AccessActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -312,26 +311,4 @@ public class LoadingActivity extends GeneralActivity {
             }
         }
     }
-
-    //todo: remove before the final release
-    private void checkAllFilesPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (!Environment.isExternalStorageManager()) {
-                requestAllFilesPermission();
-            }
-        }
-    }
-
-    //todo: remove before the final release
-    private void requestAllFilesPermission() {
-        try {
-            Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-            intent.setData(Uri.parse("package:" + getPackageName()));
-            startActivityForResult(intent, 100);
-        } catch (Exception e) {
-            Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
-            startActivityForResult(intent, 100);
-        }
-    }
-
 }
