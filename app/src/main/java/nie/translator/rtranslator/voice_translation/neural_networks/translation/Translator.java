@@ -701,7 +701,7 @@ public class Translator extends NeuralNetworkApi {
                 //tokenization
                 long time = System.currentTimeMillis();
                 TokenizerResult input = null;
-                String correctedSubText = correctText(textSplit.get(i), inputLanguage.getLocale());
+                String correctedSubText = correctText(textSplit.get(i), inputLanguage.getLocale());  //input text pre process
                 input = tokenize(correctedSubText, inputLanguage, outputLanguage);
                 android.util.Log.i("performance", "Tokenization done in: " + (System.currentTimeMillis() - time) + "ms");
                 //encoder execution
@@ -752,9 +752,9 @@ public class Translator extends NeuralNetworkApi {
                     }
                 };
                 if (beamSize > 1) {  //beam search
-                    executeCacheDecoder(textToTranslate, input, encoderResult, completeBeamOutput, beamsOutputsProbabilities, outputLanguage, beamSize, translateListener);
+                    executeCacheDecoder(textToTranslate, input, encoderResult, completeBeamOutput, beamsOutputsProbabilities, inputLanguage, outputLanguage, beamSize, translateListener);
                 } else if (beamSize == 1) {  //greedy search (with kv cache)
-                    executeCacheDecoder(textToTranslate, input, encoderResult, completeBeamOutput, null, outputLanguage, 1, translateListener);
+                    executeCacheDecoder(textToTranslate, input, encoderResult, completeBeamOutput, null, inputLanguage, outputLanguage, 1, translateListener);
                 }
                 //we convert the ids of completeBeamOutputs into a string and return it
                 if(encoderResult != null) encoderResult.close();
@@ -1026,7 +1026,7 @@ public class Translator extends NeuralNetworkApi {
         }
     }
 
-    public void executeCacheDecoder(String textToTranslate, TokenizerResult input, @Nullable OnnxTensor encoderResult, ArrayList<Integer>[] completeBeamOutput, @Nullable double[] beamsOutputsProbabilities, final CustomLocale outputLanguage, int beamSize, @Nullable final TranslateListener responseListener) {
+    public void executeCacheDecoder(String textToTranslate, TokenizerResult input, @Nullable OnnxTensor encoderResult, ArrayList<Integer>[] completeBeamOutput, @Nullable double[] beamsOutputsProbabilities, final CustomLocale inputLanguage, final CustomLocale outputLanguage, int beamSize, @Nullable final TranslateListener responseListener) {
         int eos;
         if(mode == HY_MT){
             eos = tokenizer.PieceToID("<｜hy_place▁holder▁no▁2｜>");
@@ -1053,6 +1053,7 @@ public class Translator extends NeuralNetworkApi {
             hiddenSizeAttention = 128;
             nHeads = 4;  //nHeads in this case refers only to the number of heads used in kvCache, the real number of heads are 16, but this model uses group query attention, with a group size of 4
         }
+        int initialPromptLength = tokenize(" ", inputLanguage, outputLanguage, false).getInputIDs().length;
 
         try {
             long initialTime;
@@ -1272,6 +1273,25 @@ public class Translator extends NeuralNetworkApi {
                     partialResults[i] = tokenizer.decode(completeBeamOutput[i].stream().mapToInt(k -> k).toArray());
                     android.util.Log.i("result "+i, partialResults[i]);
                 }
+
+                //early stop if the decoder is generating in loop
+                if(input.getInputIDs().length - initialPromptLength > 30){  //if the input is long
+                    if(j > 3*input.getInputIDs().length) {
+                        break;
+                    }
+                }else if(input.getInputIDs().length - initialPromptLength > 20){  //if the input is medium length
+                    if(j > 4*input.getInputIDs().length){
+                        break;
+                    }
+                }else if(input.getInputIDs().length - initialPromptLength > 10){  //if the input is short
+                    if(j > 5*input.getInputIDs().length){
+                        break;
+                    }
+                }else if(input.getInputIDs().length - initialPromptLength > 5){  //if the input is very short
+                    if(j > 8*input.getInputIDs().length){
+                        break;
+                    }
+                }
             }
 
             if(result != null) result.close();
@@ -1303,17 +1323,23 @@ public class Translator extends NeuralNetworkApi {
     private String correctText(String text, Locale locale){
         String correctedText = text;
         String language = locale.getLanguage();
+        correctedText = correctedText.replaceAll("\\s+", " ");    // collapse whitespace
         //we add an eventual period if missing (or in general a terminator symbol)
         if(!language.equals("th")) {
             correctedText = correctedText.trim();   //we remove eventual white space from both ends of the text
             if(correctedText.length() >= 2) {
-                if (!Character.isLetterOrDigit(correctedText.charAt(correctedText.length() - 1))) {
-                    return correctedText;
+                if (Character.isLetterOrDigit(correctedText.charAt(correctedText.length() - 1))) {
+                    correctedText = correctedText + getSentenceTerminator(locale);
                 }
-                return correctedText + getSentenceTerminator(locale);
             }
         }
-        return text;
+        //for Madlad only, we remove all the control characters (like \n), because those will make the model hallucinate
+        if(mode == MADLAD || mode == MADLAD_CACHE){
+            correctedText = text.replaceAll("\\R", " ")      // remove all newlines
+                    .replaceAll("\\p{Cntrl}", "") // remove other control chars
+                    .trim();
+        }
+        return correctedText;
     }
 
     private OnnxTensor batchEncoderAttentionMask(int[] attentionMask, int batchSize, boolean log) throws OrtException {
