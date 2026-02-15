@@ -1323,7 +1323,6 @@ public class Translator extends NeuralNetworkApi {
     private String correctText(String text, Locale locale){
         String correctedText = text;
         String language = locale.getLanguage();
-        correctedText = correctedText.replaceAll("\\s+", " ");    // collapse whitespace
         //we add an eventual period if missing (or in general a terminator symbol)
         if(!language.equals("th")) {
             correctedText = correctedText.trim();   //we remove eventual white space from both ends of the text
@@ -1339,6 +1338,8 @@ public class Translator extends NeuralNetworkApi {
                     .replaceAll("\\p{Cntrl}", "") // remove other control chars
                     .trim();
         }
+        // collapse whitespace
+        correctedText = correctedText.replaceAll("\\s+", " ");
         return correctedText;
     }
 
