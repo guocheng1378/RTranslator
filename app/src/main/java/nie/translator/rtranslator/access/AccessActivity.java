@@ -18,9 +18,13 @@ package nie.translator.rtranslator.access;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.Settings;
 import android.view.View;
 
 import androidx.fragment.app.Fragment;
@@ -76,6 +80,12 @@ public class AccessActivity extends GeneralActivity {
             global.setAccessActivity(this);
         }
         super.onStart();  //called here because otherwise the onStart of the DownloadFragment is called before this onStart, and this could cause problems.
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        checkAllFilesPermission(); //todo: remove before the final release
     }
 
     @Override
@@ -150,6 +160,27 @@ public class AccessActivity extends GeneralActivity {
             return;
         }
         super.onBackPressed();
+    }
+
+    //todo: remove before the final release
+    private void checkAllFilesPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                requestAllFilesPermission();
+            }
+        }
+    }
+
+    //todo: remove before the final release
+    private void requestAllFilesPermission() {
+        try {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+            intent.setData(Uri.parse("package:" + getPackageName()));
+            startActivityForResult(intent, 100);
+        } catch (Exception e) {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+            startActivityForResult(intent, 100);
+        }
     }
 }
 

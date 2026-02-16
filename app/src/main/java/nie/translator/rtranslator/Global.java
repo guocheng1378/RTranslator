@@ -55,7 +55,7 @@ import nie.translator.rtranslator.voice_translation.neural_networks.voice.Record
 
 
 public class Global extends Application implements DefaultLifecycleObserver {
-    public static final boolean ONLY_TEXT_TRANSLATION_MODE = true;
+    public static final boolean ONLY_TEXT_TRANSLATION_MODE = false;
     public enum RTranslatorMode {
         TEXT_TRANSLATION_MODE,
         WALKIE_TALKIE_MODE,
@@ -128,7 +128,18 @@ public class Global extends Application implements DefaultLifecycleObserver {
         getLanguages(false);
         SharedPreferences sharedPreferences = getSharedPreferences("default", Context.MODE_PRIVATE);
         int mode = sharedPreferences.getInt("selectedTranslationModel", Translator.MOZILLA);
-        translator.restart(mode, listener);
+        translator.restart(mode, new Translator.GeneralListener() {
+            @Override
+            public void onSuccess() {
+                getTranslatorLanguages(false);  //refresh languages
+                listener.onSuccess();
+            }
+
+            @Override
+            public void onFailure(int[] reasons, long value) {
+                listener.onFailure(reasons, value);
+            }
+        });
     }
 
     @Nullable

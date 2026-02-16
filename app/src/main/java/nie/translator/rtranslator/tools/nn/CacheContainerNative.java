@@ -29,24 +29,26 @@ import ai.onnxruntime.OnnxValue;
 import ai.onnxruntime.OrtEnvironment;
 import ai.onnxruntime.OrtException;
 import ai.onnxruntime.OrtSession;
+import nie.translator.rtranslator.voice_translation.neural_networks.translation.Translator;
 
 public class CacheContainerNative {
     private int[] shape;
     private OnnxTensor[] cacheTensors;
     private long cacheContainerNativePointer;
+    private int mode = Translator.NLLB;
 
     //Used to load CacheContainerNative.cpp on application startup
     static {
         System.loadLibrary("cache_container_native");
     }
 
-    public CacheContainerNative(OrtEnvironment env, OrtSession.Result cache, int nLevels, int batchSize, int nHeads, int sequenceLength, int hiddenSize){
+    public CacheContainerNative(OrtEnvironment env, OrtSession.Result cache, int nLevels, int batchSize, int nHeads, int sequenceLength, int hiddenSize, int mode){
         try {
             cacheTensors = new OnnxTensor[nLevels*2];
             cacheContainerNativePointer = initialize(nLevels*2, batchSize, nHeads, sequenceLength, hiddenSize);
             int count=0;
             for (int i = 0; i < nLevels; i++) {
-                    cacheTensors[count] = (OnnxTensor) cache.get("present." + i + ".decoder.key").get();
+                    cacheTensors[count] = (OnnxTensor) cache.get("present." + i + (mode!= Translator.HY_MT ? ".decoder" : "") + ".key").get();
                     //we use OnnxTensor's private getBuffer method, which returns the data reference without making a copy of it and we pass this reference to the native cache container
                     Method method = cacheTensors[count].getClass().getDeclaredMethod("getBuffer");
                     method.setAccessible(true);
@@ -54,7 +56,7 @@ public class CacheContainerNative {
                     insertValues(cacheContainerNativePointer, count, buffer);
                     count++;
 
-                    cacheTensors[count] = (OnnxTensor) cache.get("present." + i + ".decoder.value").get();
+                    cacheTensors[count] = (OnnxTensor) cache.get("present." + i + (mode!= Translator.HY_MT ? ".decoder" : "") + ".value").get();
                     //we use OnnxTensor's private getBuffer method, which returns the data reference without making a copy of it and we pass this reference to the native cache container
                     method = cacheTensors[count].getClass().getDeclaredMethod("getBuffer");
                     method.setAccessible(true);
@@ -63,6 +65,7 @@ public class CacheContainerNative {
                     count++;
             }
             shape = new int[]{nLevels*2, batchSize, nHeads, sequenceLength, hiddenSize};
+            this.mode = mode;
         } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
             e.printStackTrace();
         }
@@ -86,7 +89,7 @@ public class CacheContainerNative {
             int count = 0;
             for (int i = 0; i < shape[0]/2; i++) {
                 for (String suffix: suffixes) {
-                    names[count] = "present." + i + ".decoder."+suffix;
+                    names[count] = "present." + i + (mode!= Translator.HY_MT ? ".decoder." : ".") + suffix;
                     ByteBuffer buffer = getBuffer(cacheContainerNativePointer, count);
                     values[count] = OnnxTensor.createTensor(env, buffer, new long[]{shape[1], shape[2], shape[3], shape[4]}, OnnxJavaType.FLOAT);
                     count++;

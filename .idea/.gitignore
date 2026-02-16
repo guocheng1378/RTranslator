@@ -1,13 +1,11 @@
-# Default ignored files
 /shelf/
-/usage.statistics.xml
-/workspace.xml
-#extra ignored files
 /caches
 /caches/*
+/dictionaries
+/libraries
+/usage.statistics.xml
+/workspace.xml
 /gradle.xml
 /dataSources.ids
 /datasources.xml
 /modules.xml
-/dictionaries
-/libraries
