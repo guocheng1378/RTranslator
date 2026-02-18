@@ -76,6 +76,8 @@ Main changes of this version:
 - The app will be released on Play Store and F-Droid.
 - A self-hosted web version of the app for text translation using Mozilla models will be made available.
 
+The first beta of this version will be released between April and June 2026. Stay tuned 🚀
+
 <img src="https://nlnet.nl/logo/banner.svg" width="200px">
 <br />
 
