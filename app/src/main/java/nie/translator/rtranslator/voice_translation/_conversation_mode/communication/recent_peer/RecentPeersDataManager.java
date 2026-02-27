@@ -23,9 +23,9 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.room.Room;
 import java.util.ArrayList;
-import nie.translator.rtranslator.database.AppDatabase;
-import nie.translator.rtranslator.database.dao.MyDao;
-import nie.translator.rtranslator.database.entities.RecentPeerEntity;
+import nie.translator.rtranslator.databases.general.AppDatabase;
+import nie.translator.rtranslator.databases.general.dao.MyDao;
+import nie.translator.rtranslator.databases.general.entities.RecentPeerEntity;
 import nie.translator.rtranslator.tools.Tools;
 
 public class RecentPeersDataManager {

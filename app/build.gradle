@@ -125,6 +125,10 @@ dependencies {
     implementation "ai.djl.android:core:0.33.0"
     implementation "ai.djl.huggingface:tokenizers:0.33.0"
     implementation "ai.djl.android:tokenizer-native:0.33.0"
+    //protobuf
+    implementation "com.google.protobuf:protobuf-javalite:4.33.5"
+    // bouncycastle crypto lib
+    implementation "org.bouncycastle:bcprov-jdk15to18:1.83"
 
     //implementation 'androidx.core:core-ktx:1.10.0'
     implementation 'androidx.work:work-runtime:2.7.1'

@@ -22,6 +22,7 @@ import android.icu.text.BreakIterator;
 import android.os.Environment;
 import android.os.Looper;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -41,6 +42,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.text.Normalizer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -61,9 +63,12 @@ import ai.onnxruntime.OrtSession;
 import nie.translator.rtranslator.Global;
 import nie.translator.rtranslator.R;
 import nie.translator.rtranslator.bluetooth.Message;
+import nie.translator.rtranslator.databases.tatoeba.LinksData;
+import nie.translator.rtranslator.databases.tatoeba.TatoebaDbWrapper;
 import nie.translator.rtranslator.tools.CustomLocale;
 import nie.translator.rtranslator.tools.ErrorCodes;
 import nie.translator.rtranslator.tools.FileTools;
+import nie.translator.rtranslator.tools.Tools;
 import nie.translator.rtranslator.tools.gui.messages.GuiMessage;
 import nie.translator.rtranslator.tools.nn.CacheContainerNative;
 import nie.translator.rtranslator.tools.nn.TensorUtils;
@@ -114,6 +119,10 @@ public class Translator extends NeuralNetworkApi {
             "ja",
             "en"
     };
+    @Nullable
+    private TatoebaDbWrapper tatoebaDb;
+    private final Map<String, TatoebaLinksContainer> tatoebaLinks = new HashMap<>();
+    private final Object tatoebaLock = new Object();
 
 
     public Translator(@NonNull Global global, int mode, GeneralListener initListener) {
@@ -132,6 +141,7 @@ public class Translator extends NeuralNetworkApi {
         String vocabPath = "";
         String embedAndLmHeadPath = "";
         String cacheInitializerPath = "";
+
         if(mode == NLLB || mode == NLLB_CACHE) {
             //8 bit
             encoderPath = global.getFilesDir().getPath() + "/NLLB_encoder.onnx";
@@ -146,13 +156,13 @@ public class Translator extends NeuralNetworkApi {
             embedAndLmHeadPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/NLLB" + "/nllb_embed_and_lm_head_4bit.onnx";
             cacheInitializerPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/NLLB" + "/nllb_cache_initializer_4bit.onnx";*/
         }else if(mode == MADLAD || mode == MADLAD_CACHE){  //madlad
-            //8bit
+            //8 bit
             encoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/Int8WO/madlad_encoder_8bit.onnx";
             decoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/Int8WO/madlad_decoder_8bit.onnx";
             vocabPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/spiece.model";
             embedAndLmHeadPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/madlad_embed_8bit.onnx";
             cacheInitializerPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/Int8WO/madlad_cache_initializer_8bit.onnx";
-            //4bit
+            //4 bit
             /*encoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/Int4_16/madlad_encoder_4bit.onnx";
             decoderPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/Int4_16/madlad_decoder_4bit.onnx";
             vocabPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Madlad" + "/spiece.model";
@@ -177,17 +187,18 @@ public class Translator extends NeuralNetworkApi {
                     FileTools.copyAssetToInternalMemory(global, "sentencepiece_bpe.model");
                 }
 
+                CustomLocale firstTextLanguage = global.getFirstTextLanguage(true);
+                CustomLocale secondTextLanguage = global.getSecondTextLanguage(true);
+                CustomLocale firstLanguage = global.getFirstLanguage(true);
+                CustomLocale secondLanguage = global.getSecondLanguage(true);
+
                 try {
                     if(mode == MOZILLA){
                         BergamotTranslator.initializeService();
                         //initial loading of models for text translation and walkietalkie mode
-                        CustomLocale firstTextLanguage = global.getFirstTextLanguage(true);
-                        CustomLocale secondTextLanguage = global.getSecondTextLanguage(true);
                         loadMozillaModels(firstTextLanguage, secondTextLanguage, Global.RTranslatorMode.TEXT_TRANSLATION_MODE, new GeneralListener() {
                             @Override
                             public void onSuccess() {
-                                CustomLocale firstLanguage = global.getFirstLanguage(true);
-                                CustomLocale secondLanguage = global.getSecondLanguage(true);
                                 loadMozillaModels(firstLanguage, secondLanguage, Global.RTranslatorMode.WALKIE_TALKIE_MODE, new GeneralListener() {
                                     @Override
                                     public void onSuccess() {
@@ -262,7 +273,30 @@ public class Translator extends NeuralNetworkApi {
                 }
             }
         };
-        t.start();
+        if(global.isUseTatoeba()){
+            String tatoebaDbPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Tatoeba/tatoeba.db";
+
+            CustomLocale firstTextLanguage = global.getFirstTextLanguage(true);
+            CustomLocale secondTextLanguage = global.getSecondTextLanguage(true);
+            CustomLocale firstLanguage = global.getFirstLanguage(true);
+            CustomLocale secondLanguage = global.getSecondLanguage(true);
+
+            tatoebaDb = new TatoebaDbWrapper(tatoebaDbPath);  //todo: implement resource load management based on useTatoeba status
+            loadTatoeba(firstTextLanguage, secondTextLanguage, Global.RTranslatorMode.TEXT_TRANSLATION_MODE, new GeneralListener() {
+                @Override
+                public void onSuccess() {
+                    loadTatoeba(firstLanguage, secondLanguage, Global.RTranslatorMode.WALKIE_TALKIE_MODE, new GeneralListener() {
+                        @Override
+                        public void onSuccess() {
+                            //todo: manage the tatoeba loading for Conversation mode
+                            t.start();  //start loading models
+                        }
+                    });
+                }
+            });
+        }else {
+            t.start();
+        }
     }
 
     private void destroy(GeneralListener listener){
@@ -336,8 +370,8 @@ public class Translator extends NeuralNetworkApi {
         t.start();
     }
 
-    public interface TranslateListener extends TranslatorListener {
-        void onTranslatedText(String textToTranslate, String TranslatedText, long resultID, boolean isFinal, CustomLocale languageOfText);
+    public abstract static class TranslateListener extends TranslatorListener {
+        public abstract void onTranslatedText(String textToTranslate, String TranslatedText, long resultID, boolean isFinal, CustomLocale languageOfText);
     }
 
     public void translateMessage(final ConversationMessage conversationMessageToTranslate, final CustomLocale languageOutput, int beamSize, final TranslateMessageListener responseListener) {  // what the thread does
@@ -406,8 +440,8 @@ public class Translator extends NeuralNetworkApi {
         }
     }
 
-    public interface TranslateMessageListener extends TranslatorListener {
-        void onTranslatedMessage(ConversationMessage conversationMessage, long messageID, boolean isFinal);
+    public abstract static class TranslateMessageListener extends TranslatorListener {
+        public abstract void onTranslatedMessage(ConversationMessage conversationMessage, long messageID, boolean isFinal);
     }
 
     private static class DataContainer{
@@ -558,12 +592,37 @@ public class Translator extends NeuralNetworkApi {
                 });
     }
 
-    public interface DetectLanguageListener extends TranslatorListener {
-        void onDetectedText(NeuralNetworkApiResult result);
+    public abstract static class DetectLanguageListener extends TranslatorListener {
+        public abstract void onDetectedText(NeuralNetworkApiResult result);
     }
 
-    public interface DetectMultiLanguageListener extends TranslatorListener {
-        void onDetectedText(NeuralNetworkApiResult firstResult, NeuralNetworkApiResult secondResult, int message);
+    public abstract static class DetectMultiLanguageListener extends TranslatorListener {
+        public abstract void onDetectedText(NeuralNetworkApiResult firstResult, NeuralNetworkApiResult secondResult, int message);
+    }
+
+    public void loadTatoeba(CustomLocale srcLang, CustomLocale tgtLang, Global.RTranslatorMode mode, @Nullable GeneralListener listener){
+        if(tatoebaDb != null) {
+            new Thread(() -> {
+                synchronized (tatoebaLinks) {
+                    //todo: translate all the ISO3 that are different than normal (like cmn for Chinese)
+                    //we first unload the eventual link associated to this mode
+                    for (Map.Entry<String, TatoebaLinksContainer> entry : tatoebaLinks.entrySet()) {
+                        String key = entry.getKey();
+                        TatoebaLinksContainer value = entry.getValue();
+                        if (value.mode == mode) {
+                            tatoebaLinks.remove(key);
+                        }
+                    }
+                    // we load the link associated to this mode and these languages
+                    LinksData.DataMap links = tatoebaDb.getLinkData(srcLang.getISO3Language(), tgtLang.getISO3Language());
+                    tatoebaLinks.put(
+                            srcLang.getISO3Language() + "-" + tgtLang.getISO3Language(),
+                            new TatoebaLinksContainer(links, mode)
+                    );
+                    if(listener != null) listener.onSuccess();
+                }
+            }).start();
+        }
     }
 
     public void loadMozillaModels(CustomLocale srcLang, CustomLocale trgLang, Global.RTranslatorMode mode, @Nullable GeneralListener listener){
@@ -647,7 +706,7 @@ public class Translator extends NeuralNetworkApi {
 
     private void performTextTranslation(final String textToTranslate, final CustomLocale inputLanguage, final CustomLocale outputLanguage, int beamSize, boolean saveResults, @Nullable final TranslateListener responseListener) {
         long initTime = System.currentTimeMillis();
-        String finalResult;
+        String finalResult = null;
         android.util.Log.i("result", "Translation input: " + textToTranslate);
         if(saveResults) {
             lastInputText = new GuiMessage(new Message(global, textToTranslate), false, true);
@@ -693,82 +752,20 @@ public class Translator extends NeuralNetworkApi {
 
             final String[] joinedStringOutput = {""};
             for (int i = 0; i < textSplit.size(); i++) {
-                ArrayList<Integer>[] completeBeamOutput = new ArrayList[beamSize];  //contains the "beamSize" strings produced by the decoder
-                for (int j = 0; j < beamSize; j++) {
-                    completeBeamOutput[j] = new ArrayList<Integer>();
+                String finalSplitResult = null;
+                if(global.isUseTatoeba()){
+                    finalSplitResult = performTatoebaTranslation(textSplit.get(i), inputLanguage, outputLanguage);
                 }
-                double[] beamsOutputsProbabilities = new double[beamSize];  //contains for each of the "beamSize" strings produced by the decoder its overall probability
-                //tokenization
-                long time = System.currentTimeMillis();
-                TokenizerResult input = null;
-                String correctedSubText = correctText(textSplit.get(i), inputLanguage.getLocale());  //input text pre process
-                input = tokenize(correctedSubText, inputLanguage, outputLanguage);
-                android.util.Log.i("performance", "Tokenization done in: " + (System.currentTimeMillis() - time) + "ms");
-                //encoder execution
-                time = System.currentTimeMillis();
-                OnnxTensor encoderResult = null;
-                if(mode != HY_MT) {
-                    encoderResult = executeEncoder(input.getInputIDs(), input.getAttentionMask());
-                    android.util.Log.i("performance", "Encoder done in: " + (System.currentTimeMillis() - time) + "ms");
-                    if (encoderResult == null) {
-                        if (responseListener != null) {
-                            mainHandler.post(() -> responseListener.onFailure(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
-                        } else {
-                            mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
-                        }
+
+                if(finalSplitResult == null){
+                    //we execute translation of the current split using Neural Network
+                    try {
+                        finalSplitResult = performNNTextTranslation(textSplit.get(i), joinedStringOutput, inputLanguage, outputLanguage, beamSize, saveResults, responseListener);
+                    } catch (Exception e) {
                         return;
                     }
                 }
-                //decoder execution
-                TranslateListener translateListener = new TranslateListener() {
-                    @Override
-                    public void onTranslatedText(String textToTranslate, String text, long resultID, boolean isFinal, CustomLocale languageOfText) {
-                        //we return the partial results
-                        String outputText;
-                        if (joinedStringOutput[0].equals("")) {
-                            outputText = joinedStringOutput[0] + text;
-                        } else {
-                            outputText = joinedStringOutput[0] + " " + text;
-                        }
-                        if (saveResults) {
-                            lastOutputText = new GuiMessage(new Message(global, outputText), currentResultID, false, false);
-                        }
-                        final long currentResultIDCopy = currentResultID;  //we do a copy because otherwise the currentResultID is incremented before notifying the message (due to the notification being executed in the mainThread)
-                        if (responseListener != null) {
-                            mainHandler.post(() -> responseListener.onTranslatedText(textToTranslate, outputText, currentResultIDCopy, false, outputLanguage));
-                        } else {
-                            mainHandler.post(() -> notifyResult(textToTranslate, outputText, currentResultIDCopy, false, outputLanguage));
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(int[] reasons, long value) {
-                        //we do not return the partial results and notify an error
-                        if (responseListener != null) {
-                            mainHandler.post(() -> responseListener.onFailure(reasons, value));
-                        } else {
-                            mainHandler.post(() -> notifyError(reasons, value));
-                        }
-                    }
-                };
-                if (beamSize > 1) {  //beam search
-                    executeCacheDecoder(textToTranslate, input, encoderResult, completeBeamOutput, beamsOutputsProbabilities, inputLanguage, outputLanguage, beamSize, translateListener);
-                } else if (beamSize == 1) {  //greedy search (with kv cache)
-                    executeCacheDecoder(textToTranslate, input, encoderResult, completeBeamOutput, null, inputLanguage, outputLanguage, 1, translateListener);
-                }
-                //we convert the ids of completeBeamOutputs into a string and return it
-                if(encoderResult != null) encoderResult.close();
-                int[] completeOutputArray;
-                if ((mode == MADLAD_CACHE || mode == NLLB_CACHE) && beamSize > 1) {
-                    int indexMax = 0;
-                    for (int j = 0; j < beamSize; j++) {
-                        indexMax = Utils.getIndexOfLargest(beamsOutputsProbabilities);
-                    }
-                    completeOutputArray = completeBeamOutput[indexMax].stream().mapToInt(k -> k).toArray();
-                } else {
-                    completeOutputArray = completeBeamOutput[0].stream().mapToInt(k -> k).toArray();  //converte completeBeamOutput in un array di int
-                }
-                String finalSplitResult = tokenizer.decode(completeOutputArray);
+                // join the split result with the previous results
                 if (joinedStringOutput[0].equals("")) {
                     joinedStringOutput[0] = joinedStringOutput[0] + finalSplitResult;
                 } else {
@@ -781,8 +778,13 @@ public class Translator extends NeuralNetworkApi {
             android.util.Log.i("performance", "Detokenization done in: " + (System.currentTimeMillis() - time) + "ms");
         }else{
             //perform text translation using mozilla models
+            if(global.isUseTatoeba()){
+                finalResult = performTatoebaTranslation(textToTranslate, inputLanguage, outputLanguage);
+            }
             synchronized (mozillaLock) {
-                finalResult = BergamotTranslator.translateMultiple(new String[]{textToTranslate}, inputLanguage, outputLanguage)[0];
+                if(finalResult == null) {
+                    finalResult = BergamotTranslator.translateMultiple(new String[]{textToTranslate}, inputLanguage, outputLanguage)[0];
+                }
             }
         }
         android.util.Log.i("performance", "TRANSLATION DONE IN: " + (System.currentTimeMillis() - initTime) + "ms");
@@ -790,12 +792,128 @@ public class Translator extends NeuralNetworkApi {
             lastOutputText = new GuiMessage(new Message(global, finalResult), currentResultID, false, true);
         }
         final long currentResultIDCopy = currentResultID;  //we do a copy because otherwise the currentResultID is incremented before notifying the message (due to the notification being executed in the mainThread)
+        String finalResultConst = finalResult;
         if (responseListener != null) {
-            mainHandler.post(() -> responseListener.onTranslatedText(textToTranslate, finalResult, currentResultIDCopy, true, outputLanguage));
+            mainHandler.post(() -> responseListener.onTranslatedText(textToTranslate, finalResultConst, currentResultIDCopy, true, outputLanguage));
         } else {
-            mainHandler.post(() -> notifyResult(textToTranslate, finalResult, currentResultIDCopy, true, outputLanguage));
+            mainHandler.post(() -> notifyResult(textToTranslate, finalResultConst, currentResultIDCopy, true, outputLanguage));
         }
         currentResultID++;
+    }
+
+    @Nullable
+    private String performTatoebaTranslation(String text, CustomLocale inputLanguage, CustomLocale outputLanguage){
+        TatoebaLinksContainer linksContainer = tatoebaLinks.getOrDefault(inputLanguage.getISO3Language()+"-"+outputLanguage.getISO3Language(), null);
+        String normalizedText = normalizeText(text);
+        String hash = Tools.shake256Hex(normalizedText, 8);
+        if(linksContainer != null && linksContainer.links != null && tatoebaDb != null) {
+            for( String key : linksContainer.links.getDataMap().keySet()){
+                if(key.contains("dfa0806ce3862970")) {
+                    android.util.Log.i("tatoeba keys", key +" - "+ hash);
+                }
+            }
+            LinksData.PairList links = linksContainer.links.getDataMap().getOrDefault(hash, null);
+            if (links != null) {
+                int[] srcIds = new int[links.getItemsCount()];
+                int[] tgtIds = new int[links.getItemsCount()];
+                int count = 0;
+                for(LinksData.Pair pair : links.getItemsList()){
+                    srcIds[count] = pair.getSrcSentence();
+                    tgtIds[count] = pair.getTgtSentence();
+                    count++;
+                }
+                String[] srcSentences = tatoebaDb.getSentences(srcIds);
+                for(int j=0; j<srcSentences.length; j++){
+                    if(normalizedText.equalsIgnoreCase(normalizeText(srcSentences[j]))){
+                        String textResult = tatoebaDb.getSentence(tgtIds[j]);
+                        mainHandler.post(() -> Toast.makeText(global, "Tatoeba sentence found: "+textResult, Toast.LENGTH_SHORT).show());
+                        return textResult;
+                    }
+                }
+            }else{
+                mainHandler.post(() -> Toast.makeText(global, "Tatoeba sentence not found", Toast.LENGTH_SHORT).show());
+            }
+        }
+        return null;
+    }
+
+    private String performNNTextTranslation(final String textToTranslate, String[] joinedStringOutput, final CustomLocale inputLanguage, final CustomLocale outputLanguage, int beamSize, boolean saveResults, @Nullable final TranslateListener responseListener) throws Exception {
+        ArrayList<Integer>[] completeBeamOutput = new ArrayList[beamSize];  //contains the "beamSize" strings produced by the decoder
+        for (int j = 0; j < beamSize; j++) {
+            completeBeamOutput[j] = new ArrayList<Integer>();
+        }
+        double[] beamsOutputsProbabilities = new double[beamSize];  //contains for each of the "beamSize" strings produced by the decoder its overall probability
+        //tokenization
+        long time = System.currentTimeMillis();
+        TokenizerResult input = null;
+        String correctedSubText = correctText(textToTranslate, inputLanguage.getLocale());  //input text pre process
+        input = tokenize(correctedSubText, inputLanguage, outputLanguage);
+        android.util.Log.i("performance", "Tokenization done in: " + (System.currentTimeMillis() - time) + "ms");
+        //encoder execution
+        time = System.currentTimeMillis();
+        OnnxTensor encoderResult = null;
+        if(mode != HY_MT) {
+            encoderResult = executeEncoder(input.getInputIDs(), input.getAttentionMask());
+            android.util.Log.i("performance", "Encoder done in: " + (System.currentTimeMillis() - time) + "ms");
+            if (encoderResult == null) {
+                if (responseListener != null) {
+                    mainHandler.post(() -> responseListener.onFailure(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
+                } else {
+                    mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
+                }
+                throw new Exception();
+            }
+        }
+        //decoder execution
+        TranslateListener translateListener = new TranslateListener() {
+            @Override
+            public void onTranslatedText(String textToTranslate, String text, long resultID, boolean isFinal, CustomLocale languageOfText) {
+                //we return the partial results
+                String outputText;
+                if (joinedStringOutput[0].equals("")) {
+                    outputText = joinedStringOutput[0] + text;
+                } else {
+                    outputText = joinedStringOutput[0] + " " + text;
+                }
+                if (saveResults) {
+                    lastOutputText = new GuiMessage(new Message(global, outputText), currentResultID, false, false);
+                }
+                final long currentResultIDCopy = currentResultID;  //we do a copy because otherwise the currentResultID is incremented before notifying the message (due to the notification being executed in the mainThread)
+                if (responseListener != null) {
+                    mainHandler.post(() -> responseListener.onTranslatedText(textToTranslate, outputText, currentResultIDCopy, false, outputLanguage));
+                } else {
+                    mainHandler.post(() -> notifyResult(textToTranslate, outputText, currentResultIDCopy, false, outputLanguage));
+                }
+            }
+
+            @Override
+            public void onFailure(int[] reasons, long value) {
+                //we do not return the partial results and notify an error
+                if (responseListener != null) {
+                    mainHandler.post(() -> responseListener.onFailure(reasons, value));
+                } else {
+                    mainHandler.post(() -> notifyError(reasons, value));
+                }
+            }
+        };
+        if (beamSize > 1) {  //beam search
+            executeCacheDecoder(textToTranslate, input, encoderResult, completeBeamOutput, beamsOutputsProbabilities, inputLanguage, outputLanguage, beamSize, translateListener);
+        } else if (beamSize == 1) {  //greedy search (with kv cache)
+            executeCacheDecoder(textToTranslate, input, encoderResult, completeBeamOutput, null, inputLanguage, outputLanguage, 1, translateListener);
+        }
+        //we convert the ids of completeBeamOutputs into a string and return it
+        if(encoderResult != null) encoderResult.close();
+        int[] completeOutputArray;
+        if ((mode == MADLAD_CACHE || mode == NLLB_CACHE) && beamSize > 1) {
+            int indexMax = 0;
+            for (int j = 0; j < beamSize; j++) {
+                indexMax = Utils.getIndexOfLargest(beamsOutputsProbabilities);
+            }
+            completeOutputArray = completeBeamOutput[indexMax].stream().mapToInt(k -> k).toArray();
+        } else {
+            completeOutputArray = completeBeamOutput[0].stream().mapToInt(k -> k).toArray();  //convert completeBeamOutput in an array of int
+        }
+        return tokenizer.decode(completeOutputArray);
     }
 
     @Nullable
@@ -1343,6 +1461,35 @@ public class Translator extends NeuralNetworkApi {
         return correctedText;
     }
 
+    //used to normalize text before comparison
+    public static String normalizeText(String input) {
+        if (input == null) return null;
+
+        // Unicode NFC normalization
+        String text = Normalizer.normalize(input, Normalizer.Form.NFC);
+
+        // Standardize punctuation
+        text = text
+                .replace("“", "\"")
+                .replace("”", "\"")
+                .replace("‘", "'")
+                .replace("’", "'")
+                .replace("–", "-")
+                .replace("—", "-");
+
+        // Trim
+        text = text.trim();
+
+        // Collapse whitespace
+        text = text.replaceAll("\\s+", " ");
+
+        // Case normalization
+        text = text.toLowerCase(Locale.ROOT);
+
+        return text;
+    }
+
+
     private OnnxTensor batchEncoderAttentionMask(int[] attentionMask, int batchSize, boolean log) throws OrtException {
         long time = System.currentTimeMillis();
         int[] encoderMaskFlatBatched = TensorUtils.flattenIntArrayBatched(attentionMask, batchSize);
@@ -1650,11 +1797,22 @@ public class Translator extends NeuralNetworkApi {
         }
     }
 
-    private interface TranslatorListener {
-        void onFailure(int[] reasons, long value);
+    public static class TatoebaLinksContainer {
+        @Nullable
+        public LinksData.DataMap links;
+        public Global.RTranslatorMode mode;
+
+        public TatoebaLinksContainer(LinksData.DataMap links, Global.RTranslatorMode mode){
+            this.links = links;
+            this.mode = mode;
+        }
     }
 
-    public interface GeneralListener extends TranslatorListener {
-        void onSuccess();
+    private static abstract class TranslatorListener {
+        public void onFailure(int[] reasons, long value){}
+    }
+
+    public static abstract class GeneralListener extends TranslatorListener {
+        public abstract void onSuccess();
     }
 }

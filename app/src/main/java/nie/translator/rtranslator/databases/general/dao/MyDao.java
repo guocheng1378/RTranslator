@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package nie.translator.rtranslator.database.dao;
+package nie.translator.rtranslator.databases.general.dao;
 
 import androidx.room.Dao;
 import androidx.room.Delete;
@@ -22,7 +22,7 @@ import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
 import androidx.room.Update;
-import nie.translator.rtranslator.database.entities.RecentPeerEntity;
+import nie.translator.rtranslator.databases.general.entities.RecentPeerEntity;
 
 @Dao
 public interface MyDao{

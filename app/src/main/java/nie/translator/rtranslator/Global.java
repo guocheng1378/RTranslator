@@ -85,6 +85,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
     private Handler mainHandler;
     private static Handler mHandler = new Handler();
     private final Object lock = new Object();
+    private boolean useTatoeba;
 
     @Override
     public void onCreate() {
@@ -98,6 +99,8 @@ public class Global extends Application implements DefaultLifecycleObserver {
         //initializeBluetoothCommunicator();
         getMicSensitivity();
         createNotificationChannel();
+        SharedPreferences sharedPreferences = getSharedPreferences("default", Context.MODE_PRIVATE);
+        useTatoeba = sharedPreferences.getBoolean("useTatoeba", false);
     }
 
     public void initializeTranslator(Translator.GeneralListener initListener){
@@ -438,11 +441,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("firstLanguage", language.getCode());
         editor.apply();
-        if(translator.getMode() == Translator.MOZILLA) {
-            translator.loadMozillaModels(language, getSecondLanguage(true), RTranslatorMode.WALKIE_TALKIE_MODE, listener);
-        }else{
-            if(listener != null) listener.onSuccess();
-        }
+        loadLanguagesResources(language, getSecondLanguage(true), RTranslatorMode.WALKIE_TALKIE_MODE, listener);
     }
 
     public void setSecondLanguage(CustomLocale language, @Nullable Translator.GeneralListener listener) {
@@ -451,11 +450,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("secondLanguage", language.getCode());
         editor.apply();
-        if(translator.getMode() == Translator.MOZILLA) {
-            translator.loadMozillaModels(getFirstLanguage(true), language, RTranslatorMode.WALKIE_TALKIE_MODE, listener);
-        }else{
-            if(listener != null) listener.onSuccess();
-        }
+        loadLanguagesResources(getFirstLanguage(true), language, RTranslatorMode.WALKIE_TALKIE_MODE, listener);
     }
 
     public void setFirstTextLanguage(CustomLocale language, @Nullable Translator.GeneralListener listener) {
@@ -464,11 +459,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("firstTextLanguage", language.getCode());
         editor.apply();
-        if(translator.getMode() == Translator.MOZILLA) {
-            translator.loadMozillaModels(language, getSecondTextLanguage(true), RTranslatorMode.TEXT_TRANSLATION_MODE, listener);
-        }else{
-            if(listener != null) listener.onSuccess();
-        }
+        loadLanguagesResources(language, getSecondTextLanguage(true), RTranslatorMode.TEXT_TRANSLATION_MODE, listener);
     }
 
     public void setSecondTextLanguage(CustomLocale language, @Nullable Translator.GeneralListener listener) {
@@ -478,19 +469,15 @@ public class Global extends Application implements DefaultLifecycleObserver {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("secondTextLanguage", language.getCode());
         editor.apply();
-        if(translator.getMode() == Translator.MOZILLA) {
-            translator.loadMozillaModels(getFirstTextLanguage(true), language, RTranslatorMode.TEXT_TRANSLATION_MODE, listener);
-        }else{
-            if(listener != null) listener.onSuccess();
-        }
+        loadLanguagesResources(getFirstTextLanguage(true), language, RTranslatorMode.TEXT_TRANSLATION_MODE, listener);
     }
 
-    public void switchTextLanguages(){
+    public void switchTextLanguages() {
         CustomLocale firstLanguage = getFirstTextLanguage(true);
         CustomLocale secondLanguage = getSecondTextLanguage(true);
         this.firstTextLanguage = secondLanguage;
         this.secondTextLanguage = firstLanguage;
-        if(translator.getMode() == Translator.MOZILLA) translator.loadMozillaModels(secondLanguage, firstLanguage, RTranslatorMode.TEXT_TRANSLATION_MODE, null);
+        loadLanguagesResources(secondLanguage, firstLanguage, RTranslatorMode.TEXT_TRANSLATION_MODE, null);
         SharedPreferences sharedPreferences = this.getSharedPreferences("default", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("firstTextLanguage", this.firstTextLanguage.getCode());
@@ -579,6 +566,18 @@ public class Global extends Application implements DefaultLifecycleObserver {
         editor.apply();
     }
 
+    public boolean isUseTatoeba(){
+        return useTatoeba;
+    }
+
+    public void setUseTatoeba(boolean useTatoeba) {
+        this.useTatoeba = useTatoeba;
+        final SharedPreferences sharedPreferences = this.getSharedPreferences("default", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putBoolean("useTatoeba", useTatoeba);
+        editor.apply();
+    }
+
     public String getName() {
         if (name.length() == 0) {
             final SharedPreferences sharedPreferences = this.getSharedPreferences("default", Context.MODE_PRIVATE);
@@ -594,7 +593,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
         editor.putString("name", savedName);
         editor.apply();
         if(getBluetoothCommunicator() != null) {
-            getBluetoothCommunicator().setName(savedName);  //si aggiorna il nome anche per il comunicator
+            getBluetoothCommunicator().setName(savedName);  //we update the name also for communicator
         }
     }
 
@@ -716,6 +715,27 @@ public class Global extends Application implements DefaultLifecycleObserver {
             return true; // Connected to some wifi device
         } else {
             return false; // user turned off wifi
+        }
+    }
+
+    private void loadLanguagesResources(CustomLocale firstLanguage, CustomLocale secondLanguage, RTranslatorMode mode, Translator.GeneralListener listener){
+        if(isUseTatoeba()) {
+            translator.loadTatoeba(firstLanguage, secondLanguage, mode, new Translator.GeneralListener() {
+                @Override
+                public void onSuccess() {
+                    if (translator.getMode() == Translator.MOZILLA) {
+                        translator.loadMozillaModels(firstLanguage, secondLanguage, mode, listener);
+                    } else {
+                        if (listener != null) listener.onSuccess();
+                    }
+                }
+            });
+        }else{
+            if (translator.getMode() == Translator.MOZILLA) {
+                translator.loadMozillaModels(firstLanguage, secondLanguage, mode, listener);
+            } else {
+                if (listener != null) listener.onSuccess();
+            }
         }
     }
 }
