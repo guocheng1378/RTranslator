@@ -604,6 +604,7 @@ public class Translator extends NeuralNetworkApi {
         if(tatoebaDb != null) {
             new Thread(() -> {
                 synchronized (tatoebaLinks) {
+                    long initTime = System.currentTimeMillis();
                     //todo: translate all the ISO3 that are different than normal (like cmn for Chinese)
                     //we first unload the eventual link associated to this mode
                     for (Map.Entry<String, TatoebaLinksContainer> entry : tatoebaLinks.entrySet()) {
@@ -620,6 +621,7 @@ public class Translator extends NeuralNetworkApi {
                             new TatoebaLinksContainer(links, mode)
                     );
                     if(listener != null) listener.onSuccess();
+                    android.util.Log.i("performance_tatoeba", "TATOEBA LOAD OF "+srcLang.getISO3Language()+"-"+tgtLang.getISO3Language()+" DONE IN: " + (System.currentTimeMillis() - initTime) + "ms");
                 }
             }).start();
         }
@@ -807,11 +809,7 @@ public class Translator extends NeuralNetworkApi {
         String normalizedText = normalizeText(text);
         String hash = Tools.shake256Hex(normalizedText, 8);
         if(linksContainer != null && linksContainer.links != null && tatoebaDb != null) {
-            for( String key : linksContainer.links.getDataMap().keySet()){
-                if(key.contains("dfa0806ce3862970")) {
-                    android.util.Log.i("tatoeba keys", key +" - "+ hash);
-                }
-            }
+            long initTime = System.currentTimeMillis();
             LinksData.PairList links = linksContainer.links.getDataMap().getOrDefault(hash, null);
             if (links != null) {
                 int[] srcIds = new int[links.getItemsCount()];
@@ -827,12 +825,14 @@ public class Translator extends NeuralNetworkApi {
                     if(normalizedText.equalsIgnoreCase(normalizeText(srcSentences[j]))){
                         String textResult = tatoebaDb.getSentence(tgtIds[j]);
                         mainHandler.post(() -> Toast.makeText(global, "Tatoeba sentence found: "+textResult, Toast.LENGTH_SHORT).show());
+                        android.util.Log.i("performance_tatoeba", "TATOEBA SEARCH DONE IN: " + (System.currentTimeMillis() - initTime) + "ms");
                         return textResult;
                     }
                 }
             }else{
                 mainHandler.post(() -> Toast.makeText(global, "Tatoeba sentence not found", Toast.LENGTH_SHORT).show());
             }
+            android.util.Log.i("performance_tatoeba", "TATOEBA SEARCH DONE IN: " + (System.currentTimeMillis() - initTime) + "ms");
         }
         return null;
     }

@@ -144,6 +144,7 @@ dependencies {
     implementation 'com.google.mlkit:language-id:17.0.5'
     //JWS parser
     implementation group: 'com.nimbusds', name: 'nimbus-jose-jwt', version: '5.1'
+    implementation files('libs/sqlite4java-android-release.aar')
     //Room library (database)
     def room_version = '2.1.0'
     implementation "androidx.room:room-runtime:$room_version"
