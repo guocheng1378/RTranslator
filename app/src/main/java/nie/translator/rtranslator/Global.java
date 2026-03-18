@@ -472,17 +472,17 @@ public class Global extends Application implements DefaultLifecycleObserver {
         loadLanguagesResources(getFirstTextLanguage(true), language, RTranslatorMode.TEXT_TRANSLATION_MODE, listener);
     }
 
-    public void switchTextLanguages() {
+    public void switchTextLanguages(@Nullable Translator.GeneralListener listener) {
         CustomLocale firstLanguage = getFirstTextLanguage(true);
         CustomLocale secondLanguage = getSecondTextLanguage(true);
         this.firstTextLanguage = secondLanguage;
         this.secondTextLanguage = firstLanguage;
-        loadLanguagesResources(secondLanguage, firstLanguage, RTranslatorMode.TEXT_TRANSLATION_MODE, null);
         SharedPreferences sharedPreferences = this.getSharedPreferences("default", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("firstTextLanguage", this.firstTextLanguage.getCode());
         editor.putString("secondTextLanguage", this.secondTextLanguage.getCode());
         editor.apply();
+        loadLanguagesResources(secondLanguage, firstLanguage, RTranslatorMode.TEXT_TRANSLATION_MODE, listener);
     }
 
 
@@ -576,6 +576,10 @@ public class Global extends Application implements DefaultLifecycleObserver {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putBoolean("useTatoeba", useTatoeba);
         editor.apply();
+        // loading of tatoeba
+        translator.loadTatoeba(getFirstTextLanguage(true), getSecondTextLanguage(true), RTranslatorMode.TEXT_TRANSLATION_MODE, null);
+        translator.loadTatoeba(getFirstLanguage(true), getSecondLanguage(true), RTranslatorMode.WALKIE_TALKIE_MODE, null);
+        //todo: add loading for Conversation mode
     }
 
     public String getName() {

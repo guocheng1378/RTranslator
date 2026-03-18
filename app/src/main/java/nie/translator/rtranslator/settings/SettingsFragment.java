@@ -197,10 +197,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             @Override
             public boolean onPreferenceChange(Preference preference, Object newValue) {
                 if(global != null) {
-                    final SharedPreferences sharedPreferences = global.getSharedPreferences("default", Context.MODE_PRIVATE);
-                    SharedPreferences.Editor editor = sharedPreferences.edit();
-                    editor.putBoolean("useTatoeba", (Boolean) newValue);
-                    editor.apply();
+                    global.setUseTatoeba((Boolean) newValue);
                 }
                 return true;
             }

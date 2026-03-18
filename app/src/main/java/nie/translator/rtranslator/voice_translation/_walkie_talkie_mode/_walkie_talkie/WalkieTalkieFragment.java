@@ -586,58 +586,20 @@ public class WalkieTalkieFragment extends VoiceTranslationFragment {
         // new language setting in the WalkieTalkieService
         walkieTalkieServiceCommunicator.changeFirstLanguage(language);
         // save firstLanguage selected
-        global.setFirstLanguage(language, new Translator.GeneralListener() {
-            @Override
-            public void onSuccess() {
-                // change language displayed
-                global.getTTSLanguages(true, new Global.GetLocalesListListener() {
-                    @Override
-                    public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
-                        ((AnimatedTextView) firstLanguageSelector.findViewById(R.id.firstLanguageName)).setText(language.getDisplayNameWithoutTTS(), true);
-                        leftMicLanguage.setText(language.getDisplayNameWithoutTTS(), true);
-                    }
-
-                    @Override
-                    public void onFailure(int[] reasons, long value) {
-                        //never called in this case
-                    }
-                });
-            }
-
-            @Override
-            public void onFailure(int[] reasons, long value) {
-                //todo: gestire errore
-            }
-        });
+        global.setFirstLanguage(language, null);
+        // change language displayed
+        ((AnimatedTextView) firstLanguageSelector.findViewById(R.id.firstLanguageName)).setText(language.getDisplayNameWithoutTTS(), true);
+        leftMicLanguage.setText(language.getDisplayNameWithoutTTS(), true);
     }
 
     private void setSecondLanguage(CustomLocale language) {
         // new language setting in the WalkieTalkieService
         walkieTalkieServiceCommunicator.changeSecondLanguage(language);
         // save secondLanguage selected
-        global.setSecondLanguage(language, new Translator.GeneralListener() {
-            @Override
-            public void onSuccess() {
-                // change language displayed
-                global.getTTSLanguages(true, new Global.GetLocalesListListener() {
-                    @Override
-                    public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
-                        ((AnimatedTextView) secondLanguageSelector.findViewById(R.id.secondLanguageName)).setText(language.getDisplayNameWithoutTTS(), true);
-                        rightMicLanguage.setText(language.getDisplayNameWithoutTTS(), true);
-                    }
-
-                    @Override
-                    public void onFailure(int[] reasons, long value) {
-                        //never called in this case
-                    }
-                });
-            }
-
-            @Override
-            public void onFailure(int[] reasons, long value) {
-                //todo: gestire errore
-            }
-        });
+        global.setSecondLanguage(language, null);
+        // change language displayed
+        ((AnimatedTextView) secondLanguageSelector.findViewById(R.id.secondLanguageName)).setText(language.getDisplayNameWithoutTTS(), true);
+        rightMicLanguage.setText(language.getDisplayNameWithoutTTS(), true);
     }
 
     private void onFailureShowingList(int[] reasons, long value) {

@@ -273,16 +273,17 @@ public class Translator extends NeuralNetworkApi {
                 }
             }
         };
-        if(global.isUseTatoeba()){
-            String tatoebaDbPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Tatoeba/tatoeba.db";
+        //tatoeba loading, followed by the execution of the initialization thread
+        String tatoebaDbPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Tatoeba/tatoeba.db";
+        tatoebaDb = new TatoebaDbWrapper(tatoebaDbPath);
 
+        if(global.isUseTatoeba()){
             CustomLocale firstTextLanguage = global.getFirstTextLanguage(true);
             CustomLocale secondTextLanguage = global.getSecondTextLanguage(true);
             CustomLocale firstLanguage = global.getFirstLanguage(true);
             CustomLocale secondLanguage = global.getSecondLanguage(true);
 
-            tatoebaDb = new TatoebaDbWrapper(tatoebaDbPath);  //todo: implement resource load management based on useTatoeba status
-            loadTatoeba(firstTextLanguage, secondTextLanguage, Global.RTranslatorMode.TEXT_TRANSLATION_MODE, new GeneralListener() {
+            loadTatoeba(firstTextLanguage, secondTextLanguage, Global.RTranslatorMode.TEXT_TRANSLATION_MODE, new GeneralListener() {  //todo: implement resource load management based on useTatoeba status
                 @Override
                 public void onSuccess() {
                     loadTatoeba(firstLanguage, secondLanguage, Global.RTranslatorMode.WALKIE_TALKIE_MODE, new GeneralListener() {
@@ -603,24 +604,44 @@ public class Translator extends NeuralNetworkApi {
     public void loadTatoeba(CustomLocale srcLang, CustomLocale tgtLang, Global.RTranslatorMode mode, @Nullable GeneralListener listener){
         if(tatoebaDb != null) {
             new Thread(() -> {
-                synchronized (tatoebaLinks) {
+                synchronized (tatoebaLock) {
                     long initTime = System.currentTimeMillis();
+                    String newKey = srcLang.getISO3Language() + "-" + tgtLang.getISO3Language();
                     //todo: translate all the ISO3 that are different than normal (like cmn for Chinese)
-                    //we first unload the eventual link associated to this mode
+                    //we eventually unload the eventual link associated to this mode
+                    boolean found = false;
                     for (Map.Entry<String, TatoebaLinksContainer> entry : tatoebaLinks.entrySet()) {
                         String key = entry.getKey();
                         TatoebaLinksContainer value = entry.getValue();
-                        if (value.mode == mode) {
-                            tatoebaLinks.remove(key);
+                        if(key.equals(newKey)){  //if the considered key is not equal to the loading language pair (the language pair link is already in tatoebaLinks)
+                            found = true;
+                            //we eventually add this mode to the modes of the value
+                            if(!value.modes.contains(mode)){
+                                value.modes.add(mode);
+                            }
+                        }else{  //if the considered key is not equal to the loading language pair
+                            if (value.modes.contains(mode)) {  // if the value has the current mode in the modes attribute
+                                if(value.modes.size() > 1){
+                                    // if the value is used by multiple mode we only remove the current mode from the modes
+                                    value.modes.remove(mode);
+                                }else{
+                                    // if the value is used by only this mode, we remove the value from tatoebaLinks
+                                    tatoebaLinks.remove(key);
+                                }
+                            }
                         }
                     }
-                    // we load the link associated to this mode and these languages
-                    LinksData.DataMap links = tatoebaDb.getLinkData(srcLang.getISO3Language(), tgtLang.getISO3Language());
-                    tatoebaLinks.put(
-                            srcLang.getISO3Language() + "-" + tgtLang.getISO3Language(),
-                            new TatoebaLinksContainer(links, mode)
-                    );
-                    if(listener != null) listener.onSuccess();
+                    // we eventually load the link associated to this mode and these languages
+                    if(!found) {
+                        LinksData.DataMap links = tatoebaDb.getLinkData(srcLang.getISO3Language(), tgtLang.getISO3Language());
+                        ArrayList<Global.RTranslatorMode> modes = new ArrayList<>(1);
+                        modes.add(mode);
+                        tatoebaLinks.put(
+                                srcLang.getISO3Language() + "-" + tgtLang.getISO3Language(),
+                                new TatoebaLinksContainer(links, modes)
+                        );
+                    }
+                    if(listener != null) mainHandler.post(() -> listener.onSuccess());
                     android.util.Log.i("performance_tatoeba", "TATOEBA LOAD OF "+srcLang.getISO3Language()+"-"+tgtLang.getISO3Language()+" DONE IN: " + (System.currentTimeMillis() - initTime) + "ms");
                 }
             }).start();
@@ -661,10 +682,10 @@ public class Translator extends NeuralNetworkApi {
                     currentModeModels[0] = !srcLang.getLanguage().equals("en") ? srcLang : null;
                     currentModeModels[1] = !trgLang.getLanguage().equals("en") ? trgLang : null;
                     //we notify the success of the loading
-                    if(listener != null) listener.onSuccess();
+                    if(listener != null) mainHandler.post(() -> listener.onSuccess());
                 } catch (Exception e) {
                     Log.e("bergamot", e.getMessage());
-                    if(listener != null) listener.onFailure(new int[]{0}, 0); //todo: implementare una vera gestione degli errori
+                    if(listener != null) mainHandler.post(() -> listener.onFailure(new int[]{0}, 0)); //todo: implementare una vera gestione degli errori
                 }
             }
         }).start();
@@ -707,132 +728,139 @@ public class Translator extends NeuralNetworkApi {
     }
 
     private void performTextTranslation(final String textToTranslate, final CustomLocale inputLanguage, final CustomLocale outputLanguage, int beamSize, boolean saveResults, @Nullable final TranslateListener responseListener) {
-        long initTime = System.currentTimeMillis();
-        String finalResult = null;
-        android.util.Log.i("result", "Translation input: " + textToTranslate);
-        if(saveResults) {
-            lastInputText = new GuiMessage(new Message(global, textToTranslate), false, true);
-        }
+        try {
+            long initTime = System.currentTimeMillis();
+            String finalResult = null;
+            android.util.Log.i("result", "Translation input: " + textToTranslate);
+            if(saveResults) {
+                lastInputText = new GuiMessage(new Message(global, textToTranslate), false, true);
+            }
 
-        if(mode != MOZILLA){
-            int maxLength = 200;
-            if(mode == NLLB || mode == NLLB_CACHE){
-                maxLength = 200;
-            }else if(mode == MADLAD || mode == MADLAD_CACHE){
-                maxLength = 200;  //todo: research the best value for madlad
-            }else if(mode == HY_MT){
-                maxLength = 5000;   //todo: research the best value for hy-mt
-            }
-            //we split the input text in sentences
-            ArrayList<String> textSplit = new ArrayList<>();
-            BreakIterator iterator = BreakIterator.getSentenceInstance(inputLanguage.getLocale());
-            iterator.setText(textToTranslate);
-            int start = iterator.first();
-            for (int end = iterator.next(); end != BreakIterator.DONE; start = end, end = iterator.next()) {
-                textSplit.add(textToTranslate.substring(start, end));
-            }
-            //we rejoin separated substrings whose union does not exceed the maximum input size
-            boolean joined = true;
-            while (joined) {
-                joined = false;
-                for (int i = 1; i < textSplit.size(); i++) {
-                    int numTokens = tokenize(textSplit.get(i - 1), inputLanguage, outputLanguage, true).getInputIDs().length;
-                    int numTokens2 = tokenize(textSplit.get(i), inputLanguage, outputLanguage, true).getInputIDs().length;
-                    if ((numTokens + numTokens2 < maxLength) || (numTokens2 < 5)) {
-                        textSplit.set(i - 1, textSplit.get(i - 1) + textSplit.get(i));
-                        textSplit.remove(i);
-                        i = i - 1;
-                        joined = true;
+            if(mode != MOZILLA){
+                int maxLength = 200;
+                if(mode == NLLB || mode == NLLB_CACHE){
+                    maxLength = 200;
+                }else if(mode == MADLAD || mode == MADLAD_CACHE){
+                    maxLength = 200;  //todo: research the best value for madlad
+                }else if(mode == HY_MT){
+                    maxLength = 5000;   //todo: research the best value for hy-mt
+                }
+                //we split the input text in sentences
+                ArrayList<String> textSplit = new ArrayList<>();
+                BreakIterator iterator = BreakIterator.getSentenceInstance(inputLanguage.getLocale());
+                iterator.setText(textToTranslate);
+                int start = iterator.first();
+                for (int end = iterator.next(); end != BreakIterator.DONE; start = end, end = iterator.next()) {
+                    textSplit.add(textToTranslate.substring(start, end));
+                }
+                //we rejoin separated substrings whose union does not exceed the maximum input size
+                boolean joined = true;
+                while (joined) {
+                    joined = false;
+                    for (int i = 1; i < textSplit.size(); i++) {
+                        int numTokens = tokenize(textSplit.get(i - 1), inputLanguage, outputLanguage, true).getInputIDs().length;
+                        int numTokens2 = tokenize(textSplit.get(i), inputLanguage, outputLanguage, true).getInputIDs().length;
+                        if ((numTokens + numTokens2 < maxLength) || (numTokens2 < 5)) {
+                            textSplit.set(i - 1, textSplit.get(i - 1) + textSplit.get(i));
+                            textSplit.remove(i);
+                            i = i - 1;
+                            joined = true;
+                        }
                     }
                 }
-            }
-            android.util.Log.i("result", "Input text splitted in " + textSplit.size() + " subtexts:");
-            for (String subtext : textSplit) {
-                android.util.Log.i("result", subtext);
-            }
-            android.util.Log.i("performance", "Text split done in: " + (System.currentTimeMillis() - initTime) + "ms");
-
-            final String[] joinedStringOutput = {""};
-            for (int i = 0; i < textSplit.size(); i++) {
-                String finalSplitResult = null;
-                if(global.isUseTatoeba()){
-                    finalSplitResult = performTatoebaTranslation(textSplit.get(i), inputLanguage, outputLanguage);
+                android.util.Log.i("result", "Input text splitted in " + textSplit.size() + " subtexts:");
+                for (String subtext : textSplit) {
+                    android.util.Log.i("result", subtext);
                 }
+                android.util.Log.i("performance", "Text split done in: " + (System.currentTimeMillis() - initTime) + "ms");
 
-                if(finalSplitResult == null){
-                    //we execute translation of the current split using Neural Network
-                    try {
+                final String[] joinedStringOutput = {""};
+                for (int i = 0; i < textSplit.size(); i++) {
+                    String finalSplitResult = null;
+                    if(global.isUseTatoeba()){
+                        finalSplitResult = performTatoebaTranslation(textSplit.get(i), inputLanguage, outputLanguage);
+                    }
+
+                    if(finalSplitResult == null){
+                        //we execute translation of the current split using Neural Network
                         finalSplitResult = performNNTextTranslation(textSplit.get(i), joinedStringOutput, inputLanguage, outputLanguage, beamSize, saveResults, responseListener);
-                    } catch (Exception e) {
-                        return;
+                    }
+                    // join the split result with the previous results
+                    if (joinedStringOutput[0].equals("")) {
+                        joinedStringOutput[0] = joinedStringOutput[0] + finalSplitResult;
+                    } else {
+                        joinedStringOutput[0] = joinedStringOutput[0] + " " + finalSplitResult;
                     }
                 }
-                // join the split result with the previous results
-                if (joinedStringOutput[0].equals("")) {
-                    joinedStringOutput[0] = joinedStringOutput[0] + finalSplitResult;
-                } else {
-                    joinedStringOutput[0] = joinedStringOutput[0] + " " + finalSplitResult;
+                long time = System.currentTimeMillis();
+                //String finalResult = tokenizer.decode(completeOutputArray);
+                finalResult = joinedStringOutput[0];
+                android.util.Log.i("performance", "Detokenization done in: " + (System.currentTimeMillis() - time) + "ms");
+            }else{
+                //perform text translation using mozilla models
+                if (global.isUseTatoeba()) {
+                    finalResult = performTatoebaTranslation(textToTranslate, inputLanguage, outputLanguage);
+                }
+                synchronized (mozillaLock) {
+                    if (finalResult == null) {
+                        finalResult = BergamotTranslator.translateMultiple(new String[]{textToTranslate}, inputLanguage, outputLanguage)[0];
+                    }
                 }
             }
-            long time = System.currentTimeMillis();
-            //String finalResult = tokenizer.decode(completeOutputArray);
-            finalResult = joinedStringOutput[0];
-            android.util.Log.i("performance", "Detokenization done in: " + (System.currentTimeMillis() - time) + "ms");
-        }else{
-            //perform text translation using mozilla models
-            if(global.isUseTatoeba()){
-                finalResult = performTatoebaTranslation(textToTranslate, inputLanguage, outputLanguage);
+            android.util.Log.i("performance", "TRANSLATION DONE IN: " + (System.currentTimeMillis() - initTime) + "ms");
+            if (saveResults) {
+                lastOutputText = new GuiMessage(new Message(global, finalResult), currentResultID, false, true);
             }
-            synchronized (mozillaLock) {
-                if(finalResult == null) {
-                    finalResult = BergamotTranslator.translateMultiple(new String[]{textToTranslate}, inputLanguage, outputLanguage)[0];
-                }
+            final long currentResultIDCopy = currentResultID;  //we do a copy because otherwise the currentResultID is incremented before notifying the message (due to the notification being executed in the mainThread)
+            String finalResultConst = finalResult;
+            if (responseListener != null) {
+                mainHandler.post(() -> responseListener.onTranslatedText(textToTranslate, finalResultConst, currentResultIDCopy, true, outputLanguage));
+            } else {
+                mainHandler.post(() -> notifyResult(textToTranslate, finalResultConst, currentResultIDCopy, true, outputLanguage));
+            }
+            currentResultID++;
+        } catch (Exception e) {
+            e.printStackTrace();
+            if (responseListener != null) {
+                mainHandler.post(() -> responseListener.onFailure(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
+            } else {
+                mainHandler.post(() -> notifyError(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0));
             }
         }
-        android.util.Log.i("performance", "TRANSLATION DONE IN: " + (System.currentTimeMillis() - initTime) + "ms");
-        if (saveResults) {
-            lastOutputText = new GuiMessage(new Message(global, finalResult), currentResultID, false, true);
-        }
-        final long currentResultIDCopy = currentResultID;  //we do a copy because otherwise the currentResultID is incremented before notifying the message (due to the notification being executed in the mainThread)
-        String finalResultConst = finalResult;
-        if (responseListener != null) {
-            mainHandler.post(() -> responseListener.onTranslatedText(textToTranslate, finalResultConst, currentResultIDCopy, true, outputLanguage));
-        } else {
-            mainHandler.post(() -> notifyResult(textToTranslate, finalResultConst, currentResultIDCopy, true, outputLanguage));
-        }
-        currentResultID++;
     }
 
     @Nullable
     private String performTatoebaTranslation(String text, CustomLocale inputLanguage, CustomLocale outputLanguage){
-        TatoebaLinksContainer linksContainer = tatoebaLinks.getOrDefault(inputLanguage.getISO3Language()+"-"+outputLanguage.getISO3Language(), null);
-        String normalizedText = normalizeText(text);
-        String hash = Tools.shake256Hex(normalizedText, 8);
-        if(linksContainer != null && linksContainer.links != null && tatoebaDb != null) {
-            long initTime = System.currentTimeMillis();
-            LinksData.PairList links = linksContainer.links.getDataMap().getOrDefault(hash, null);
-            if (links != null) {
-                int[] srcIds = new int[links.getItemsCount()];
-                int[] tgtIds = new int[links.getItemsCount()];
-                int count = 0;
-                for(LinksData.Pair pair : links.getItemsList()){
-                    srcIds[count] = pair.getSrcSentence();
-                    tgtIds[count] = pair.getTgtSentence();
-                    count++;
-                }
-                String[] srcSentences = tatoebaDb.getSentences(srcIds);
-                for(int j=0; j<srcSentences.length; j++){
-                    if(normalizedText.equalsIgnoreCase(normalizeText(srcSentences[j]))){
-                        String textResult = tatoebaDb.getSentence(tgtIds[j]);
-                        mainHandler.post(() -> Toast.makeText(global, "Tatoeba sentence found: "+textResult, Toast.LENGTH_SHORT).show());
-                        android.util.Log.i("performance_tatoeba", "TATOEBA SEARCH DONE IN: " + (System.currentTimeMillis() - initTime) + "ms");
-                        return textResult;
+        synchronized (tatoebaLock) {
+            TatoebaLinksContainer linksContainer = tatoebaLinks.getOrDefault(inputLanguage.getISO3Language() + "-" + outputLanguage.getISO3Language(), null);
+            String normalizedText = normalizeText(text);
+            String hash = Tools.shake256Hex(normalizedText, 8);
+            if (linksContainer != null && linksContainer.links != null && tatoebaDb != null) {
+                long initTime = System.currentTimeMillis();
+                LinksData.PairList links = linksContainer.links.getDataMap().getOrDefault(hash, null);
+                if (links != null) {
+                    int[] srcIds = new int[links.getItemsCount()];
+                    int[] tgtIds = new int[links.getItemsCount()];
+                    int count = 0;
+                    for (LinksData.Pair pair : links.getItemsList()) {
+                        srcIds[count] = pair.getSrcSentence();
+                        tgtIds[count] = pair.getTgtSentence();
+                        count++;
                     }
+                    String[] srcSentences = tatoebaDb.getSentences(srcIds);
+                    for (int j = 0; j < srcSentences.length; j++) {
+                        if (normalizedText.equalsIgnoreCase(normalizeText(srcSentences[j]))) {
+                            String textResult = tatoebaDb.getSentence(tgtIds[j]);
+                            mainHandler.post(() -> Toast.makeText(global, "Tatoeba sentence found: " + textResult, Toast.LENGTH_SHORT).show());
+                            android.util.Log.i("performance_tatoeba", "TATOEBA SEARCH DONE IN: " + (System.currentTimeMillis() - initTime) + "ms");
+                            return textResult;
+                        }
+                    }
+                } else {
+                    mainHandler.post(() -> Toast.makeText(global, "Tatoeba sentence not found", Toast.LENGTH_SHORT).show());
                 }
-            }else{
-                mainHandler.post(() -> Toast.makeText(global, "Tatoeba sentence not found", Toast.LENGTH_SHORT).show());
+                android.util.Log.i("performance_tatoeba", "TATOEBA SEARCH DONE IN: " + (System.currentTimeMillis() - initTime) + "ms");
             }
-            android.util.Log.i("performance_tatoeba", "TATOEBA SEARCH DONE IN: " + (System.currentTimeMillis() - initTime) + "ms");
         }
         return null;
     }
@@ -1800,11 +1828,11 @@ public class Translator extends NeuralNetworkApi {
     public static class TatoebaLinksContainer {
         @Nullable
         public LinksData.DataMap links;
-        public Global.RTranslatorMode mode;
+        public ArrayList<Global.RTranslatorMode> modes;
 
-        public TatoebaLinksContainer(LinksData.DataMap links, Global.RTranslatorMode mode){
+        public TatoebaLinksContainer(@Nullable LinksData.DataMap links, ArrayList<Global.RTranslatorMode> modes){
             this.links = links;
-            this.mode = mode;
+            this.modes = modes;
         }
     }
 
