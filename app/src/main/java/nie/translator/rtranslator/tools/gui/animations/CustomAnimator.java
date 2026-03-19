@@ -738,6 +738,63 @@ public class CustomAnimator {
         return animationAppearance;
     }
 
+    public Animator animateViewAppearance(final VoiceTranslationActivity activity, View view, Listener listener){
+        int duration = activity.getResources().getInteger(R.integer.durationStandard);
+
+        view.setVisibility(View.VISIBLE);
+
+        final Animator animationAppearance = createAnimatorAlpha(new View[]{view}, view.getAlpha(), 1, duration);
+
+        animationAppearance.addListener(new Animator.AnimatorListener() {
+            @Override
+            public void onAnimationStart(@NonNull Animator animator) {
+                if (listener != null) {
+                    listener.onAnimationStart();
+                }
+            }
+            @Override
+            public void onAnimationEnd(@NonNull Animator animator) {
+                if (listener != null) {
+                    listener.onAnimationEnd();
+                }
+            }
+            @Override
+            public void onAnimationCancel(@NonNull Animator animator) {}
+            @Override
+            public void onAnimationRepeat(@NonNull Animator animator) {}
+        });
+        animationAppearance.start();
+        return animationAppearance;
+    }
+
+    public Animator animateViewDisappearance(final VoiceTranslationActivity activity, View view, Listener listener){
+        int duration = activity.getResources().getInteger(R.integer.durationStandard);
+
+        final Animator animationAppearance = createAnimatorAlpha(new View[]{view}, view.getAlpha(), 0, duration);
+
+        animationAppearance.addListener(new Animator.AnimatorListener() {
+            @Override
+            public void onAnimationStart(@NonNull Animator animator) {
+                if (listener != null) {
+                    listener.onAnimationStart();
+                }
+            }
+            @Override
+            public void onAnimationEnd(@NonNull Animator animator) {
+                view.setVisibility(View.INVISIBLE);
+                if (listener != null) {
+                    listener.onAnimationEnd();
+                }
+            }
+            @Override
+            public void onAnimationCancel(@NonNull Animator animator) {}
+            @Override
+            public void onAnimationRepeat(@NonNull Animator animator) {}
+        });
+        animationAppearance.start();
+        return animationAppearance;
+    }
+
     public void animateSwitchLanguages(Context context, CardView firstLanguageContainer, CardView secondLanguageContainer, AppCompatImageButton invertLanguagesButton, Listener listener){
         int duration = context.getResources().getInteger(R.integer.durationStandard);
 

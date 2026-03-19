@@ -89,11 +89,11 @@ public class TranslationFragment extends Fragment {
     private AppCompatImageButton backButton;
     private FloatingActionButton copyInputButton;
     private FloatingActionButton copyOutputButton;
-    private FloatingActionButton cancelInputButton;
-    private FloatingActionButton cancelOutputButton;
+    private FloatingActionButton cancelTextButton;
     private FloatingActionButton ttsInputButton;
     private FloatingActionButton ttsOutputButton;
     private ConstraintLayout outputContainer;
+    private TextView tatoebaText;
     private CustomAnimator animator = new CustomAnimator();
     private Animator colorAnimator = null;
     private int activatedColor = R.color.primary;
@@ -102,6 +102,7 @@ public class TranslationFragment extends Fragment {
     private boolean isScreenReduced = false;
     private boolean isInputEmpty = true;
     private boolean isOutputEmpty = true;
+    private boolean isOutputTatoeba = false;
     ViewTreeObserver.OnGlobalLayoutListener layoutListener;
     private static final int REDUCED_GUI_THRESHOLD_DP = 550;
 
@@ -127,6 +128,8 @@ public class TranslationFragment extends Fragment {
     private Animator animationInput;
     @Nullable
     private Animator animationOutput;
+    @Nullable
+    private Animator animationTatoeba;
 
 
     @Override
@@ -163,11 +166,11 @@ public class TranslationFragment extends Fragment {
         backButton = view.findViewById(R.id.backButton);
         copyInputButton = view.findViewById(R.id.copyButtonInput);
         copyOutputButton = view.findViewById(R.id.copyButtonOutput);
-        cancelInputButton = view.findViewById(R.id.cancelButtonInput);
-        cancelOutputButton = view.findViewById(R.id.cancelButtonOutput);
+        cancelTextButton = view.findViewById(R.id.cancelButtonInput);
         ttsInputButton = view.findViewById(R.id.ttsButtonInput);
         ttsOutputButton = view.findViewById(R.id.ttsButtonOutput);
         outputContainer = view.findViewById(R.id.outputContainer);
+        tatoebaText = view.findViewById(R.id.tatoebaText);
         //we set the initial tag for the tts buttons
         ttsInputButton.setTag(R.drawable.sound_icon);
         ttsOutputButton.setTag(R.drawable.sound_icon);
@@ -212,9 +215,22 @@ public class TranslationFragment extends Fragment {
         conversationButtonSmall.setOnClickListener(conversationButtonListener);
         translateListener = new Translator.TranslateListener() {
             @Override
-            public void onTranslatedText(String textToTranslate, String text, long resultID, boolean isFinal, CustomLocale languageOfText) {
+            public void onTranslatedText(String textToTranslate, String text, long resultID, boolean isFinal, boolean isTatoeba, CustomLocale languageOfText) {
                 outputText.setText(text);
                 if(isFinal){
+                    if(isTatoeba){
+                        isOutputTatoeba = true;
+                        if(animationTatoeba != null) {
+                            animationTatoeba.cancel();
+                        }
+                        animationTatoeba = animator.animateViewAppearance(activity, tatoebaText, new CustomAnimator.Listener() {
+                            @Override
+                            public void onAnimationEnd() {
+                                super.onAnimationEnd();
+                                animationTatoeba = null;
+                            }
+                        });
+                    }
                     activateTranslationButton();
                 }
             }
@@ -296,15 +312,10 @@ public class TranslationFragment extends Fragment {
                 }
             }
         });
-        cancelInputButton.setOnClickListener(new View.OnClickListener() {
+        cancelTextButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 inputText.setText("");
-            }
-        });
-        cancelOutputButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
                 outputText.setText("");
                 global.getTranslator().resetLastOutput();
             }
@@ -342,7 +353,7 @@ public class TranslationFragment extends Fragment {
                         animationInput.cancel();
                     }
                     if(!s.toString().isEmpty()) {
-                        animationInput = animator.animateInputAppearance(activity, ttsInputButton, copyInputButton, cancelInputButton, new CustomAnimator.Listener() {
+                        animationInput = animator.animateInputAppearance(activity, ttsInputButton, copyInputButton, cancelTextButton, new CustomAnimator.Listener() {
                             @Override
                             public void onAnimationEnd() {
                                 super.onAnimationEnd();
@@ -350,7 +361,7 @@ public class TranslationFragment extends Fragment {
                             }
                         });
                     }else{
-                        animationInput = animator.animateInputDisappearance(activity, ttsInputButton, copyInputButton, cancelInputButton, new CustomAnimator.Listener() {
+                        animationInput = animator.animateInputDisappearance(activity, ttsInputButton, copyInputButton, cancelTextButton, new CustomAnimator.Listener() {
                             @Override
                             public void onAnimationEnd() {
                                 super.onAnimationEnd();
@@ -386,9 +397,22 @@ public class TranslationFragment extends Fragment {
 
             @Override
             public void afterTextChanged(Editable s) {
+                if(isOutputTatoeba) {
+                    isOutputTatoeba = false;
+                    if (animationTatoeba != null) {
+                        animationTatoeba.cancel();
+                    }
+                    animationTatoeba = animator.animateViewDisappearance(activity, tatoebaText, new CustomAnimator.Listener() {
+                        @Override
+                        public void onAnimationEnd() {
+                            super.onAnimationEnd();
+                            animationTatoeba = null;
+                        }
+                    });
+                }
                 if(isOutputEmpty != s.toString().isEmpty()){  //the output editText transitioned from empty to not empty or vice versa
                     isOutputEmpty = s.toString().isEmpty();
-                    if(animationOutput != null){
+                    if(animationOutput != null) {
                         animationOutput.cancel();
                     }
                     if(!s.toString().isEmpty()) {
