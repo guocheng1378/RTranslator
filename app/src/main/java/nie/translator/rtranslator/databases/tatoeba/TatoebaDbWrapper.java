@@ -4,6 +4,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.niedev.sqlite4java.SQLiteBlob;
@@ -46,7 +47,7 @@ public class TatoebaDbWrapper {
         return out;
     }
 
-    @Nullable
+    @NonNull
     public String[] getSentences(int[] ids) {
         String[] out = new String[ids.length];
         if (ids.length == 0) return out;
@@ -84,7 +85,7 @@ public class TatoebaDbWrapper {
             }
         } catch (SQLiteException e) {
             e.printStackTrace();
-            out = null;
+            out = new String[0];
         } finally {
             if (st != null) st.dispose();
             database.dispose();

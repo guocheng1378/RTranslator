@@ -577,9 +577,11 @@ public class Global extends Application implements DefaultLifecycleObserver {
         editor.putBoolean("useTatoeba", useTatoeba);
         editor.apply();
         // loading of tatoeba
-        translator.loadTatoeba(getFirstTextLanguage(true), getSecondTextLanguage(true), RTranslatorMode.TEXT_TRANSLATION_MODE, null);
-        translator.loadTatoeba(getFirstLanguage(true), getSecondLanguage(true), RTranslatorMode.WALKIE_TALKIE_MODE, null);
-        //todo: add loading for Conversation mode
+        if(useTatoeba) {
+            translator.loadAllTatoebaResources(null);
+        }else{
+            translator.unloadAllTatoebaResources();
+        }
     }
 
     public String getName() {
@@ -723,24 +725,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
     }
 
     private void loadLanguagesResources(CustomLocale firstLanguage, CustomLocale secondLanguage, RTranslatorMode mode, Translator.GeneralListener listener){
-        if(isUseTatoeba()) {
-            translator.loadTatoeba(firstLanguage, secondLanguage, mode, new Translator.GeneralListener() {
-                @Override
-                public void onSuccess() {
-                    if (translator.getMode() == Translator.MOZILLA) {
-                        translator.loadMozillaModels(firstLanguage, secondLanguage, mode, listener);
-                    } else {
-                        if (listener != null) listener.onSuccess();
-                    }
-                }
-            });
-        }else{
-            if (translator.getMode() == Translator.MOZILLA) {
-                translator.loadMozillaModels(firstLanguage, secondLanguage, mode, listener);
-            } else {
-                if (listener != null) listener.onSuccess();
-            }
-        }
+        translator.loadLanguageResources(firstLanguage, secondLanguage, mode, listener);
     }
 }
 

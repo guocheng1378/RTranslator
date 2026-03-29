@@ -22,7 +22,6 @@ import android.icu.text.BreakIterator;
 import android.os.Environment;
 import android.os.Looper;
 import android.util.Log;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -63,8 +62,8 @@ import ai.onnxruntime.OrtSession;
 import nie.translator.rtranslator.Global;
 import nie.translator.rtranslator.R;
 import nie.translator.rtranslator.bluetooth.Message;
+import nie.translator.rtranslator.bluetooth.Peer;
 import nie.translator.rtranslator.databases.tatoeba.LinksData;
-import nie.translator.rtranslator.databases.tatoeba.TatoebaDbWrapper;
 import nie.translator.rtranslator.tools.CustomLocale;
 import nie.translator.rtranslator.tools.ErrorCodes;
 import nie.translator.rtranslator.tools.FileTools;
@@ -86,7 +85,6 @@ public class Translator extends NeuralNetworkApi {
     public static final int MOZILLA = 7;
     public static final int HY_MT = 8;
     private int mode;
-    private final BergamotModelsIndicator bergamotModelsIndicator = new BergamotModelsIndicator();
     private Tokenizer tokenizer;
     private OrtEnvironment onnxEnv;
     private OrtSession encoderSession;
@@ -119,10 +117,8 @@ public class Translator extends NeuralNetworkApi {
             "ja",
             "en"
     };
-    @Nullable
-    private TatoebaDbWrapper tatoebaDb;
-    private final Map<String, TatoebaLinksContainer> tatoebaLinks = new HashMap<>();
     private final Object tatoebaLock = new Object();
+    private LanguageResourcesManager languageResourcesManager;
 
 
     public Translator(@NonNull Global global, int mode, GeneralListener initListener) {
@@ -132,10 +128,10 @@ public class Translator extends NeuralNetworkApi {
         initializeNllbLanguagesCodes(global);
         initializeHyLanguagesInfo(global);
 
-        initialize(global, mode, initListener);
+        initialize(global, mode, false, initListener);
     }
 
-    private void initialize(@NonNull Global global, int mode, GeneralListener initListener){
+    private void initialize(@NonNull Global global, int mode, boolean restart, GeneralListener initListener){
         String encoderPath = "";
         String decoderPath = "";
         String vocabPath = "";
@@ -193,32 +189,21 @@ public class Translator extends NeuralNetworkApi {
                 CustomLocale secondLanguage = global.getSecondLanguage(true);
 
                 try {
-                    if(mode == MOZILLA){
-                        BergamotTranslator.initializeService();
-                        //initial loading of models for text translation and walkietalkie mode
-                        loadMozillaModels(firstTextLanguage, secondTextLanguage, Global.RTranslatorMode.TEXT_TRANSLATION_MODE, new GeneralListener() {
-                            @Override
-                            public void onSuccess() {
-                                loadMozillaModels(firstLanguage, secondLanguage, Global.RTranslatorMode.WALKIE_TALKIE_MODE, new GeneralListener() {
-                                    @Override
-                                    public void onSuccess() {
-                                        //mainHandler.post(() -> initListener.onInitializationFinished());
-                                        initListener.onSuccess();
-                                    }
+                    if(!restart){
+                        languageResourcesManager = new LanguageResourcesManager(global, mode, firstTextLanguage, secondTextLanguage, firstLanguage, secondLanguage);
+                    }
 
-                                    @Override
-                                    public void onFailure(int[] reasons, long value) {
-                                        //todo: gestire errore
-                                    }
-                                });
-                            }
+                    if(mode == MADLAD || mode == MADLAD_CACHE) {
+                        tokenizer = new Tokenizer(finalVocabPath, Tokenizer.MADLAD);
+                    }else if(mode == NLLB || mode == NLLB_CACHE) {
+                        tokenizer = new Tokenizer(finalVocabPath, Tokenizer.NLLB);
+                    }else if(mode == HY_MT) {
+                        tokenizer = new Tokenizer(finalVocabPath, Tokenizer.HY_MT);
+                    }
 
-                            @Override
-                            public void onFailure(int[] reasons, long value) {
-                                //todo: gestire errore
-                            }
-                        });
-                    } else {
+                    if(mode == MOZILLA) {
+                        if(restart) languageResourcesManager.loadAllMozillaResources();
+                    }else{
                         final OrtSession.SessionOptions.OptLevel optDefaultLevel = OrtSession.SessionOptions.OptLevel.EXTENDED_OPT;
                         boolean arena = true;
 
@@ -254,50 +239,17 @@ public class Translator extends NeuralNetworkApi {
                         encoderOptions.close();
                         cacheInitOptions.close();
                         embedAndLmHeadOptions.close();
-
-                        //mainHandler.post(() -> initListener.onInitializationFinished());
-                        mainHandler.post(() -> initListener.onSuccess());
                     }
 
-                    if(mode == MADLAD || mode == MADLAD_CACHE) {
-                        tokenizer = new Tokenizer(finalVocabPath, Tokenizer.MADLAD);
-                    }else if(mode == NLLB || mode == NLLB_CACHE) {
-                        tokenizer = new Tokenizer(finalVocabPath, Tokenizer.NLLB);
-                    }else if(mode == HY_MT) {
-                        tokenizer = new Tokenizer(finalVocabPath, Tokenizer.HY_MT);
-                    }
+                    mainHandler.post(() -> initListener.onSuccess());
 
-                } catch (OrtException | IOException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                     mainHandler.post(() -> initListener.onFailure(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0));
                 }
             }
         };
-        //tatoeba loading, followed by the execution of the initialization thread
-        String tatoebaDbPath = Environment.getExternalStorageDirectory().getPath() + "/models/Translation/Tatoeba/tatoeba.db";
-        tatoebaDb = new TatoebaDbWrapper(tatoebaDbPath);
-
-        if(global.isUseTatoeba()){
-            CustomLocale firstTextLanguage = global.getFirstTextLanguage(true);
-            CustomLocale secondTextLanguage = global.getSecondTextLanguage(true);
-            CustomLocale firstLanguage = global.getFirstLanguage(true);
-            CustomLocale secondLanguage = global.getSecondLanguage(true);
-
-            loadTatoeba(firstTextLanguage, secondTextLanguage, Global.RTranslatorMode.TEXT_TRANSLATION_MODE, new GeneralListener() {  //todo: implement resource load management based on useTatoeba status
-                @Override
-                public void onSuccess() {
-                    loadTatoeba(firstLanguage, secondLanguage, Global.RTranslatorMode.WALKIE_TALKIE_MODE, new GeneralListener() {
-                        @Override
-                        public void onSuccess() {
-                            //todo: manage the tatoeba loading for Conversation mode
-                            t.start();  //start loading models
-                        }
-                    });
-                }
-            });
-        }else {
-            t.start();
-        }
+        t.start();
     }
 
     private void destroy(GeneralListener listener){
@@ -315,7 +267,7 @@ public class Translator extends NeuralNetworkApi {
                         }
                         mainHandler.post(() -> listener.onSuccess());
                     } else if (mode == MOZILLA) {
-                        unloadAllMozillaModels(listener);
+                        unloadAllMozillaResources(listener);
                     }
                 } catch (OrtException e) {
                     e.printStackTrace();
@@ -330,7 +282,7 @@ public class Translator extends NeuralNetworkApi {
         destroy(new GeneralListener() {
             @Override
             public void onSuccess() {
-                initialize(global, mode, new GeneralListener() {
+                initialize(global, mode, true, new GeneralListener() {
                     @Override
                     public void onSuccess() {
                         Translator.this.mode = mode;
@@ -601,104 +553,131 @@ public class Translator extends NeuralNetworkApi {
         public abstract void onDetectedText(NeuralNetworkApiResult firstResult, NeuralNetworkApiResult secondResult, int message);
     }
 
-    public void loadTatoeba(CustomLocale srcLang, CustomLocale tgtLang, Global.RTranslatorMode mode, @Nullable GeneralListener listener){
-        if(tatoebaDb != null) {
-            new Thread(() -> {
-                synchronized (tatoebaLock) {
-                    long initTime = System.currentTimeMillis();
-                    String newKey = srcLang.getISO3Language() + "-" + tgtLang.getISO3Language();
-                    //todo: translate all the ISO3 that are different than normal (like cmn for Chinese)
-                    //we eventually unload the eventual link associated to this mode
-                    boolean found = false;
-                    for (Map.Entry<String, TatoebaLinksContainer> entry : tatoebaLinks.entrySet()) {
-                        String key = entry.getKey();
-                        TatoebaLinksContainer value = entry.getValue();
-                        if(key.equals(newKey)){  //if the considered key is not equal to the loading language pair (the language pair link is already in tatoebaLinks)
-                            found = true;
-                            //we eventually add this mode to the modes of the value
-                            if(!value.modes.contains(mode)){
-                                value.modes.add(mode);
-                            }
-                        }else{  //if the considered key is not equal to the loading language pair
-                            if (value.modes.contains(mode)) {  // if the value has the current mode in the modes attribute
-                                if(value.modes.size() > 1){
-                                    // if the value is used by multiple mode we only remove the current mode from the modes
-                                    value.modes.remove(mode);
-                                }else{
-                                    // if the value is used by only this mode, we remove the value from tatoebaLinks
-                                    tatoebaLinks.remove(key);
-                                }
-                            }
-                        }
-                    }
-                    // we eventually load the link associated to this mode and these languages
-                    if(!found) {
-                        LinksData.DataMap links = tatoebaDb.getLinkData(srcLang.getISO3Language(), tgtLang.getISO3Language());
-                        ArrayList<Global.RTranslatorMode> modes = new ArrayList<>(1);
-                        modes.add(mode);
-                        tatoebaLinks.put(
-                                srcLang.getISO3Language() + "-" + tgtLang.getISO3Language(),
-                                new TatoebaLinksContainer(links, modes)
-                        );
-                    }
-                    if(listener != null) mainHandler.post(() -> listener.onSuccess());
-                    android.util.Log.i("performance_tatoeba", "TATOEBA LOAD OF "+srcLang.getISO3Language()+"-"+tgtLang.getISO3Language()+" DONE IN: " + (System.currentTimeMillis() - initTime) + "ms");
-                }
-            }).start();
-        }
-    }
-
-    public void loadMozillaModels(CustomLocale srcLang, CustomLocale trgLang, Global.RTranslatorMode mode, @Nullable GeneralListener listener){
+    public void loadLanguageResources(@NonNull CustomLocale srcLang, @NonNull CustomLocale tgtLang, Global.RTranslatorMode rtranslatorMode, @Nullable GeneralListener listener){
         new Thread(() -> {
             synchronized (mozillaLock) {
                 try {
-                    CustomLocale[] currentModeModels = null;
-                    switch (mode) {
-                        case TEXT_TRANSLATION_MODE:
-                            currentModeModels = bergamotModelsIndicator.textTranslationModels;
-                            break;
-                        case WALKIE_TALKIE_MODE:
-                            currentModeModels = bergamotModelsIndicator.walkieTalkieModels;
-                            break;
-                        case CONVERSATION_MODE:
-                            currentModeModels = bergamotModelsIndicator.conversationModels;
-                            break;
-                    }
-                    //we unload from bergamot the models of this mode that will no longer be used by this mode or the others
-                    for (CustomLocale model : currentModeModels) {
-                        if (model != null && !model.equals(srcLang) && !model.equals(trgLang) && !bergamotModelsIndicator.isModelContainedInOtherModes(model, mode)) {
-                            BergamotTranslator.unloadModelFromCache(model);
-                        }
-                    }
-                    //we load in bergamot translator the new models that are not already loaded
-                    ArrayList<CustomLocale> allUniqueModels = bergamotModelsIndicator.getAllUniqueModels();
-                    if (!allUniqueModels.contains(srcLang) && !srcLang.getLanguage().equals("en")) {
-                        BergamotTranslator.loadModelIntoCache(global, srcLang);
-                    }
-                    if (!allUniqueModels.contains(trgLang) && !trgLang.getLanguage().equals("en")) {
-                        BergamotTranslator.loadModelIntoCache(global, trgLang);
-                    }
-                    //we update the indicator to reflect the new models status
-                    currentModeModels[0] = !srcLang.getLanguage().equals("en") ? srcLang : null;
-                    currentModeModels[1] = !trgLang.getLanguage().equals("en") ? trgLang : null;
+                    //execution of language resource loading
+                    languageResourcesManager.loadLanguageResources(srcLang, tgtLang, rtranslatorMode);
                     //we notify the success of the loading
                     if(listener != null) mainHandler.post(() -> listener.onSuccess());
                 } catch (Exception e) {
-                    Log.e("bergamot", e.getMessage());
+                    Log.e("resources", e.getMessage());
                     if(listener != null) mainHandler.post(() -> listener.onFailure(new int[]{0}, 0)); //todo: implementare una vera gestione degli errori
                 }
             }
         }).start();
     }
 
-    public void unloadAllMozillaModels(GeneralListener listener){
+    public void loadSrcLangResourcesForPeer(CustomLocale lang, Peer peer, @Nullable GeneralListener listener){
         new Thread(() -> {
             synchronized (mozillaLock) {
-                for (CustomLocale model : bergamotModelsIndicator.getAllUniqueModels()) {
-                    BergamotTranslator.unloadModelFromCache(model);
+                try {
+                    //execution of language resource loading
+                    languageResourcesManager.loadSrcLangResourcesForPeer(lang, peer);
+                    //we notify the success of the loading
+                    if(listener != null) mainHandler.post(() -> listener.onSuccess());
+                } catch (Exception e) {
+                    Log.e("resources", e.getMessage());
+                    if(listener != null) mainHandler.post(() -> listener.onFailure(new int[]{0}, 0)); //todo: implementare una vera gestione degli errori
                 }
-                bergamotModelsIndicator.reset();
-                listener.onSuccess();
+            }
+        }).start();
+    }
+
+    public void loadTgtLangResourcesForConversation(CustomLocale lang, @Nullable GeneralListener listener){
+        new Thread(() -> {
+            synchronized (mozillaLock) {
+                try {
+                    //execution of language resource loading
+                    languageResourcesManager.loadTgtLangResourcesForConversation(lang);
+                    //we notify the success of the loading
+                    if(listener != null) mainHandler.post(() -> listener.onSuccess());
+                } catch (Exception e) {
+                    Log.e("resources", e.getMessage());
+                    if(listener != null) mainHandler.post(() -> listener.onFailure(new int[]{0}, 0)); //todo: implementare una vera gestione degli errori
+                }
+            }
+        }).start();
+    }
+
+    public void updatePeer(){
+        
+    }
+
+    public void loadAllMozillaResources(GeneralListener listener){
+        new Thread(() -> {
+            synchronized (mozillaLock) {
+                try {
+                    //execution of the resources unloading
+                    languageResourcesManager.loadAllMozillaResources();
+                    if(listener != null) listener.onSuccess();
+                } catch (Exception e) {
+                    Log.e("resources", e.getMessage());
+                    if(listener != null) mainHandler.post(() -> listener.onFailure(new int[]{0}, 0)); //todo: implementare una vera gestione degli errori
+                }
+            }
+        }).start();
+    }
+
+    public void loadAllTatoebaResources(GeneralListener listener){
+        new Thread(() -> {
+            synchronized (mozillaLock) {
+                try {
+                    //execution of the resources unloading
+                    languageResourcesManager.loadAllTatoebaResources();
+                    if(listener != null) listener.onSuccess();
+                } catch (Exception e) {
+                    Log.e("resources", e.getMessage());
+                    if(listener != null) mainHandler.post(() -> listener.onFailure(new int[]{0}, 0)); //todo: implementare una vera gestione degli errori
+                }
+            }
+        }).start();
+    }
+
+    public void unloadAllMozillaResources(GeneralListener listener){
+        new Thread(() -> {
+            synchronized (mozillaLock) {
+                //execution of the resources unloading
+                languageResourcesManager.unloadAllMozillaResources();
+                if(listener != null) listener.onSuccess();
+            }
+        }).start();
+    }
+
+    public void unloadAllTatoebaResources(){
+        //execution of the resources unloading
+        languageResourcesManager.unloadAllTatoebaResources();
+    }
+
+    public void unloadSrcLangResourcesForPeer(Peer peer, @Nullable GeneralListener listener){
+        new Thread(() -> {
+            synchronized (mozillaLock) {
+                try {
+                    //execution of language resource unloading
+                    languageResourcesManager.unloadSrcLangResourcesForPeer(peer);
+                    //we notify the success of the unloading
+                    if(listener != null) mainHandler.post(() -> listener.onSuccess());
+                } catch (Exception e) {
+                    Log.e("resources", e.getMessage());
+                    if(listener != null) mainHandler.post(() -> listener.onFailure(new int[]{0}, 0)); //todo: implementare una vera gestione degli errori
+                }
+            }
+        }).start();
+    }
+
+    public void unloadAllLangResourcesForConversation(@Nullable GeneralListener listener){
+        new Thread(() -> {
+            synchronized (mozillaLock) {
+                try {
+                    //execution of language resource unloading
+                    languageResourcesManager.unloadAllLangResourcesForConversation();
+                    //we notify the success of the unloading
+                    if(listener != null) mainHandler.post(() -> listener.onSuccess());
+                } catch (Exception e) {
+                    Log.e("resources", e.getMessage());
+                    if(listener != null) mainHandler.post(() -> listener.onFailure(new int[]{0}, 0)); //todo: implementare una vera gestione degli errori
+                }
             }
         }).start();
     }
@@ -838,12 +817,12 @@ public class Translator extends NeuralNetworkApi {
     @Nullable
     private String performTatoebaTranslation(String text, CustomLocale inputLanguage, CustomLocale outputLanguage){
         synchronized (tatoebaLock) {
-            TatoebaLinksContainer linksContainer = tatoebaLinks.getOrDefault(inputLanguage.getISO3Language() + "-" + outputLanguage.getISO3Language(), null);
+            LinksData.DataMap linksContainer = languageResourcesManager.getTatoebaLinks().getOrDefault(inputLanguage.getISO3Language() + "-" + outputLanguage.getISO3Language(), null);
             String normalizedText = normalizeText(text);
             String hash = Tools.shake256Hex(normalizedText, 8);
-            if (linksContainer != null && linksContainer.links != null && tatoebaDb != null) {
+            if (linksContainer != null) {
                 long initTime = System.currentTimeMillis();
-                LinksData.PairList links = linksContainer.links.getDataMap().getOrDefault(hash, null);
+                LinksData.PairList links = linksContainer.getDataMap().getOrDefault(hash, null);
                 if (links != null) {
                     int[] srcIds = new int[links.getItemsCount()];
                     int[] tgtIds = new int[links.getItemsCount()];
@@ -853,10 +832,10 @@ public class Translator extends NeuralNetworkApi {
                         tgtIds[count] = pair.getTgtSentence();
                         count++;
                     }
-                    String[] srcSentences = tatoebaDb.getSentences(srcIds);
+                    String[] srcSentences = languageResourcesManager.getTatoebaDb().getSentences(srcIds);
                     for (int j = 0; j < srcSentences.length; j++) {
                         if (normalizedText.equalsIgnoreCase(normalizeText(srcSentences[j]))) {
-                            String textResult = tatoebaDb.getSentence(tgtIds[j]);
+                            String textResult = languageResourcesManager.getTatoebaDb().getSentence(tgtIds[j]);
                             //mainHandler.post(() -> Toast.makeText(global, "Tatoeba sentence found: " + textResult, Toast.LENGTH_SHORT).show());
                             android.util.Log.i("status_tatoeba", "Tatoeba sentence found: " + textResult);
                             android.util.Log.i("performance_tatoeba", "TATOEBA SEARCH DONE IN: " + (System.currentTimeMillis() - initTime) + "ms");
