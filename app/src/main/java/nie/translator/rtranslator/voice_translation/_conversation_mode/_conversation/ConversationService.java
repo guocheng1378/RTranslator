@@ -64,11 +64,13 @@ public class ConversationService extends VoiceTranslationService {
     private ConversationBluetoothCommunicator.Callback communicationCallback;
     private static Handler mHandler = new Handler();
     private Handler mainHandler;
+    public static boolean isRunning = false;
 
 
     @Override
     public void onCreate() {
         super.onCreate();
+        isRunning = true;
         global = (Global) getApplication();
         mainHandler = new Handler(Looper.getMainLooper());
         //startBluetoothSco
@@ -185,8 +187,15 @@ public class ConversationService extends VoiceTranslationService {
             }
 
             @Override
+            public void onPeerUpdated(GuiPeer peer, GuiPeer newPeer) {
+                super.onPeerUpdated(peer, newPeer);
+                translator.updatePeer(peer, newPeer);
+            }
+
+            @Override
             public void onDisconnected(GuiPeer peer, int peersLeft) {
                 super.onDisconnected(peer, peersLeft);
+                translator.unloadSrcLangResourcesForPeer(peer, null);
                 if (peersLeft == 0) {
                     stopSelf();
                 }
@@ -229,8 +238,13 @@ public class ConversationService extends VoiceTranslationService {
         mVoiceRecognizer.addCallback(mVoiceRecognizerCallback);
         //mBluetoothHelper.start();
 
-        //voice recorder initialization
-        initializeVoiceRecorder();
+        translator.loadTgtLangResourcesForConversation(global.getLanguage(true), new Translator.GeneralListener() {
+            @Override
+            public void onSuccess() {
+                //voice recorder initialization
+                initializeVoiceRecorder();
+            }
+        });
     }
 
     private void sendMessage(ConversationMessage conversationMessage) {
@@ -280,6 +294,8 @@ public class ConversationService extends VoiceTranslationService {
         if(global.getBluetoothCommunicator() != null) {
             global.getBluetoothCommunicator().removeCallback(communicationCallback);
         }
+        translator.unloadAllLangResourcesForConversation(null);
+        isRunning = false;
         super.onDestroy();
     }
 

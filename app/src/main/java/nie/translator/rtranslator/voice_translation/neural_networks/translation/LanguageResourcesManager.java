@@ -230,6 +230,10 @@ public class LanguageResourcesManager {
         languageResourcesIndicator.setResourceTypeLoadStatus(LanguageResourcesIndicator.ResourceType.TATOEBA, false);
     }
 
+    public void updatePeer(Peer oldPeer, Peer newPeer){
+        languageResourcesIndicator.updatePeer(oldPeer, newPeer);
+    }
+
     private void performLoadLanguageResources(@NonNull CustomLocale srcLang, @NonNull CustomLocale tgtLang, Global.RTranslatorMode rtranslatorMode) throws Exception {
         if(modelMode == MOZILLA){
             ArrayList<CustomLocale> allUniqueResources = languageResourcesIndicator.getAllUniqueResources();

@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import nie.translator.rtranslator.access.AccessActivity;
 import nie.translator.rtranslator.tools.CustomLocale;
 import nie.translator.rtranslator.tools.TTS;
+import nie.translator.rtranslator.voice_translation._conversation_mode._conversation.ConversationService;
 import nie.translator.rtranslator.voice_translation._conversation_mode.communication.ConversationBluetoothCommunicator;
 import nie.translator.rtranslator.bluetooth.BluetoothCommunicator;
 import nie.translator.rtranslator.bluetooth.Peer;
@@ -433,6 +434,9 @@ public class Global extends Application implements DefaultLifecycleObserver {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("language", language.getCode());
         editor.apply();
+        if(ConversationService.isRunning){
+            translator.loadTgtLangResourcesForConversation(language, null);
+        }
     }
 
     public void setFirstLanguage(CustomLocale language, @Nullable Translator.GeneralListener listener) {

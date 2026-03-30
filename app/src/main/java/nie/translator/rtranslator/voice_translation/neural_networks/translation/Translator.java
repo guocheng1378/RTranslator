@@ -348,30 +348,36 @@ public class Translator extends NeuralNetworkApi {
             final String text = data.conversationMessageToTranslate.getPayload().getText();
             final CustomLocale languageInput = data.conversationMessageToTranslate.getPayload().getLanguage();
             if (!languageInput.equals(data.languageOutput)) {
-                performTextTranslation(text, languageInput, data.languageOutput, data.beamSize, false, new TranslateListener() {
+                Peer sender = data.conversationMessageToTranslate.getSender();
+                loadSrcLangResourcesForPeer(data.languageOutput, sender, new GeneralListener() {
                     @Override
-                    public void onTranslatedText(String textToTranslate, String text, long resultID, boolean isFinal, boolean isTatoeba, CustomLocale languageOfText) {
-                        data.conversationMessageToTranslate.getPayload().setText(text);
-                        data.conversationMessageToTranslate.getPayload().setLanguage(data.languageOutput);
-                        mainHandler.post(() -> data.responseListener.onTranslatedMessage(data.conversationMessageToTranslate, resultID, isFinal));
-                        //we translate the next message in the queue
-                        if (dataToTranslate.size() >= 1) {
-                            translateMessage();
-                        } else {
-                            translatingMessages = false;
-                        }
-                    }
+                    public void onSuccess() {
+                        performTextTranslation(text, languageInput, data.languageOutput, data.beamSize, false, new TranslateListener() {
+                            @Override
+                            public void onTranslatedText(String textToTranslate, String text, long resultID, boolean isFinal, boolean isTatoeba, CustomLocale languageOfText) {
+                                data.conversationMessageToTranslate.getPayload().setText(text);
+                                data.conversationMessageToTranslate.getPayload().setLanguage(data.languageOutput);
+                                mainHandler.post(() -> data.responseListener.onTranslatedMessage(data.conversationMessageToTranslate, resultID, isFinal));
+                                //we translate the next message in the queue
+                                if (dataToTranslate.size() >= 1) {
+                                    translateMessage();
+                                } else {
+                                    translatingMessages = false;
+                                }
+                            }
 
-                    @Override
-                    public void onFailure(int[] reasons, long value) {
-                        data.responseListener.onFailure(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0);
+                            @Override
+                            public void onFailure(int[] reasons, long value) {
+                                data.responseListener.onFailure(new int[]{ErrorCodes.ERROR_EXECUTING_MODEL}, 0);
 
-                        //we translate the next message in the queue
-                        if (dataToTranslate.size() >= 1) {
-                            translateMessage();
-                        } else {
-                            translatingMessages = false;
-                        }
+                                //we translate the next message in the queue
+                                if (dataToTranslate.size() >= 1) {
+                                    translateMessage();
+                                } else {
+                                    translatingMessages = false;
+                                }
+                            }
+                        });
                     }
                 });
             } else {  // means that the language to be translated corresponds to ours
@@ -601,8 +607,8 @@ public class Translator extends NeuralNetworkApi {
         }).start();
     }
 
-    public void updatePeer(){
-        
+    public void updatePeer(Peer oldPeer, Peer newPeer){
+        languageResourcesManager.updatePeer(oldPeer, newPeer);
     }
 
     public void loadAllMozillaResources(GeneralListener listener){

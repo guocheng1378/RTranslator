@@ -232,6 +232,13 @@ public class LanguageResourcesIndicator {
         return textTranslationResourcesLoaded.isEmpty() && walkieTalkieResourcesLoaded.isEmpty() && conversationResourcesLoaded.isEmpty();
     }
 
+    public void updatePeer(Peer oldPeer, Peer newPeer){
+        if(!oldPeer.getUniqueName().equals(newPeer.getUniqueName()) && conversationSrcResources.containsKey(oldPeer.getUniqueName())) {
+            CustomLocale resource = conversationSrcResources.remove(oldPeer.getUniqueName());
+            conversationSrcResources.put(newPeer.getUniqueName(), resource);
+        }
+    }
+
     public void reset(){
         textTranslationResources = new CustomLocale[2];
         walkieTalkieResources = new CustomLocale[2];
