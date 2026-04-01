@@ -4,6 +4,8 @@ import static nie.translator.rtranslator.voice_translation.neural_networks.trans
 
 import android.os.Environment;
 import android.os.Looper;
+import android.util.Log;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -85,6 +87,13 @@ public class LanguageResourcesManager {
         if(global.isUseTatoeba()){
             languageResourcesIndicator.setResourceTypeLoadStatus(rtranslatorMode, LanguageResourcesIndicator.ResourceType.TATOEBA, true);
         }
+    }
+
+    public boolean isPeerLoaded(@Nullable Peer peer){
+        if(peer != null) {
+            return languageResourcesIndicator.conversationSrcResources.containsKey(peer.getUniqueName());
+        }
+        return false;
     }
 
     public void loadSrcLangResourcesForPeer(CustomLocale srcLang, Peer peer) throws Exception {
@@ -235,13 +244,14 @@ public class LanguageResourcesManager {
     }
 
     private void performLoadLanguageResources(@NonNull CustomLocale srcLang, @NonNull CustomLocale tgtLang, Global.RTranslatorMode rtranslatorMode) throws Exception {
+        Log.d("language_resources", "Language loaded: "+srcLang.getLanguage());
         if(modelMode == MOZILLA){
             ArrayList<CustomLocale> allUniqueResources = languageResourcesIndicator.getAllUniqueResources();
             boolean initialLoad = languageResourcesIndicator.isResourceTypeLoaded(rtranslatorMode, LanguageResourcesIndicator.ResourceType.MOZILLA);
-            if (initialLoad || (!allUniqueResources.contains(srcLang) && !srcLang.getLanguage().equals("en"))) {
+            if (!srcLang.getLanguage().equals("en") && (initialLoad || !allUniqueResources.contains(srcLang))) {
                 BergamotTranslator.loadModelIntoCache(global, srcLang);
             }
-            if (initialLoad || (!allUniqueResources.contains(tgtLang) && !tgtLang.getLanguage().equals("en"))) {
+            if (!tgtLang.getLanguage().equals("en") && (initialLoad || !allUniqueResources.contains(tgtLang))) {
                 BergamotTranslator.loadModelIntoCache(global, tgtLang);
             }
         }

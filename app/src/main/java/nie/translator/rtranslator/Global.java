@@ -436,6 +436,9 @@ public class Global extends Application implements DefaultLifecycleObserver {
         editor.apply();
         if(ConversationService.isRunning){
             translator.loadTgtLangResourcesForConversation(language, null);
+            if(getBluetoothCommunicator() != null){
+                getBluetoothCommunicator().sendLanguage(language);
+            }
         }
     }
 

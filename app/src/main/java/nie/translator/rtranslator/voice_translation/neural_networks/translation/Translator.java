@@ -349,7 +349,7 @@ public class Translator extends NeuralNetworkApi {
             final CustomLocale languageInput = data.conversationMessageToTranslate.getPayload().getLanguage();
             if (!languageInput.equals(data.languageOutput)) {
                 Peer sender = data.conversationMessageToTranslate.getSender();
-                loadSrcLangResourcesForPeer(data.languageOutput, sender, new GeneralListener() {
+                loadSrcLangResourcesForPeer(languageInput, sender, new GeneralListener() {
                     @Override
                     public void onSuccess() {
                         performTextTranslation(text, languageInput, data.languageOutput, data.beamSize, false, new TranslateListener() {
@@ -686,6 +686,10 @@ public class Translator extends NeuralNetworkApi {
                 }
             }
         }).start();
+    }
+
+    public LanguageResourcesManager getLanguageResourcesManager() {
+        return languageResourcesManager;
     }
 
     public int getMode(){
