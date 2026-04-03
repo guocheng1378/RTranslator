@@ -89,11 +89,11 @@ public class TranslationFragment extends Fragment {
     private AppCompatImageButton backButton;
     private FloatingActionButton copyInputButton;
     private FloatingActionButton copyOutputButton;
-    private FloatingActionButton cancelInputButton;
-    private FloatingActionButton cancelOutputButton;
+    private FloatingActionButton cancelTextButton;
     private FloatingActionButton ttsInputButton;
     private FloatingActionButton ttsOutputButton;
     private ConstraintLayout outputContainer;
+    private TextView tatoebaText;
     private CustomAnimator animator = new CustomAnimator();
     private Animator colorAnimator = null;
     private int activatedColor = R.color.primary;
@@ -102,6 +102,7 @@ public class TranslationFragment extends Fragment {
     private boolean isScreenReduced = false;
     private boolean isInputEmpty = true;
     private boolean isOutputEmpty = true;
+    private boolean isOutputTatoeba = false;
     ViewTreeObserver.OnGlobalLayoutListener layoutListener;
     private static final int REDUCED_GUI_THRESHOLD_DP = 550;
 
@@ -127,6 +128,8 @@ public class TranslationFragment extends Fragment {
     private Animator animationInput;
     @Nullable
     private Animator animationOutput;
+    @Nullable
+    private Animator animationTatoeba;
 
 
     @Override
@@ -163,11 +166,11 @@ public class TranslationFragment extends Fragment {
         backButton = view.findViewById(R.id.backButton);
         copyInputButton = view.findViewById(R.id.copyButtonInput);
         copyOutputButton = view.findViewById(R.id.copyButtonOutput);
-        cancelInputButton = view.findViewById(R.id.cancelButtonInput);
-        cancelOutputButton = view.findViewById(R.id.cancelButtonOutput);
+        cancelTextButton = view.findViewById(R.id.cancelButtonInput);
         ttsInputButton = view.findViewById(R.id.ttsButtonInput);
         ttsOutputButton = view.findViewById(R.id.ttsButtonOutput);
         outputContainer = view.findViewById(R.id.outputContainer);
+        tatoebaText = view.findViewById(R.id.tatoebaText);
         //we set the initial tag for the tts buttons
         ttsInputButton.setTag(R.drawable.sound_icon);
         ttsOutputButton.setTag(R.drawable.sound_icon);
@@ -183,17 +186,8 @@ public class TranslationFragment extends Fragment {
         //inputText.setRawInputType(InputType.TYPE_CLASS_TEXT);
 
         // setting of the selected languages
-        setFirstLanguage(global.getFirstTextLanguage(true), new Translator.GeneralListener() {
-            @Override
-            public void onSuccess() {
-                setSecondLanguage(global.getSecondTextLanguage(true), null);
-            }
-
-            @Override
-            public void onFailure(int[] reasons, long value) {
-                //todo: gestire errore
-            }
-        });
+        setDisplayedFirstLanguage(global.getFirstTextLanguage(true));
+        setDisplayedSecondLanguage(global.getSecondTextLanguage(true));
 
         View.OnClickListener walkieTalkieButtonListener = new View.OnClickListener() {
             @Override
@@ -221,16 +215,29 @@ public class TranslationFragment extends Fragment {
         conversationButtonSmall.setOnClickListener(conversationButtonListener);
         translateListener = new Translator.TranslateListener() {
             @Override
-            public void onTranslatedText(String textToTranslate, String text, long resultID, boolean isFinal, CustomLocale languageOfText) {
+            public void onTranslatedText(String textToTranslate, String text, long resultID, boolean isFinal, boolean isTatoeba, CustomLocale languageOfText) {
                 outputText.setText(text);
                 if(isFinal){
+                    if(isTatoeba){
+                        isOutputTatoeba = true;
+                        if(animationTatoeba != null) {
+                            animationTatoeba.cancel();
+                        }
+                        animationTatoeba = animator.animateViewAppearance(activity, tatoebaText, new CustomAnimator.Listener() {
+                            @Override
+                            public void onAnimationEnd() {
+                                super.onAnimationEnd();
+                                animationTatoeba = null;
+                            }
+                        });
+                    }
                     activateTranslationButton();
                 }
             }
 
             @Override
             public void onFailure(int[] reasons, long value) {
-
+                activateTranslationButton();
             }
         };
         translateButton.setOnClickListener(new View.OnClickListener() {
@@ -238,7 +245,7 @@ public class TranslationFragment extends Fragment {
             public void onClick(View view) {
                 String text = inputText.getText().toString();
 
-                if(text.length() <= 0){   //test code
+                if(text.length() <= 0){   //test code  todo: remove before release
                     text = "Also unlike 2014, there aren’t nearly as many loopholes. You can’t just buy a 150-watt incandescent or a three-way bulb — the ban covers any normal bulb that generates less than 45 lumens per watt, which pretty much rules out both incandescent and halogen tech in their entirety.";
                     inputText.setText(text);
                 }
@@ -247,7 +254,7 @@ public class TranslationFragment extends Fragment {
                     CustomLocale firstLanguage = global.getFirstTextLanguage(true);
                     CustomLocale secondLanguage = global.getSecondTextLanguage(true);
                     //we deactivate translate button
-                    deactivateTranslationButton();
+                    deactivateTranslationButton();  //todo: implement stop button instead of deactivation
                     //we start the translation
                     global.getTranslator().translate(text, firstLanguage, secondLanguage, global.getBeamSize(), true);
                 }
@@ -305,15 +312,10 @@ public class TranslationFragment extends Fragment {
                 }
             }
         });
-        cancelInputButton.setOnClickListener(new View.OnClickListener() {
+        cancelTextButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 inputText.setText("");
-            }
-        });
-        cancelOutputButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
                 outputText.setText("");
                 global.getTranslator().resetLastOutput();
             }
@@ -351,7 +353,7 @@ public class TranslationFragment extends Fragment {
                         animationInput.cancel();
                     }
                     if(!s.toString().isEmpty()) {
-                        animationInput = animator.animateInputAppearance(activity, ttsInputButton, copyInputButton, cancelInputButton, new CustomAnimator.Listener() {
+                        animationInput = animator.animateInputAppearance(activity, ttsInputButton, copyInputButton, cancelTextButton, new CustomAnimator.Listener() {
                             @Override
                             public void onAnimationEnd() {
                                 super.onAnimationEnd();
@@ -359,7 +361,7 @@ public class TranslationFragment extends Fragment {
                             }
                         });
                     }else{
-                        animationInput = animator.animateInputDisappearance(activity, ttsInputButton, copyInputButton, cancelInputButton, new CustomAnimator.Listener() {
+                        animationInput = animator.animateInputDisappearance(activity, ttsInputButton, copyInputButton, cancelTextButton, new CustomAnimator.Listener() {
                             @Override
                             public void onAnimationEnd() {
                                 super.onAnimationEnd();
@@ -395,9 +397,22 @@ public class TranslationFragment extends Fragment {
 
             @Override
             public void afterTextChanged(Editable s) {
+                if(isOutputTatoeba) {
+                    isOutputTatoeba = false;
+                    if (animationTatoeba != null) {
+                        animationTatoeba.cancel();
+                    }
+                    animationTatoeba = animator.animateViewDisappearance(activity, tatoebaText, new CustomAnimator.Listener() {
+                        @Override
+                        public void onAnimationEnd() {
+                            super.onAnimationEnd();
+                            animationTatoeba = null;
+                        }
+                    });
+                }
                 if(isOutputEmpty != s.toString().isEmpty()){  //the output editText transitioned from empty to not empty or vice versa
                     isOutputEmpty = s.toString().isEmpty();
-                    if(animationOutput != null){
+                    if(animationOutput != null) {
                         animationOutput.cancel();
                     }
                     if(!s.toString().isEmpty()) {
@@ -811,11 +826,11 @@ public class TranslationFragment extends Fragment {
                 if (languages.contains((CustomLocale) listView.getItem(position))) {
                     switch (languageNumber) {
                         case 1: {
-                            setFirstLanguage((CustomLocale) listView.getItem(position), null);
+                            setFirstLanguage((CustomLocale) listView.getItem(position));
                             break;
                         }
                         case 2: {
-                            setSecondLanguage((CustomLocale) listView.getItem(position), null);
+                            setSecondLanguage((CustomLocale) listView.getItem(position));
                             break;
                         }
                     }
@@ -842,42 +857,50 @@ public class TranslationFragment extends Fragment {
         global.getTranslator().removeCallback(translateListener);
     }
 
-    private void setFirstLanguage(CustomLocale language, @Nullable Translator.GeneralListener listener) {
+    private void setFirstLanguage(CustomLocale language) {
+        deactivateTranslationButton();
         // save firstLanguage selected
         global.setFirstTextLanguage(language, new Translator.GeneralListener() {
             @Override
             public void onSuccess() {
-                // change language displayed
-                ((AnimatedTextView) firstLanguageSelector.findViewById(R.id.firstLanguageName)).setText(language.getDisplayNameWithoutTTS(), false);
-                if(listener != null) listener.onSuccess();
-            }
-
-            @Override
-            public void onFailure(int[] reasons, long value) {
-                //todo: gestire errore
+                activateTranslationButton();
             }
         });
+        // change language displayed
+        setDisplayedFirstLanguage(language);
     }
 
-    private void setSecondLanguage(CustomLocale language, @Nullable Translator.GeneralListener listener) {
+    private void setSecondLanguage(CustomLocale language) {
+        deactivateTranslationButton();
         // save secondLanguage selected
         global.setSecondTextLanguage(language, new Translator.GeneralListener() {
             @Override
             public void onSuccess() {
-                // change language displayed
-                ((AnimatedTextView) secondLanguageSelector.findViewById(R.id.secondLanguageName)).setText(language.getDisplayNameWithoutTTS(), false);
-                if(listener != null) listener.onSuccess();
-            }
-
-            @Override
-            public void onFailure(int[] reasons, long value) {
-                //todo: gestire errore
+                activateTranslationButton();
             }
         });
+        // change language displayed
+        setDisplayedSecondLanguage(language);
+    }
+
+    private void setDisplayedFirstLanguage(CustomLocale language){
+        // change language displayed
+        ((AnimatedTextView) firstLanguageSelector.findViewById(R.id.firstLanguageName)).setText(language.getDisplayNameWithoutTTS(), false);
+    }
+
+    private void setDisplayedSecondLanguage(CustomLocale language){
+        // change language displayed
+        ((AnimatedTextView) secondLanguageSelector.findViewById(R.id.secondLanguageName)).setText(language.getDisplayNameWithoutTTS(), false);
     }
 
     private void switchLanguages(){
-        global.switchTextLanguages();
+        deactivateTranslationButton();
+        global.switchTextLanguages(new Translator.GeneralListener() {
+            @Override
+            public void onSuccess() {
+                activateTranslationButton();
+            }
+        });
         // change language displayed
         ((AnimatedTextView) firstLanguageSelector.findViewById(R.id.firstLanguageName)).setText(global.getFirstTextLanguage(true).getDisplayNameWithoutTTS(), false);
         ((AnimatedTextView) secondLanguageSelector.findViewById(R.id.secondLanguageName)).setText(global.getSecondTextLanguage(true).getDisplayNameWithoutTTS(), false);

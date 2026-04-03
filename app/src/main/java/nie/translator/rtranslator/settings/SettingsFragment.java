@@ -16,8 +16,10 @@
 
 package nie.translator.rtranslator.settings;
 
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -163,9 +165,9 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         supportLanguagesQualityPreference = (SupportLanguagesQuality) findPreference("languagesNNQualityLow");
         supportLanguagesQualityPreference.setFragment(this);
 
+        // show transcription option initialization
         showOriginalTranscriptionMsgPreference = (ShowOriginalTranscriptionMsgPreference) findPreference("ShowOriginalTranscriptionMsgPreference");
         showOriginalTranscriptionMsgPreference.setFragment(this);
-
 
         // language support option with low quality tts initialization
         supportTtsQualityPreference = (SupportTtsQualityPreference) findPreference("languagesQualityLow");
@@ -185,6 +187,18 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 intent.setAction("com.android.settings.TTS_SETTINGS");
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 activity.startActivity(intent);
+                return true;
+            }
+        });
+
+        // useTatoeba initialization
+        Preference tatoebaPreference = findPreference("useTatoeba");
+        tatoebaPreference.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+            @Override
+            public boolean onPreferenceChange(Preference preference, Object newValue) {
+                if(global != null) {
+                    global.setUseTatoeba((Boolean) newValue);
+                }
                 return true;
             }
         });

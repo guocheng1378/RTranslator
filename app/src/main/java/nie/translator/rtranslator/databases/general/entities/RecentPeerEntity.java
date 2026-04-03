@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package nie.translator.rtranslator.database.entities;
+package nie.translator.rtranslator.databases.general.entities;
 
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;

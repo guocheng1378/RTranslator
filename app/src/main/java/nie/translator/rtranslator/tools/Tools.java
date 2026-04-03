@@ -33,6 +33,9 @@ import android.util.TypedValue;
 
 import androidx.core.content.ContextCompat;
 
+import org.bouncycastle.crypto.Xof;
+import org.bouncycastle.crypto.digests.SHAKEDigest;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -44,6 +47,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -67,6 +71,22 @@ public class Tools {
     public static final int CONVERSATION_SERVICE = 1;
     public static final int WALKIE_TALKIE_SERVICE = 2;
 
+    public static byte[] shake256Bytes(String msg, int outLenBytes) {
+        Xof shake = new SHAKEDigest(256);           // SHAKE-256
+        byte[] in = msg.getBytes(StandardCharsets.UTF_8);
+        shake.update(in, 0, in.length);
+
+        byte[] out = new byte[outLenBytes];
+        shake.doFinal(out, 0, outLenBytes);         // squeeze outLenBytes
+        return out;
+    }
+
+    public static String shake256Hex(String msg, int outLenBytes) {
+        byte[] out = shake256Bytes(msg, outLenBytes);
+        StringBuilder sb = new StringBuilder(outLenBytes * 2);
+        for (byte b : out) sb.append(String.format("%02x", b));
+        return sb.toString();
+    }
     public static synchronized String convertBitmapToString(Bitmap image) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         image.compress(Bitmap.CompressFormat.PNG, 100, baos);

@@ -20,10 +20,12 @@ import android.bluetooth.BluetoothAdapter;
 import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 import nie.translator.rtranslator.bluetooth.BluetoothCommunicator;
 import nie.translator.rtranslator.bluetooth.Message;
 import nie.translator.rtranslator.bluetooth.Peer;
+import nie.translator.rtranslator.tools.CustomLocale;
 import nie.translator.rtranslator.tools.GalleryImageSelector;
 
 import java.util.ArrayList;
@@ -179,6 +181,21 @@ public class ConversationBluetoothCommunicator {
                         });
                         break;
                     }
+                    case "l": {
+                        //we have received an empty message that contains only the other peer language, we load that language resources
+                        String completeText = message.getText();
+                        int srcLanguageCodeSize = Integer.valueOf(completeText.substring(completeText.length() - 1));
+                        String srcLanguageCode = completeText.substring(completeText.length() - (srcLanguageCodeSize + 1), completeText.length() - 1);
+                        CustomLocale srcLanguage = new CustomLocale(srcLanguageCode);
+                        Log.d("ConvBluetoothCommunicator", "language received: "+srcLanguageCode);
+                        boolean firstLoad = global.getTranslator().getLanguageResourcesManager().isPeerLoaded(message.getSender());
+                        global.getTranslator().loadSrcLangResourcesForPeer(srcLanguage, message.getSender(), null);
+                        // if we are the server and the language indication received is the one sent at the beginning of connection (and not after, when the peer updates the language), we respond with our language
+                        if (source == BluetoothCommunicator.SERVER && firstLoad) {
+                            sendLanguage(global.getLanguage(true), message.getSender());
+                        }
+                        break;
+                    }
                 }
             }
 
@@ -190,24 +207,28 @@ public class ConversationBluetoothCommunicator {
                         // adding the peer image to recent devices
                         if (source == BluetoothCommunicator.SERVER) {
                             sendImage(data.getSender());
+                        }else{
+                            sendLanguage(global.getLanguage(true), data.getSender());
                         }
                         global.getRecentPeersDataManager().getRecentPeers(new RecentPeersDataManager.RecentPeersListener() {
                             @Override
                             public void onRecentPeersObtained(ArrayList<RecentPeer> recentPeers) {
-                                Bitmap image = null;
-                                if (!data.getText().equals("null")) {
-                                    image = Tools.convertBytesToBitmap(data.getData());
-                                }
-                                for (RecentPeer recentPeer : recentPeers) {
-                                    if (data.getSender().getUniqueName().equals(recentPeer.getUniqueName())) {
-                                        global.getRecentPeersDataManager().insertRecentPeer(recentPeer.getDeviceID(), recentPeer.getUniqueName(), image);
+                                if(data.getSender() != null) {
+                                    Bitmap image = null;
+                                    if (!data.getText().equals("null")) {
+                                        image = Tools.convertBytesToBitmap(data.getData());
                                     }
-                                }
-                                int index = connectedPeers.indexOf(data.getSender());
-                                if (index != -1) {
-                                    GuiPeer clonePeer = (GuiPeer) connectedPeers.get(index).clone();
-                                    connectedPeers.get(index).setUserImage(image);
-                                    notifyPeerUpdated(clonePeer, connectedPeers.get(index));
+                                    for (RecentPeer recentPeer : recentPeers) {
+                                        if (data.getSender().getUniqueName().equals(recentPeer.getUniqueName())) {
+                                            global.getRecentPeersDataManager().insertRecentPeer(recentPeer.getDeviceID(), recentPeer.getUniqueName(), image);
+                                        }
+                                    }
+                                    int index = connectedPeers.indexOf(data.getSender());
+                                    if (index != -1) {
+                                        GuiPeer clonePeer = (GuiPeer) connectedPeers.get(index).clone();
+                                        connectedPeers.get(index).setUserImage(image);
+                                        notifyPeerUpdated(clonePeer, connectedPeers.get(index));
+                                    }
                                 }
                             }
                         });
@@ -298,6 +319,16 @@ public class ConversationBluetoothCommunicator {
     public void sendMessage(Message message) {
         message.setHeader("m");
         bluetoothCommunicator.sendMessage(message);
+    }
+
+    public void sendLanguage(CustomLocale lang, Peer receiver) {
+        String languageCode = lang.getCode();
+        bluetoothCommunicator.sendMessage(new Message(global, "l", languageCode + languageCode.length(), receiver));  //this message will be used by the other Peer to load the language resources for our language
+    }
+
+    public void sendLanguage(CustomLocale lang) {
+        String languageCode = lang.getCode();
+        bluetoothCommunicator.sendMessage(new Message(global, "l", languageCode + languageCode.length(), null));  //this message will be used by the other Peer to load the language resources for our language
     }
 
     private void sendID(final Peer receiver) {

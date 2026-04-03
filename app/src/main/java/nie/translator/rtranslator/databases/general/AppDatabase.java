@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package nie.translator.rtranslator.database;
+package nie.translator.rtranslator.databases.general;
 
 import androidx.room.RoomDatabase;
-import nie.translator.rtranslator.database.dao.MyDao;
-import nie.translator.rtranslator.database.entities.RecentPeerEntity;
+import nie.translator.rtranslator.databases.general.dao.MyDao;
+import nie.translator.rtranslator.databases.general.entities.RecentPeerEntity;
 
 
 @androidx.room.Database(version = 1, entities = {RecentPeerEntity.class})

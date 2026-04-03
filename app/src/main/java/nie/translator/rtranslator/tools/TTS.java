@@ -153,7 +153,6 @@ public class TTS {
                     public void onLanguagesListAvailable(ArrayList<CustomLocale> languages) {
                         notifyGetSupportedLanguagesSuccess(languages);
                     }
-
                     @Override
                     public void onError(int reason) {
                         notifyGetSupportedLanguagesFailure(reason);
