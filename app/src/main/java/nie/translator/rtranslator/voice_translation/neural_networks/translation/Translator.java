@@ -104,7 +104,7 @@ public class Translator extends NeuralNetworkApi {
     private android.os.Handler mainHandler;   // handler that can be used to post to the main thread
     private ArrayDeque<DataContainer> dataToTranslate = new ArrayDeque<>();
     private final Object lock = new Object();
-    private final Object mozillaLock = new Object();
+    private final Object langResourcesLock = new Object();
     private final int EMPTY_BATCH_SIZE = 1;
     private boolean translatingMessages = false;
     private boolean translating = false;
@@ -117,7 +117,6 @@ public class Translator extends NeuralNetworkApi {
             "ja",
             "en"
     };
-    private final Object tatoebaLock = new Object();
     private LanguageResourcesManager languageResourcesManager;
 
 
@@ -349,7 +348,7 @@ public class Translator extends NeuralNetworkApi {
             final CustomLocale languageInput = data.conversationMessageToTranslate.getPayload().getLanguage();
             if (!languageInput.equals(data.languageOutput)) {
                 Peer sender = data.conversationMessageToTranslate.getSender();
-                loadSrcLangResourcesForPeer(data.languageOutput, sender, new GeneralListener() {
+                loadSrcLangResourcesForPeer(languageInput, sender, new GeneralListener() {
                     @Override
                     public void onSuccess() {
                         performTextTranslation(text, languageInput, data.languageOutput, data.beamSize, false, new TranslateListener() {
@@ -561,7 +560,7 @@ public class Translator extends NeuralNetworkApi {
 
     public void loadLanguageResources(@NonNull CustomLocale srcLang, @NonNull CustomLocale tgtLang, Global.RTranslatorMode rtranslatorMode, @Nullable GeneralListener listener){
         new Thread(() -> {
-            synchronized (mozillaLock) {
+            synchronized (langResourcesLock) {
                 try {
                     //execution of language resource loading
                     languageResourcesManager.loadLanguageResources(srcLang, tgtLang, rtranslatorMode);
@@ -577,7 +576,7 @@ public class Translator extends NeuralNetworkApi {
 
     public void loadSrcLangResourcesForPeer(CustomLocale lang, Peer peer, @Nullable GeneralListener listener){
         new Thread(() -> {
-            synchronized (mozillaLock) {
+            synchronized (langResourcesLock) {
                 try {
                     //execution of language resource loading
                     languageResourcesManager.loadSrcLangResourcesForPeer(lang, peer);
@@ -593,7 +592,7 @@ public class Translator extends NeuralNetworkApi {
 
     public void loadTgtLangResourcesForConversation(CustomLocale lang, @Nullable GeneralListener listener){
         new Thread(() -> {
-            synchronized (mozillaLock) {
+            synchronized (langResourcesLock) {
                 try {
                     //execution of language resource loading
                     languageResourcesManager.loadTgtLangResourcesForConversation(lang);
@@ -613,7 +612,7 @@ public class Translator extends NeuralNetworkApi {
 
     public void loadAllMozillaResources(GeneralListener listener){
         new Thread(() -> {
-            synchronized (mozillaLock) {
+            synchronized (langResourcesLock) {
                 try {
                     //execution of the resources unloading
                     languageResourcesManager.loadAllMozillaResources();
@@ -628,7 +627,7 @@ public class Translator extends NeuralNetworkApi {
 
     public void loadAllTatoebaResources(GeneralListener listener){
         new Thread(() -> {
-            synchronized (mozillaLock) {
+            synchronized (langResourcesLock) {
                 try {
                     //execution of the resources unloading
                     languageResourcesManager.loadAllTatoebaResources();
@@ -643,7 +642,7 @@ public class Translator extends NeuralNetworkApi {
 
     public void unloadAllMozillaResources(GeneralListener listener){
         new Thread(() -> {
-            synchronized (mozillaLock) {
+            synchronized (langResourcesLock) {
                 //execution of the resources unloading
                 languageResourcesManager.unloadAllMozillaResources();
                 if(listener != null) listener.onSuccess();
@@ -652,13 +651,15 @@ public class Translator extends NeuralNetworkApi {
     }
 
     public void unloadAllTatoebaResources(){
-        //execution of the resources unloading
-        languageResourcesManager.unloadAllTatoebaResources();
+        synchronized (langResourcesLock) {
+            //execution of the resources unloading
+            languageResourcesManager.unloadAllTatoebaResources();
+        }
     }
 
     public void unloadSrcLangResourcesForPeer(Peer peer, @Nullable GeneralListener listener){
         new Thread(() -> {
-            synchronized (mozillaLock) {
+            synchronized (langResourcesLock) {
                 try {
                     //execution of language resource unloading
                     languageResourcesManager.unloadSrcLangResourcesForPeer(peer);
@@ -674,7 +675,7 @@ public class Translator extends NeuralNetworkApi {
 
     public void unloadAllLangResourcesForConversation(@Nullable GeneralListener listener){
         new Thread(() -> {
-            synchronized (mozillaLock) {
+            synchronized (langResourcesLock) {
                 try {
                     //execution of language resource unloading
                     languageResourcesManager.unloadAllLangResourcesForConversation();
@@ -686,6 +687,10 @@ public class Translator extends NeuralNetworkApi {
                 }
             }
         }).start();
+    }
+
+    public LanguageResourcesManager getLanguageResourcesManager() {
+        return languageResourcesManager;
     }
 
     public int getMode(){
@@ -789,7 +794,7 @@ public class Translator extends NeuralNetworkApi {
                 if (global.isUseTatoeba()) {
                     finalResult = performTatoebaTranslation(textToTranslate, inputLanguage, outputLanguage);
                 }
-                synchronized (mozillaLock) {
+                synchronized (langResourcesLock) {
                     if (finalResult == null) {
                         finalResult = BergamotTranslator.translateMultiple(new String[]{textToTranslate}, inputLanguage, outputLanguage)[0];
                     }else{
@@ -822,7 +827,7 @@ public class Translator extends NeuralNetworkApi {
 
     @Nullable
     private String performTatoebaTranslation(String text, CustomLocale inputLanguage, CustomLocale outputLanguage){
-        synchronized (tatoebaLock) {
+        synchronized (langResourcesLock) {
             LinksData.DataMap linksContainer = languageResourcesManager.getTatoebaLinks().getOrDefault(inputLanguage.getISO3Language() + "-" + outputLanguage.getISO3Language(), null);
             String normalizedText = normalizeText(text);
             String hash = Tools.shake256Hex(normalizedText, 8);

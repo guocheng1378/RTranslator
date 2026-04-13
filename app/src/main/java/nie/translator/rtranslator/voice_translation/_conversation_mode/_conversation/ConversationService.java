@@ -154,7 +154,6 @@ public class ConversationService extends VoiceTranslationService {
                 int languageCodeSize = Integer.valueOf(completeText.substring(completeText.length() - 1));
                 String text = completeText.substring(0, completeText.length() - (languageCodeSize + 1));
                 String languageCode = completeText.substring(completeText.length() - (languageCodeSize + 1), completeText.length() - 1);
-
                 ConversationMessage conversationMessage = new ConversationMessage(message.getSender(), new NeuralNetworkApiText(text, CustomLocale.getInstance(languageCode)));
                 translator.translateMessage(conversationMessage, language, TRANSLATOR_BEAM_SIZE, new Translator.TranslateMessageListener() {
                     @Override
