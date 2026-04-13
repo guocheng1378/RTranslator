@@ -17,11 +17,12 @@ project(rtranslator_native)
 
 add_subdirectory(libs/sentencepiece)
 add_subdirectory(libs/bergamot)
+add_subdirectory(protobuf)
 
 add_library(sentencepiece-interface SHARED SentencePieceProcessorInterface.cpp)
 add_library(cache_container_native SHARED CacheContainerNative.cpp)
 add_library(bergamot_translator_interface SHARED BergamotTranslator.cpp)
-add_library(bergamot_translator_interface_old SHARED BergamotTranslator_old.cpp)
+add_library(dictionary_translator_interface SHARED DictionaryTranslator.cpp)
 
 
 target_link_libraries(sentencepiece-interface
@@ -41,8 +42,8 @@ target_link_libraries(bergamot_translator_interface
         log
 )
 
-target_link_libraries(bergamot_translator_interface_old
-        bergamot-translator
+target_link_libraries(dictionary_translator_interface
+        sentencepiece-static-android
         android
         log
 )
