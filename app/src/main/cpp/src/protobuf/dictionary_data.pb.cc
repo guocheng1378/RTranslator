@@ -11,51 +11,62 @@
 #include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 // @@protoc_insertion_point(includes)
 #include <google/protobuf/port_def.inc>
-
-PROTOBUF_PRAGMA_INIT_SEG
-
-namespace _pb = ::PROTOBUF_NAMESPACE_ID;
-namespace _pbi = _pb::internal;
-
+extern PROTOBUF_INTERNAL_EXPORT_dictionary_5fdata_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_DataMap_DataEntry_DoNotUse_dictionary_5fdata_2eproto;
+extern PROTOBUF_INTERNAL_EXPORT_dictionary_5fdata_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Values_dictionary_5fdata_2eproto;
 namespace mydata {
-PROTOBUF_CONSTEXPR DataMap_DataEntry_DoNotUse::DataMap_DataEntry_DoNotUse(
-    ::_pbi::ConstantInitialized) {}
-struct DataMap_DataEntry_DoNotUseDefaultTypeInternal {
-  PROTOBUF_CONSTEXPR DataMap_DataEntry_DoNotUseDefaultTypeInternal()
-      : _instance(::_pbi::ConstantInitialized{}) {}
-  ~DataMap_DataEntry_DoNotUseDefaultTypeInternal() {}
-  union {
-    DataMap_DataEntry_DoNotUse _instance;
-  };
-};
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 DataMap_DataEntry_DoNotUseDefaultTypeInternal _DataMap_DataEntry_DoNotUse_default_instance_;
-PROTOBUF_CONSTEXPR DataMap::DataMap(
-    ::_pbi::ConstantInitialized): _impl_{
-    /*decltype(_impl_.data_)*/{}
-  , /*decltype(_impl_._cached_size_)*/{}} {}
-struct DataMapDefaultTypeInternal {
-  PROTOBUF_CONSTEXPR DataMapDefaultTypeInternal()
-      : _instance(::_pbi::ConstantInitialized{}) {}
-  ~DataMapDefaultTypeInternal() {}
-  union {
-    DataMap _instance;
-  };
-};
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 DataMapDefaultTypeInternal _DataMap_default_instance_;
-PROTOBUF_CONSTEXPR Values::Values(
-    ::_pbi::ConstantInitialized): _impl_{
-    /*decltype(_impl_.value_)*/{}
-  , /*decltype(_impl_._cached_size_)*/{}} {}
-struct ValuesDefaultTypeInternal {
-  PROTOBUF_CONSTEXPR ValuesDefaultTypeInternal()
-      : _instance(::_pbi::ConstantInitialized{}) {}
-  ~ValuesDefaultTypeInternal() {}
-  union {
-    Values _instance;
-  };
-};
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ValuesDefaultTypeInternal _Values_default_instance_;
+class DataMap_DataEntry_DoNotUseDefaultTypeInternal {
+ public:
+  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<DataMap_DataEntry_DoNotUse> _instance;
+} _DataMap_DataEntry_DoNotUse_default_instance_;
+class DataMapDefaultTypeInternal {
+ public:
+  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<DataMap> _instance;
+} _DataMap_default_instance_;
+class ValuesDefaultTypeInternal {
+ public:
+  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<Values> _instance;
+} _Values_default_instance_;
 }  // namespace mydata
+static void InitDefaultsscc_info_DataMap_dictionary_5fdata_2eproto() {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+  {
+    void* ptr = &::mydata::_DataMap_default_instance_;
+    new (ptr) ::mydata::DataMap();
+    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
+  }
+}
+
+::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_DataMap_dictionary_5fdata_2eproto =
+    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_DataMap_dictionary_5fdata_2eproto}, {
+      &scc_info_DataMap_DataEntry_DoNotUse_dictionary_5fdata_2eproto.base,}};
+
+static void InitDefaultsscc_info_DataMap_DataEntry_DoNotUse_dictionary_5fdata_2eproto() {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+  {
+    void* ptr = &::mydata::_DataMap_DataEntry_DoNotUse_default_instance_;
+    new (ptr) ::mydata::DataMap_DataEntry_DoNotUse();
+  }
+}
+
+::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_DataMap_DataEntry_DoNotUse_dictionary_5fdata_2eproto =
+    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_DataMap_DataEntry_DoNotUse_dictionary_5fdata_2eproto}, {
+      &scc_info_Values_dictionary_5fdata_2eproto.base,}};
+
+static void InitDefaultsscc_info_Values_dictionary_5fdata_2eproto() {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+  {
+    void* ptr = &::mydata::_Values_default_instance_;
+    new (ptr) ::mydata::Values();
+    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
+  }
+}
+
+::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Values_dictionary_5fdata_2eproto =
+    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_Values_dictionary_5fdata_2eproto}, {}};
+
 namespace mydata {
 
 // ===================================================================
@@ -73,133 +84,143 @@ class DataMap::_Internal {
  public:
 };
 
-DataMap::DataMap(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::MessageLite(arena, is_message_owned) {
-  SharedCtor(arena, is_message_owned);
+DataMap::DataMap(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::MessageLite(arena),
+  data_(arena) {
+  SharedCtor();
+  RegisterArenaDtor(arena);
   // @@protoc_insertion_point(arena_constructor:mydata.DataMap)
 }
 DataMap::DataMap(const DataMap& from)
   : ::PROTOBUF_NAMESPACE_ID::MessageLite() {
-  DataMap* const _this = this; (void)_this;
-  new (&_impl_) Impl_{
-      /*decltype(_impl_.data_)*/{}
-    , /*decltype(_impl_._cached_size_)*/{}};
-
   _internal_metadata_.MergeFrom<std::string>(from._internal_metadata_);
-  _this->_impl_.data_.MergeFrom(from._impl_.data_);
+  data_.MergeFrom(from.data_);
   // @@protoc_insertion_point(copy_constructor:mydata.DataMap)
 }
 
-inline void DataMap::SharedCtor(
-    ::_pb::Arena* arena, bool is_message_owned) {
-  (void)arena;
-  (void)is_message_owned;
-  new (&_impl_) Impl_{
-      /*decltype(_impl_.data_)*/{::_pbi::ArenaInitialized(), arena}
-    , /*decltype(_impl_._cached_size_)*/{}
-  };
+void DataMap::SharedCtor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_DataMap_dictionary_5fdata_2eproto.base);
 }
 
 DataMap::~DataMap() {
   // @@protoc_insertion_point(destructor:mydata.DataMap)
-  if (auto *arena = _internal_metadata_.DeleteReturnArena<std::string>()) {
-  (void)arena;
-    return;
-  }
   SharedDtor();
+  _internal_metadata_.Delete<std::string>();
 }
 
-inline void DataMap::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
-  _impl_.data_.Destruct();
-  _impl_.data_.~MapFieldLite();
+void DataMap::SharedDtor() {
+  GOOGLE_DCHECK(GetArena() == nullptr);
 }
 
+void DataMap::ArenaDtor(void* object) {
+  DataMap* _this = reinterpret_cast< DataMap* >(object);
+  (void)_this;
+}
+void DataMap::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
+}
 void DataMap::SetCachedSize(int size) const {
-  _impl_._cached_size_.Set(size);
+  _cached_size_.Set(size);
 }
+const DataMap& DataMap::default_instance() {
+  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_DataMap_dictionary_5fdata_2eproto.base);
+  return *internal_default_instance();
+}
+
 
 void DataMap::Clear() {
 // @@protoc_insertion_point(message_clear_start:mydata.DataMap)
-  uint32_t cached_has_bits = 0;
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  _impl_.data_.Clear();
+  data_.Clear();
   _internal_metadata_.Clear<std::string>();
 }
 
-const char* DataMap::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+const char* DataMap::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::_pbi::ReadTag(ptr, &tag);
+    ::PROTOBUF_NAMESPACE_ID::uint32 tag;
+    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    CHK_(ptr);
     switch (tag >> 3) {
       // map<string, .mydata.Values> data = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 10)) {
           ptr -= 1;
           do {
             ptr += 1;
-            ptr = ctx->ParseMessage(&_impl_.data_, ptr);
+            ptr = ctx->ParseMessage(&data_, ptr);
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
-        } else
-          goto handle_unusual;
+        } else goto handle_unusual;
         continue;
-      default:
-        goto handle_unusual;
+      default: {
+      handle_unusual:
+        if ((tag & 7) == 4 || tag == 0) {
+          ctx->SetLastTag(tag);
+          goto success;
+        }
+        ptr = UnknownFieldParse(tag,
+            _internal_metadata_.mutable_unknown_fields<std::string>(),
+            ptr, ctx);
+        CHK_(ptr != nullptr);
+        continue;
+      }
     }  // switch
-  handle_unusual:
-    if ((tag == 0) || ((tag & 7) == 4)) {
-      CHK_(ptr);
-      ctx->SetLastTag(tag);
-      goto message_done;
-    }
-    ptr = UnknownFieldParse(
-        tag,
-        _internal_metadata_.mutable_unknown_fields<std::string>(),
-        ptr, ctx);
-    CHK_(ptr != nullptr);
   }  // while
-message_done:
+success:
   return ptr;
 failure:
   ptr = nullptr;
-  goto message_done;
+  goto success;
 #undef CHK_
 }
 
-uint8_t* DataMap::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::PROTOBUF_NAMESPACE_ID::uint8* DataMap::_InternalSerialize(
+    ::PROTOBUF_NAMESPACE_ID::uint8* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:mydata.DataMap)
-  uint32_t cached_has_bits = 0;
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
   // map<string, .mydata.Values> data = 1;
   if (!this->_internal_data().empty()) {
-    using MapType = ::_pb::Map<std::string, ::mydata::Values>;
-    using WireHelper = DataMap_DataEntry_DoNotUse::Funcs;
-    const auto& map_field = this->_internal_data();
-    auto check_utf8 = [](const MapType::value_type& entry) {
-      (void)entry;
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
-        entry.first.data(), static_cast<int>(entry.first.length()),
-        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
-        "mydata.DataMap.DataEntry.key");
+    typedef ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::mydata::Values >::const_pointer
+        ConstPtr;
+    typedef ConstPtr SortItem;
+    typedef ::PROTOBUF_NAMESPACE_ID::internal::CompareByDerefFirst<SortItem> Less;
+    struct Utf8Check {
+      static void Check(ConstPtr p) {
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+          p->first.data(), static_cast<int>(p->first.length()),
+          ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
+          "mydata.DataMap.DataEntry.key");
+      }
     };
 
-    if (stream->IsSerializationDeterministic() && map_field.size() > 1) {
-      for (const auto& entry : ::_pbi::MapSorterPtr<MapType>(map_field)) {
-        target = WireHelper::InternalSerialize(1, entry.first, entry.second, target, stream);
-        check_utf8(entry);
+    if (stream->IsSerializationDeterministic() &&
+        this->_internal_data().size() > 1) {
+      ::std::unique_ptr<SortItem[]> items(
+          new SortItem[this->_internal_data().size()]);
+      typedef ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::mydata::Values >::size_type size_type;
+      size_type n = 0;
+      for (::PROTOBUF_NAMESPACE_ID::Map< std::string, ::mydata::Values >::const_iterator
+          it = this->_internal_data().begin();
+          it != this->_internal_data().end(); ++it, ++n) {
+        items[static_cast<ptrdiff_t>(n)] = SortItem(&*it);
+      }
+      ::std::sort(&items[0], &items[static_cast<ptrdiff_t>(n)], Less());
+      for (size_type i = 0; i < n; i++) {
+        target = DataMap_DataEntry_DoNotUse::Funcs::InternalSerialize(1, items[static_cast<ptrdiff_t>(i)]->first, items[static_cast<ptrdiff_t>(i)]->second, target, stream);
+        Utf8Check::Check(&(*items[static_cast<ptrdiff_t>(i)]));
       }
     } else {
-      for (const auto& entry : map_field) {
-        target = WireHelper::InternalSerialize(1, entry.first, entry.second, target, stream);
-        check_utf8(entry);
+      for (::PROTOBUF_NAMESPACE_ID::Map< std::string, ::mydata::Values >::const_iterator
+          it = this->_internal_data().begin();
+          it != this->_internal_data().end(); ++it) {
+        target = DataMap_DataEntry_DoNotUse::Funcs::InternalSerialize(1, it->first, it->second, target, stream);
+        Utf8Check::Check(&(*it));
       }
     }
   }
@@ -216,7 +237,7 @@ size_t DataMap::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:mydata.DataMap)
   size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
@@ -232,26 +253,25 @@ size_t DataMap::ByteSizeLong() const {
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     total_size += _internal_metadata_.unknown_fields<std::string>(::PROTOBUF_NAMESPACE_ID::internal::GetEmptyString).size();
   }
-  int cached_size = ::_pbi::ToCachedSize(total_size);
+  int cached_size = ::PROTOBUF_NAMESPACE_ID::internal::ToCachedSize(total_size);
   SetCachedSize(cached_size);
   return total_size;
 }
 
 void DataMap::CheckTypeAndMergeFrom(
     const ::PROTOBUF_NAMESPACE_ID::MessageLite& from) {
-  MergeFrom(*::_pbi::DownCast<const DataMap*>(
+  MergeFrom(*::PROTOBUF_NAMESPACE_ID::internal::DownCast<const DataMap*>(
       &from));
 }
 
 void DataMap::MergeFrom(const DataMap& from) {
-  DataMap* const _this = this;
-  // @@protoc_insertion_point(class_specific_merge_from_start:mydata.DataMap)
-  GOOGLE_DCHECK_NE(&from, _this);
-  uint32_t cached_has_bits = 0;
+// @@protoc_insertion_point(class_specific_merge_from_start:mydata.DataMap)
+  GOOGLE_DCHECK_NE(&from, this);
+  _internal_metadata_.MergeFrom<std::string>(from._internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  _this->_impl_.data_.MergeFrom(from._impl_.data_);
-  _this->_internal_metadata_.MergeFrom<std::string>(from._internal_metadata_);
+  data_.MergeFrom(from.data_);
 }
 
 void DataMap::CopyFrom(const DataMap& from) {
@@ -267,8 +287,8 @@ bool DataMap::IsInitialized() const {
 
 void DataMap::InternalSwap(DataMap* other) {
   using std::swap;
-  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  _impl_.data_.InternalSwap(&other->_impl_.data_);
+  _internal_metadata_.Swap<std::string>(&other->_internal_metadata_);
+  data_.Swap(&other->data_);
 }
 
 std::string DataMap::GetTypeName() const {
@@ -282,109 +302,106 @@ class Values::_Internal {
  public:
 };
 
-Values::Values(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::MessageLite(arena, is_message_owned) {
-  SharedCtor(arena, is_message_owned);
+Values::Values(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::MessageLite(arena),
+  value_(arena) {
+  SharedCtor();
+  RegisterArenaDtor(arena);
   // @@protoc_insertion_point(arena_constructor:mydata.Values)
 }
 Values::Values(const Values& from)
-  : ::PROTOBUF_NAMESPACE_ID::MessageLite() {
-  Values* const _this = this; (void)_this;
-  new (&_impl_) Impl_{
-      decltype(_impl_.value_){from._impl_.value_}
-    , /*decltype(_impl_._cached_size_)*/{}};
-
+  : ::PROTOBUF_NAMESPACE_ID::MessageLite(),
+      value_(from.value_) {
   _internal_metadata_.MergeFrom<std::string>(from._internal_metadata_);
   // @@protoc_insertion_point(copy_constructor:mydata.Values)
 }
 
-inline void Values::SharedCtor(
-    ::_pb::Arena* arena, bool is_message_owned) {
-  (void)arena;
-  (void)is_message_owned;
-  new (&_impl_) Impl_{
-      decltype(_impl_.value_){arena}
-    , /*decltype(_impl_._cached_size_)*/{}
-  };
+void Values::SharedCtor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_Values_dictionary_5fdata_2eproto.base);
 }
 
 Values::~Values() {
   // @@protoc_insertion_point(destructor:mydata.Values)
-  if (auto *arena = _internal_metadata_.DeleteReturnArena<std::string>()) {
-  (void)arena;
-    return;
-  }
   SharedDtor();
+  _internal_metadata_.Delete<std::string>();
 }
 
-inline void Values::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
-  _impl_.value_.~RepeatedPtrField();
+void Values::SharedDtor() {
+  GOOGLE_DCHECK(GetArena() == nullptr);
 }
 
+void Values::ArenaDtor(void* object) {
+  Values* _this = reinterpret_cast< Values* >(object);
+  (void)_this;
+}
+void Values::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
+}
 void Values::SetCachedSize(int size) const {
-  _impl_._cached_size_.Set(size);
+  _cached_size_.Set(size);
 }
+const Values& Values::default_instance() {
+  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_Values_dictionary_5fdata_2eproto.base);
+  return *internal_default_instance();
+}
+
 
 void Values::Clear() {
 // @@protoc_insertion_point(message_clear_start:mydata.Values)
-  uint32_t cached_has_bits = 0;
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  _impl_.value_.Clear();
+  value_.Clear();
   _internal_metadata_.Clear<std::string>();
 }
 
-const char* Values::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+const char* Values::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::_pbi::ReadTag(ptr, &tag);
+    ::PROTOBUF_NAMESPACE_ID::uint32 tag;
+    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    CHK_(ptr);
     switch (tag >> 3) {
       // repeated string value = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 10)) {
           ptr -= 1;
           do {
             ptr += 1;
             auto str = _internal_add_value();
-            ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+            ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(str, ptr, ctx);
+            CHK_(::PROTOBUF_NAMESPACE_ID::internal::VerifyUTF8(str, nullptr));
             CHK_(ptr);
-            CHK_(::_pbi::VerifyUTF8(str, nullptr));
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
-        } else
-          goto handle_unusual;
+        } else goto handle_unusual;
         continue;
-      default:
-        goto handle_unusual;
+      default: {
+      handle_unusual:
+        if ((tag & 7) == 4 || tag == 0) {
+          ctx->SetLastTag(tag);
+          goto success;
+        }
+        ptr = UnknownFieldParse(tag,
+            _internal_metadata_.mutable_unknown_fields<std::string>(),
+            ptr, ctx);
+        CHK_(ptr != nullptr);
+        continue;
+      }
     }  // switch
-  handle_unusual:
-    if ((tag == 0) || ((tag & 7) == 4)) {
-      CHK_(ptr);
-      ctx->SetLastTag(tag);
-      goto message_done;
-    }
-    ptr = UnknownFieldParse(
-        tag,
-        _internal_metadata_.mutable_unknown_fields<std::string>(),
-        ptr, ctx);
-    CHK_(ptr != nullptr);
   }  // while
-message_done:
+success:
   return ptr;
 failure:
   ptr = nullptr;
-  goto message_done;
+  goto success;
 #undef CHK_
 }
 
-uint8_t* Values::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::PROTOBUF_NAMESPACE_ID::uint8* Values::_InternalSerialize(
+    ::PROTOBUF_NAMESPACE_ID::uint8* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:mydata.Values)
-  uint32_t cached_has_bits = 0;
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
   // repeated string value = 1;
@@ -409,41 +426,40 @@ size_t Values::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:mydata.Values)
   size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
   // repeated string value = 1;
   total_size += 1 *
-      ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(_impl_.value_.size());
-  for (int i = 0, n = _impl_.value_.size(); i < n; i++) {
+      ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(value_.size());
+  for (int i = 0, n = value_.size(); i < n; i++) {
     total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
-      _impl_.value_.Get(i));
+      value_.Get(i));
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     total_size += _internal_metadata_.unknown_fields<std::string>(::PROTOBUF_NAMESPACE_ID::internal::GetEmptyString).size();
   }
-  int cached_size = ::_pbi::ToCachedSize(total_size);
+  int cached_size = ::PROTOBUF_NAMESPACE_ID::internal::ToCachedSize(total_size);
   SetCachedSize(cached_size);
   return total_size;
 }
 
 void Values::CheckTypeAndMergeFrom(
     const ::PROTOBUF_NAMESPACE_ID::MessageLite& from) {
-  MergeFrom(*::_pbi::DownCast<const Values*>(
+  MergeFrom(*::PROTOBUF_NAMESPACE_ID::internal::DownCast<const Values*>(
       &from));
 }
 
 void Values::MergeFrom(const Values& from) {
-  Values* const _this = this;
-  // @@protoc_insertion_point(class_specific_merge_from_start:mydata.Values)
-  GOOGLE_DCHECK_NE(&from, _this);
-  uint32_t cached_has_bits = 0;
+// @@protoc_insertion_point(class_specific_merge_from_start:mydata.Values)
+  GOOGLE_DCHECK_NE(&from, this);
+  _internal_metadata_.MergeFrom<std::string>(from._internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  _this->_impl_.value_.MergeFrom(from._impl_.value_);
-  _this->_internal_metadata_.MergeFrom<std::string>(from._internal_metadata_);
+  value_.MergeFrom(from.value_);
 }
 
 void Values::CopyFrom(const Values& from) {
@@ -459,8 +475,8 @@ bool Values::IsInitialized() const {
 
 void Values::InternalSwap(Values* other) {
   using std::swap;
-  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  _impl_.value_.InternalSwap(&other->_impl_.value_);
+  _internal_metadata_.Swap<std::string>(&other->_internal_metadata_);
+  value_.InternalSwap(&other->value_);
 }
 
 std::string Values::GetTypeName() const {
@@ -471,16 +487,13 @@ std::string Values::GetTypeName() const {
 // @@protoc_insertion_point(namespace_scope)
 }  // namespace mydata
 PROTOBUF_NAMESPACE_OPEN
-template<> PROTOBUF_NOINLINE ::mydata::DataMap_DataEntry_DoNotUse*
-Arena::CreateMaybeMessage< ::mydata::DataMap_DataEntry_DoNotUse >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::mydata::DataMap_DataEntry_DoNotUse* Arena::CreateMaybeMessage< ::mydata::DataMap_DataEntry_DoNotUse >(Arena* arena) {
   return Arena::CreateMessageInternal< ::mydata::DataMap_DataEntry_DoNotUse >(arena);
 }
-template<> PROTOBUF_NOINLINE ::mydata::DataMap*
-Arena::CreateMaybeMessage< ::mydata::DataMap >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::mydata::DataMap* Arena::CreateMaybeMessage< ::mydata::DataMap >(Arena* arena) {
   return Arena::CreateMessageInternal< ::mydata::DataMap >(arena);
 }
-template<> PROTOBUF_NOINLINE ::mydata::Values*
-Arena::CreateMaybeMessage< ::mydata::Values >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::mydata::Values* Arena::CreateMaybeMessage< ::mydata::Values >(Arena* arena) {
   return Arena::CreateMessageInternal< ::mydata::Values >(arena);
 }
 PROTOBUF_NAMESPACE_CLOSE

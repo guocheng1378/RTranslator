@@ -18,7 +18,7 @@
 #include <android/log.h>
 #include <string>
 #include <unordered_map>
-//#include "protobuf/dictionary_data.pb.h"
+#include "protobuf/dictionary_data.pb.h"
 #include <memory>
 
 
