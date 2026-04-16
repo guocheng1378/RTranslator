@@ -87,6 +87,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
     private static Handler mHandler = new Handler();
     private final Object lock = new Object();
     private boolean useTatoeba;
+    private boolean useTranslationDictionaries;
 
     @Override
     public void onCreate() {
@@ -588,6 +589,24 @@ public class Global extends Application implements DefaultLifecycleObserver {
             translator.loadAllTatoebaResources(null);
         }else{
             translator.unloadAllTatoebaResources();
+        }
+    }
+
+    public boolean isUseTranslationDictionaries(){
+        return useTranslationDictionaries;
+    }
+
+    public void setUseTranslationDictionaries(boolean useTranslationDictionaries) {
+        this.useTranslationDictionaries = useTranslationDictionaries;
+        final SharedPreferences sharedPreferences = this.getSharedPreferences("default", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putBoolean("useTranslationDictionaries", useTranslationDictionaries);
+        editor.apply();
+        // loading of translation dictionaries
+        if(useTranslationDictionaries) {
+            translator.loadAllTranslationDictionariesResources(null);
+        }else{
+            translator.unloadAllTranslationDictionariesResources();
         }
     }
 

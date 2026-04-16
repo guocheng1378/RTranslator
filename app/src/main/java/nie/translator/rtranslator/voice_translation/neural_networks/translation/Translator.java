@@ -67,6 +67,7 @@ import nie.translator.rtranslator.databases.tatoeba.LinksData;
 import nie.translator.rtranslator.tools.CustomLocale;
 import nie.translator.rtranslator.tools.ErrorCodes;
 import nie.translator.rtranslator.tools.FileTools;
+import nie.translator.rtranslator.tools.TextTools;
 import nie.translator.rtranslator.tools.Tools;
 import nie.translator.rtranslator.tools.gui.messages.GuiMessage;
 import nie.translator.rtranslator.tools.nn.CacheContainerNative;
@@ -640,6 +641,21 @@ public class Translator extends NeuralNetworkApi {
         }).start();
     }
 
+    public void loadAllTranslationDictionariesResources(GeneralListener listener){
+        new Thread(() -> {
+            synchronized (langResourcesLock) {
+                try {
+                    //execution of the resources unloading
+                    languageResourcesManager.loadAllTranslationDictionariesResources();
+                    if(listener != null) listener.onSuccess();
+                } catch (Exception e) {
+                    Log.e("resources", e.getMessage());
+                    if(listener != null) mainHandler.post(() -> listener.onFailure(new int[]{0}, 0)); //todo: implementare una vera gestione degli errori
+                }
+            }
+        }).start();
+    }
+
     public void unloadAllMozillaResources(GeneralListener listener){
         new Thread(() -> {
             synchronized (langResourcesLock) {
@@ -654,6 +670,13 @@ public class Translator extends NeuralNetworkApi {
         synchronized (langResourcesLock) {
             //execution of the resources unloading
             languageResourcesManager.unloadAllTatoebaResources();
+        }
+    }
+
+    public void unloadAllTranslationDictionariesResources(){
+        synchronized (langResourcesLock) {
+            //execution of the resources unloading
+            languageResourcesManager.unloadAllTranslationDictionariesResources();
         }
     }
 
@@ -829,7 +852,7 @@ public class Translator extends NeuralNetworkApi {
     private String performTatoebaTranslation(String text, CustomLocale inputLanguage, CustomLocale outputLanguage){
         synchronized (langResourcesLock) {
             LinksData.DataMap linksContainer = languageResourcesManager.getTatoebaLinks().getOrDefault(inputLanguage.getISO3Language() + "-" + outputLanguage.getISO3Language(), null);
-            String normalizedText = normalizeText(text);
+            String normalizedText = TextTools.normalizeText(text);
             String hash = Tools.shake256Hex(normalizedText, 8);
             if (linksContainer != null) {
                 long initTime = System.currentTimeMillis();
@@ -845,7 +868,7 @@ public class Translator extends NeuralNetworkApi {
                     }
                     String[] srcSentences = languageResourcesManager.getTatoebaDb().getSentences(srcIds);
                     for (int j = 0; j < srcSentences.length; j++) {
-                        if (normalizedText.equalsIgnoreCase(normalizeText(srcSentences[j]))) {
+                        if (normalizedText.equalsIgnoreCase(TextTools.normalizeText(srcSentences[j]))) {
                             String textResult = languageResourcesManager.getTatoebaDb().getSentence(tgtIds[j]);
                             //mainHandler.post(() -> Toast.makeText(global, "Tatoeba sentence found: " + textResult, Toast.LENGTH_SHORT).show());
                             android.util.Log.i("status_tatoeba", "Tatoeba sentence found: " + textResult);
@@ -861,6 +884,12 @@ public class Translator extends NeuralNetworkApi {
             }
         }
         return null;
+    }
+
+    private String[] performDictionaryTranslation(String text, CustomLocale inputLanguage, CustomLocale outputLanguage){
+        synchronized (langResourcesLock){
+            return DictionaryTranslator.translateWord(text, inputLanguage, outputLanguage);
+        }
     }
 
     private String performNNTextTranslation(final String textToTranslate, String[] joinedStringOutput, final CustomLocale inputLanguage, final CustomLocale outputLanguage, int beamSize, boolean saveResults, @Nullable final TranslateListener responseListener) throws Exception {
@@ -1305,34 +1334,6 @@ public class Translator extends NeuralNetworkApi {
         // collapse whitespace
         correctedText = correctedText.replaceAll("\\s+", " ");
         return correctedText;
-    }
-
-    //used to normalize text before comparison
-    public static String normalizeText(String input) {
-        if (input == null) return null;
-
-        // Unicode NFC normalization
-        String text = Normalizer.normalize(input, Normalizer.Form.NFC);
-
-        // Standardize punctuation
-        text = text
-                .replace("“", "\"")
-                .replace("”", "\"")
-                .replace("‘", "'")
-                .replace("’", "'")
-                .replace("–", "-")
-                .replace("—", "-");
-
-        // Trim
-        text = text.trim();
-
-        // Collapse whitespace
-        text = text.replaceAll("\\s+", " ");
-
-        // Case normalization
-        text = text.toLowerCase(Locale.ROOT);
-
-        return text;
     }
 
 
