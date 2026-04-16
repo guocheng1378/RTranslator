@@ -21,13 +21,17 @@ add_library(sentencepiece-interface SHARED SentencePieceProcessorInterface.cpp)
 add_library(cache_container_native SHARED CacheContainerNative.cpp)
 add_library(dictionary_translator_interface SHARED DictionaryTranslator.cpp protobuf/dictionary_data.pb.cc protobuf/dictionary_data.pb.h)
 
+find_library(sqlite4java sqlite4java)
+
 
 target_include_directories(dictionary_translator_interface PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/libs/sentencepiece/third_party/protobuf-lite
+        ${CMAKE_CURRENT_SOURCE_DIR}/sqlite4java/include
 )
 
 target_link_libraries(dictionary_translator_interface
         sentencepiece-static-android
+        sqlite4java
         android
         log
 )
