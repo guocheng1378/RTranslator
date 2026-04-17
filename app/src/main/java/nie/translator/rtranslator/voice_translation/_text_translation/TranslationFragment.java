@@ -93,7 +93,7 @@ public class TranslationFragment extends Fragment {
     private FloatingActionButton ttsInputButton;
     private FloatingActionButton ttsOutputButton;
     private ConstraintLayout outputContainer;
-    private TextView tatoebaText;
+    private TextView resultTypeText;
     private CustomAnimator animator = new CustomAnimator();
     private Animator colorAnimator = null;
     private int activatedColor = R.color.primary;
@@ -102,7 +102,7 @@ public class TranslationFragment extends Fragment {
     private boolean isScreenReduced = false;
     private boolean isInputEmpty = true;
     private boolean isOutputEmpty = true;
-    private boolean isOutputTatoeba = false;
+    private boolean isOutputTypeVisible = false;
     ViewTreeObserver.OnGlobalLayoutListener layoutListener;
     private static final int REDUCED_GUI_THRESHOLD_DP = 550;
 
@@ -129,7 +129,7 @@ public class TranslationFragment extends Fragment {
     @Nullable
     private Animator animationOutput;
     @Nullable
-    private Animator animationTatoeba;
+    private Animator animationResultType;
 
 
     @Override
@@ -170,7 +170,7 @@ public class TranslationFragment extends Fragment {
         ttsInputButton = view.findViewById(R.id.ttsButtonInput);
         ttsOutputButton = view.findViewById(R.id.ttsButtonOutput);
         outputContainer = view.findViewById(R.id.outputContainer);
-        tatoebaText = view.findViewById(R.id.tatoebaText);
+        resultTypeText = view.findViewById(R.id.resultTypeText);
         //we set the initial tag for the tts buttons
         ttsInputButton.setTag(R.drawable.sound_icon);
         ttsOutputButton.setTag(R.drawable.sound_icon);
@@ -215,19 +215,25 @@ public class TranslationFragment extends Fragment {
         conversationButtonSmall.setOnClickListener(conversationButtonListener);
         translateListener = new Translator.TranslateListener() {
             @Override
-            public void onTranslatedText(String textToTranslate, String text, long resultID, boolean isFinal, boolean isTatoeba, CustomLocale languageOfText) {
+            public void onTranslatedText(String textToTranslate, String text, long resultID, boolean isFinal, ResultType resultType, CustomLocale languageOfText) {
                 outputText.setText(text);
                 if(isFinal){
-                    if(isTatoeba){
-                        isOutputTatoeba = true;
-                        if(animationTatoeba != null) {
-                            animationTatoeba.cancel();
+                    if(resultType != ResultType.NORMAL){
+                        isOutputTypeVisible = true;
+                        if(animationResultType != null) {
+                            animationResultType.cancel();
                         }
-                        animationTatoeba = animator.animateViewAppearance(activity, tatoebaText, new CustomAnimator.Listener() {
+                        //todo: sostituire le stringhe con delle risorse e tradurle
+                        if(resultType == ResultType.DICTIONARY){
+                            resultTypeText.setText("Dictionary");
+                        }else if(resultType == ResultType.TATOEBA){
+                            resultTypeText.setText("Tatoeba");
+                        }
+                        animationResultType = animator.animateViewAppearance(activity, resultTypeText, new CustomAnimator.Listener() {
                             @Override
                             public void onAnimationEnd() {
                                 super.onAnimationEnd();
-                                animationTatoeba = null;
+                                animationResultType = null;
                             }
                         });
                     }
@@ -397,16 +403,16 @@ public class TranslationFragment extends Fragment {
 
             @Override
             public void afterTextChanged(Editable s) {
-                if(isOutputTatoeba) {
-                    isOutputTatoeba = false;
-                    if (animationTatoeba != null) {
-                        animationTatoeba.cancel();
+                if(isOutputTypeVisible) {
+                    isOutputTypeVisible = false;
+                    if (animationResultType != null) {
+                        animationResultType.cancel();
                     }
-                    animationTatoeba = animator.animateViewDisappearance(activity, tatoebaText, new CustomAnimator.Listener() {
+                    animationResultType = animator.animateViewDisappearance(activity, resultTypeText, new CustomAnimator.Listener() {
                         @Override
                         public void onAnimationEnd() {
                             super.onAnimationEnd();
-                            animationTatoeba = null;
+                            animationResultType = null;
                         }
                     });
                 }

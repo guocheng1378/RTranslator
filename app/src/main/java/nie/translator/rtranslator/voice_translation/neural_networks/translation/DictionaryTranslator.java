@@ -28,7 +28,11 @@ public class DictionaryTranslator {
 
     public static String[] translateWord(String word, CustomLocale srcLang, CustomLocale tgtLang){
         String normalizedWord = TextTools.normalizeText(word);
-        return translateWordNative(normalizedWord, srcLang.getISO3Language(), tgtLang.getISO3Language());
+        String[] result = translateWordNative(normalizedWord, srcLang.getISO3Language(), tgtLang.getISO3Language());
+        for(int i=0; i<result.length; i++){
+            result[i] = TextTools.capitalizeFirstLetter(result[i], tgtLang);
+        }
+        return result;
     }
 
     public static void cleanup(){

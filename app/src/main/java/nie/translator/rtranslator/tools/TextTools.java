@@ -31,4 +31,16 @@ public class TextTools {
 
         return text;
     }
+
+    public static String capitalizeFirstLetter(String s, CustomLocale locale) {
+        if (s == null || s.isEmpty()) return s;
+
+        int first = s.codePointAt(0);
+        int firstLen = Character.charCount(first);
+
+        String firstChar = new String(Character.toChars(first));
+        String upper = firstChar.toUpperCase(locale.getLocale());
+
+        return upper + s.substring(firstLen);
+    }
 }
