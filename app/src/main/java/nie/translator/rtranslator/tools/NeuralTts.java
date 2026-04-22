@@ -273,6 +273,29 @@ public class NeuralTts implements ITts {
         return languages;
     }
 
+    /**
+     * Static method to check which languages have MMS-TTS models downloaded.
+     * Does NOT require NeuralTts initialization.
+     */
+    @NonNull
+    public static List<String> getAvailableLanguages(@NonNull Context context) {
+        List<String> languages = new ArrayList<>();
+        File dir = new File(context.getFilesDir(), MODEL_DIR);
+        if (dir.exists() && dir.isDirectory()) {
+            File[] files = dir.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    String name = file.getName();
+                    if (name.startsWith("mms-tts-") && name.endsWith(".onnx")) {
+                        String lang = name.substring(8, name.length() - 5);
+                        languages.add(lang);
+                    }
+                }
+            }
+        }
+        return languages;
+    }
+
     // ========== Internal methods ==========
 
     /**
@@ -296,6 +319,7 @@ public class NeuralTts implements ITts {
             case "es": return "spa";
             case "hak": return "hak";
             case "nan": return "nan";
+            case "zh": return "zho";
             case "it": return "ita";
             case "pt": return "por";
             case "ru": return "rus";
