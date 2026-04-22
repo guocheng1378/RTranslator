@@ -49,41 +49,81 @@ public class DownloadFragment extends Fragment {
     // Index where MMS-TTS models start in the download arrays (for special handling)
     public static final int MMS_TTS_START_INDEX = 10;
 
-    // GitHub mirror proxy prefix for faster downloads in China (supports fallback)
-    private static final String MIRROR_PREFIX = "https://ghproxy.net/";
+    // GitHub mirror proxies for faster downloads in China (auto-fallback)
+    private static final String[] MIRROR_PREFIXES = {
+            "https://ghproxy.net/",
+            "https://gh-proxy.com/",
+            "",  // direct GitHub (fallback)
+    };
 
-    public static final String[] DOWNLOAD_URLS = {
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_cache_initializer.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_decoder.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_embed_and_lm_head.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_encoder.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_cache_initializer.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_cache_initializer_batch.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_decoder.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_detokenizer.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_encoder.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_initializer.onnx",
+    /**
+     * Returns the download URL with the best available mirror prefix.
+     * Tries each mirror in order; returns the first one that resolves.
+     */
+    public static String getDownloadUrl(int index) {
+        String rawUrl = RAW_DOWNLOAD_URLS[index];
+        // Default: use first mirror prefix
+        return MIRROR_PREFIXES[0] + rawUrl;
+    }
+
+    /**
+     * Get fallback URL when primary download fails.
+     * @param index model index
+     * @param attempt 0-based attempt number
+     * @return URL to try, or null if no more fallbacks
+     */
+    public static String getFallbackUrl(int index, int attempt) {
+        String rawUrl = RAW_DOWNLOAD_URLS[index];
+        if (attempt < MIRROR_PREFIXES.length) {
+            return MIRROR_PREFIXES[attempt] + rawUrl;
+        }
+        return null;
+    }
+
+    private static final String[] RAW_DOWNLOAD_URLS = {
+
+    public static final String[] DOWNLOAD_URLS = buildDownloadUrls();
+
+    private static String[] buildDownloadUrls() {
+        String[] urls = new String[RAW_DOWNLOAD_URLS.length];
+        for (int i = 0; i < RAW_DOWNLOAD_URLS.length; i++) {
+            urls[i] = MIRROR_PREFIXES[0] + RAW_DOWNLOAD_URLS[i];
+        }
+        return urls;
+    }
+
+    private static final String[] RAW_DOWNLOAD_URLS = {
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_cache_initializer.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_decoder.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_embed_and_lm_head.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_encoder.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_cache_initializer.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_cache_initializer_batch.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_decoder.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_detokenizer.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_encoder.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_initializer.onnx",
             // MMS-TTS models (downloaded to mms-tts/ subdirectory)
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-lao.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-lao.vocab.json",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-zho.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-zho.vocab.json",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-eng.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-eng.vocab.json",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-jpn.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-jpn.vocab.json",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-tha.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-tha.vocab.json",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-vie.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-vie.vocab.json",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-fra.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-fra.vocab.json",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-deu.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-deu.vocab.json",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-spa.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-spa.vocab.json",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-kor.onnx",
-            MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-kor.vocab.json"
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-lao.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-lao.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-zho.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-zho.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-eng.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-eng.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-jpn.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-jpn.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-tha.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-tha.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-vie.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-vie.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-fra.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-fra.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-deu.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-deu.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-spa.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-spa.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-kor.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-kor.vocab.json"
     };
     public static final String[] DOWNLOAD_NAMES = {
             "NLLB_cache_initializer.onnx",
