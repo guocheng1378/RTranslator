@@ -66,15 +66,6 @@ public class TtsModelManager {
     public static final Map<String, TtsModelInfo> AVAILABLE_MODELS = new LinkedHashMap<>();
     static {
         AVAILABLE_MODELS.put("lao", new TtsModelInfo("Lao / ລາວ", "mms-tts-lao.onnx", 12288));
-        AVAILABLE_MODELS.put("eng", new TtsModelInfo("English", "mms-tts-eng.onnx", 14336));
-        AVAILABLE_MODELS.put("kor", new TtsModelInfo("Korean / 한국어", "mms-tts-kor.onnx", 13312));
-        AVAILABLE_MODELS.put("tha", new TtsModelInfo("Thai / ไทย", "mms-tts-tha.onnx", 12288));
-        AVAILABLE_MODELS.put("vie", new TtsModelInfo("Vietnamese / Tiếng Việt", "mms-tts-vie.onnx", 12288));
-        AVAILABLE_MODELS.put("fra", new TtsModelInfo("French / Français", "mms-tts-fra.onnx", 14336));
-        AVAILABLE_MODELS.put("deu", new TtsModelInfo("German / Deutsch", "mms-tts-deu.onnx", 14336));
-        AVAILABLE_MODELS.put("spa", new TtsModelInfo("Spanish / Español", "mms-tts-spa.onnx", 14336));
-        AVAILABLE_MODELS.put("hak", new TtsModelInfo("Hakka / 客家話", "mms-tts-hak.onnx", 14336));
-        AVAILABLE_MODELS.put("nan", new TtsModelInfo("Min Nan / 閩南語", "mms-tts-nan.onnx", 14336));
     }
 
     private final Context context;
