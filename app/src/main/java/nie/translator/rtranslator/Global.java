@@ -1,5 +1,4 @@
 /*
- * Copyright 2016 Luca Martino.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,6 +38,7 @@ import java.util.ArrayList;
 
 import nie.translator.rtranslator.access.AccessActivity;
 import nie.translator.rtranslator.tools.CustomLocale;
+import nie.translator.rtranslator.tools.NeuralTts;
 import nie.translator.rtranslator.tools.TTS;
 import nie.translator.rtranslator.voice_translation._conversation_mode.communication.ConversationBluetoothCommunicator;
 import nie.translator.rtranslator.bluetooth.BluetoothCommunicator;
@@ -201,13 +201,28 @@ public class Global extends Application implements DefaultLifecycleObserver {
             TTS.getSupportedLanguages(this, new TTS.SupportedLanguagesListener() {    //we load TTS languages to catch eventual TTS errors
                 @Override
                 public void onLanguagesListAvailable(ArrayList<CustomLocale> ttsLanguages) {
+                    // Merge NeuralTts languages (MMS-TTS models)
+                    java.util.List<String> neuralLangs = NeuralTts.getAvailableLanguages(Global.this);
+                    for (String lang : neuralLangs) {
+                        CustomLocale locale = CustomLocale.getInstance(lang);
+                        if (!CustomLocale.containsLanguage(ttsLanguages, locale)) {
+                            ttsLanguages.add(locale);
+                        }
+                    }
                     Global.this.ttsLanguages = ttsLanguages;
                     responseListener.onSuccess(ttsLanguages);
                 }
 
                 @Override
                 public void onError(int reason) {
-                    responseListener.onSuccess(new ArrayList<>());
+                    // Even if Google TTS fails, try NeuralTts languages
+                    ArrayList<CustomLocale> neuralOnly = new ArrayList<>();
+                    java.util.List<String> neuralLangs = NeuralTts.getAvailableLanguages(Global.this);
+                    for (String lang : neuralLangs) {
+                        neuralOnly.add(CustomLocale.getInstance(lang));
+                    }
+                    Global.this.ttsLanguages = neuralOnly;
+                    responseListener.onSuccess(neuralOnly);
                 }
             });
         }
