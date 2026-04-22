@@ -26,14 +26,10 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        env:
-          HF_ENDPOINT: https://mirror.hf-co.cn
         run: |
-                    pip install "numpy<2" torch==2.1.0 transformers==4.36.0 onnx onnxruntime
+          pip install "numpy<2" torch==2.1.0 transformers==4.36.0 onnx onnxruntime
 
       - name: Export MMS-TQS to ONXX
-        env:
-          HF_ENDPOINT: https://mirror.hf-co.cn
         run: |
           python3 tools/export_mms_tts.py $(echo "${{ github.event.inputs.languages }}" | tr ',' ' ')
 
