@@ -78,6 +78,10 @@ public interface ITts {
      */
     void initialize(Context context, InitCallback callback);
 
+    /**
+     * Callback for TTS initialization.
+     * TTS.InitListener is kept as an alias for backward compatibility.
+     */
     interface InitCallback {
         void onInit();
         void onError(int reason);

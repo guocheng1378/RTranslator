@@ -9,7 +9,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Rect;
 import android.os.Bundle;
-import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -245,11 +244,6 @@ public class TranslationFragment extends Fragment {
             @Override
             public void onClick(View view) {
                 String text = inputText.getText().toString();
-
-                /*if(text.length() <= 0){   //test code
-                    text = "Also unlike 2014, there aren’t nearly as many loopholes. You can’t just buy a 150-watt incandescent or a three-way bulb, the ban covers any normal bulb that generates less than 45 lumens per watt, which pretty much rules out both incandescent and halogen tech in their entirety.";
-                    inputText.setText(text);
-                }*/
 
                 if(!text.isEmpty()) {
                     String finalText = text;
@@ -581,6 +575,10 @@ public class TranslationFragment extends Fragment {
         ttsInputButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                if(tts == null || !tts.isActive()){
+                    Toast.makeText(activity, "TTS not available", Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 if(((int) ttsInputButton.getTag()) == R.drawable.stop_icon){
                     tts.stop();
                     ttsListener.onDone("");  //we call this to make eventual visual updates to the tts buttons (stop() doesn't call onDone automatically)
@@ -619,6 +617,10 @@ public class TranslationFragment extends Fragment {
         ttsOutputButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                if(tts == null || !tts.isActive()){
+                    Toast.makeText(activity, "TTS not available", Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 if(((int) ttsOutputButton.getTag()) == R.drawable.stop_icon){
                     tts.stop();
                     ttsListener.onDone("");  //we call this to make eventual visual updates to the tts buttons (stop() doesn't call onDone automatically)
@@ -712,7 +714,7 @@ public class TranslationFragment extends Fragment {
     }
 
     private void initializeTTS() {
-        tts = new TTS(activity, new TTS.InitListener() {  // tts initialization (to be improved, automatic package installation)
+        tts = new TTS(activity, new TTS.InitListener() {
             @Override
             public void onInit() {
                 if(tts != null) {
@@ -723,19 +725,18 @@ public class TranslationFragment extends Fragment {
             @Override
             public void onError(int reason) {
                 tts = null;
-                //notifyError(new int[]{reason}, -1);
+                if(activity != null) {
+                    Toast.makeText(activity, "TTS initialization failed (error " + reason + ")", Toast.LENGTH_SHORT).show();
+                }
             }
         });
     }
 
     public void speak(String text, CustomLocale language) {
-        if (tts != null && tts.isActive()) {
-            if (tts.getVoice() != null && language.equals(new CustomLocale(tts.getVoice().getLocale()))) {
-                tts.speak(text, TextToSpeech.QUEUE_ADD, null, "c01");
-            } else {
-                tts.setLanguage(language, activity);
-                tts.speak(text, TextToSpeech.QUEUE_ADD, null, "c01");
-            }
+        if (text == null || text.isEmpty()) return;
+        if (tts != null && tts.isActive() && language != null) {
+            String langCode = language.getLocale() != null ? language.getLocale().getLanguage() : language.getCode();
+            tts.speak(text, langCode, null, "c01");
         }
     }
 
@@ -914,6 +915,12 @@ public class TranslationFragment extends Fragment {
         outputText.clearFocus();
         //we detach the translate listener
         global.getTranslator().removeCallback(translateListener);
+        //clean up TTS to prevent leaks on restart
+        if(tts != null){
+            tts.stop();
+            tts.shutdown();
+            tts = null;
+        }
     }
 
     private void setFirstLanguage(CustomLocale language) {

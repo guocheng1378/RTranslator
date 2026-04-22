@@ -76,11 +76,13 @@ public class TTS implements ITts {
     @Override
     public int speak(CharSequence text, String languageCode, @Nullable Bundle params, String utteranceId) {
         if (isActive()) {
+            // Stop any ongoing speech before starting new one
+            tts.stop();
             // Set language if different from current
             if (languageCode != null && !languageCode.isEmpty()) {
                 tts.setLanguage(new Locale(languageCode));
             }
-            return tts.speak(text, TextToSpeech.QUEUE_ADD, params, utteranceId);
+            return tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, utteranceId);
         }
         return TextToSpeech.ERROR;
     }
@@ -274,9 +276,11 @@ public class TTS implements ITts {
         }
     }
 
-    public interface InitListener {
-        void onInit();
-        void onError(int reason);
+    /**
+     * InitListener extends ITts.InitCallback for backward compatibility.
+     * New code should use ITts.InitCallback directly.
+     */
+    public interface InitListener extends ITts.InitCallback {
     }
 
     public interface SupportedLanguagesListener {
