@@ -51,8 +51,8 @@ public class DownloadFragment extends Fragment {
 
     // GitHub mirror proxies for faster downloads in China (auto-fallback)
     private static final String[] MIRROR_PREFIXES = {
-            "https://ghfast.top/",  // mirror (primary, faster in China)
-            "",  // direct GitHub (fallback)
+            "",  // direct GitHub (primary)
+            "https://ghfast.top/",  // mirror fallback
     };
 
     /**
@@ -61,8 +61,11 @@ public class DownloadFragment extends Fragment {
      */
     public static String getDownloadUrl(int index) {
         String rawUrl = RAW_DOWNLOAD_URLS[index];
-        // Default: use first mirror prefix
-        return MIRROR_PREFIXES[0] + rawUrl;
+        // MMS-TTS models use mirror for faster download in China
+        if (index >= MMS_TTS_START_INDEX) {
+            return MIRROR_PREFIXES[1] + rawUrl;  // ghfast.top mirror
+        }
+        return MIRROR_PREFIXES[0] + rawUrl;  // direct GitHub
     }
 
     /**
@@ -117,7 +120,11 @@ public class DownloadFragment extends Fragment {
     private static String[] buildDownloadUrls() {
         String[] urls = new String[RAW_DOWNLOAD_URLS.length];
         for (int i = 0; i < RAW_DOWNLOAD_URLS.length; i++) {
-            urls[i] = MIRROR_PREFIXES[0] + RAW_DOWNLOAD_URLS[i];
+            if (i >= MMS_TTS_START_INDEX) {
+                urls[i] = MIRROR_PREFIXES[1] + RAW_DOWNLOAD_URLS[i];  // mirror for MMS-TTS
+            } else {
+                urls[i] = MIRROR_PREFIXES[0] + RAW_DOWNLOAD_URLS[i];  // direct for NLLB/Whisper
+            }
         }
         return urls;
     }
