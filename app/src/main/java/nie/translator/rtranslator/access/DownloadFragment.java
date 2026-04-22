@@ -377,8 +377,18 @@ public class DownloadFragment extends Fragment {
             SharedPreferences sharedPreferences = global.getSharedPreferences("default", Context.MODE_PRIVATE);
             long currentDownloadId = sharedPreferences.getLong("currentDownloadId", -1);
 
-            if(currentDownloadId == -1){  //if we not yet started any download
-                new Thread(() -> DownloadReceiver.internalCheckAndStartNextDownload(global, downloader, -1)).start();
+            if(currentDownloadId == -1){
+                new Thread(() -> {
+                    try {
+                        DownloadReceiver.internalCheckAndStartNextDownload(global, downloader, -1);
+                    } catch (Exception e) {
+                        android.util.Log.e("RTranslator", "Initial download failed", e);
+                        mainHandler.post(() -> {
+                            downloadErrorText.setVisibility(View.VISIBLE);
+                            retryButton.setVisibility(View.VISIBLE);
+                        });
+                    }
+                }).start();
                 guiUpdater.start();
 
             }else if(currentDownloadId == -2) {  //if the downloads are all completed
@@ -484,42 +494,42 @@ public class DownloadFragment extends Fragment {
     }
 
     private void retryCurrentDownload(){
-        SharedPreferences sharedPreferences = global.getSharedPreferences("default", Context.MODE_PRIVATE);
-        long currentDownloadId = sharedPreferences.getLong("currentDownloadId", -1);
-        int urlIndex = downloader.findDownloadUrlIndex(currentDownloadId);
-        if(urlIndex >= 0){
-            if(downloader.getRunningDownloadStatus() != DownloadManager.STATUS_RUNNING) {
-                //we restart the download
-                long downloadId = downloader.downloadModel(DOWNLOAD_URLS[urlIndex], DOWNLOAD_NAMES[urlIndex]);
-                SharedPreferences.Editor editor = sharedPreferences.edit();
-                editor.putLong("currentDownloadId", downloadId);
-                editor.apply();
-            }
-        }else{
-            String lastDownloadSuccess = sharedPreferences.getString("lastDownloadSuccess", "");
-            if(!lastDownloadSuccess.isEmpty()){
-                //we find the index of the lastDownloadSuccess
-                int nameIndex = -1;
-                for (int i = 0; i < DownloadFragment.DOWNLOAD_NAMES.length; i++) {
-                    if (DownloadFragment.DOWNLOAD_NAMES[i].equals(lastDownloadSuccess)) {
-                        nameIndex = i;
-                        break;
-                    }
-                }
-                if(nameIndex != -1 && (nameIndex+1) < DOWNLOAD_URLS.length) {
-                    //we restart the download
-                    long downloadId = downloader.downloadModel(DOWNLOAD_URLS[nameIndex+1], DOWNLOAD_NAMES[nameIndex+1]);
+        try {
+            SharedPreferences sharedPreferences = global.getSharedPreferences("default", Context.MODE_PRIVATE);
+            long currentDownloadId = sharedPreferences.getLong("currentDownloadId", -1);
+            int urlIndex = downloader.findDownloadUrlIndex(currentDownloadId);
+            if(urlIndex >= 0){
+                if(downloader.getRunningDownloadStatus() != DownloadManager.STATUS_RUNNING) {
+                    long downloadId = downloader.downloadModel(DOWNLOAD_URLS[urlIndex], DOWNLOAD_NAMES[urlIndex]);
                     SharedPreferences.Editor editor = sharedPreferences.edit();
                     editor.putLong("currentDownloadId", downloadId);
                     editor.apply();
                 }
             }else{
-                //we restart the first download
-                long downloadId = downloader.downloadModel(DOWNLOAD_URLS[0], DOWNLOAD_NAMES[0]);
-                SharedPreferences.Editor editor = sharedPreferences.edit();
-                editor.putLong("currentDownloadId", downloadId);
-                editor.apply();
+                String lastDownloadSuccess = sharedPreferences.getString("lastDownloadSuccess", "");
+                if(!lastDownloadSuccess.isEmpty()){
+                    int nameIndex = -1;
+                    for (int i = 0; i < DownloadFragment.DOWNLOAD_NAMES.length; i++) {
+                        if (DownloadFragment.DOWNLOAD_NAMES[i].equals(lastDownloadSuccess)) {
+                            nameIndex = i;
+                            break;
+                        }
+                    }
+                    if(nameIndex != -1 && (nameIndex+1) < DOWNLOAD_URLS.length) {
+                        long downloadId = downloader.downloadModel(DOWNLOAD_URLS[nameIndex+1], DOWNLOAD_NAMES[nameIndex+1]);
+                        SharedPreferences.Editor editor = sharedPreferences.edit();
+                        editor.putLong("currentDownloadId", downloadId);
+                        editor.apply();
+                    }
+                }else{
+                    long downloadId = downloader.downloadModel(DOWNLOAD_URLS[0], DOWNLOAD_NAMES[0]);
+                    SharedPreferences.Editor editor = sharedPreferences.edit();
+                    editor.putLong("currentDownloadId", downloadId);
+                    editor.apply();
+                }
             }
+        } catch (Exception e) {
+            android.util.Log.e("RTranslator", "retryCurrentDownload failed", e);
         }
     }
 
