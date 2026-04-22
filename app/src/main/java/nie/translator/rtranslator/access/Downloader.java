@@ -34,11 +34,16 @@ public class Downloader{
     }
 
     public long downloadModel(String url, String filename){
-        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url)).
-                setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE).
-                setDestinationInExternalFilesDir(context,null, filename).
-                setTitle("RTranslator - "+filename);
-        return downloadManager.enqueue(request);
+        try {
+            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url)).
+                    setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE).
+                    setDestinationInExternalFilesDir(context,null, filename).
+                    setTitle("RTranslator - "+filename);
+            return downloadManager.enqueue(request);
+        } catch (Exception e) {
+            android.util.Log.e("RTranslator", "Failed to start download: " + url, e);
+            return -1;
+        }
     }
 
     public Uri getUriForDownloadedFile(long downloadId){
