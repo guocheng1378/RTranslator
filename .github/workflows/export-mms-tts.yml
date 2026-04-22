@@ -8,10 +8,13 @@ on:
         required: false
         default: 'lao,zho,eng,jpn,kor,tha,vie,fra,deu,spa'
 
+permissions:
+  contents: write
+
 jobs:
   export:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
 
     steps:
       - name: Checkout code
@@ -56,7 +59,10 @@ jobs:
           echo "Found $FILE_COUNT files to upload"
 
           # Try to create release (will fail if tag already exists, that is OK)
-          gh release create 3.0.0             --title "MMS-TTS Models v3.0.0"             --notes "MMS-TTS ONNX models for RTranslator offline TTS."             --prerelease && echo "Release created" || echo "Release exists, uploading..."
+          gh release create 3.0.0 \
+            --title "MMS-TTS Models v3.0.0" \
+            --notes "MMS-TTS ONNX models for RTranslator offline TTS." \
+            --prerelease && echo "Release created" || echo "Release exists, uploading..."
 
           # Upload files
           gh release upload 3.0.0 mms-tts-output/* --clobber
