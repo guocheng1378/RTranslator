@@ -69,6 +69,15 @@
         app:iconSpaceReserved="false"
         app:allowDividerAbove="true"
         app:allowDividerBelow="true">
+        <nie.translator.rtranslator.settings.TtsEnginePreference
+            android:key="ttsEngine"
+            android:title="@string/preference_title_tts_engine"
+            android:summary="@string/preference_description_tts_engine"
+            android:dialogTitle="@string/preference_title_tts_engine"
+            android:entries="@array/tts_engine_entries"
+            android:entryValues="@array/tts_engine_values"
+            android:defaultValue="neural"
+            app:iconSpaceReserved="false" />
         <androidx.preference.Preference
             android:key="tts"
             android:title="@string/preference_title_tts"
