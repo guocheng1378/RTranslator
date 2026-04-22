@@ -36,11 +36,6 @@ public class TtsEnginePreference extends ListPreference {
 
     private static final String DEFAULT_VALUE = "neural";
 
-    public TtsEnginePreference(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
-        super(context, attrs, defStyleAttr, defStyleRes);
-        init();
-    }
-
     public TtsEnginePreference(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         init();
@@ -61,8 +56,6 @@ public class TtsEnginePreference extends ListPreference {
         setTitle(R.string.preference_title_tts_engine);
         setSummary(R.string.preference_description_tts_engine);
         setDialogTitle(R.string.preference_title_tts_engine);
-        setEntries(R.array.tts_engine_entries);
-        setEntryValues(R.array.tts_engine_values);
         setDefaultValue(DEFAULT_VALUE);
     }
 
