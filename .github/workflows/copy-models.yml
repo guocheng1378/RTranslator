@@ -9,13 +9,13 @@ jobs:
     timeout-minutes: 120
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Download models from upstream release
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p models
 
-          # Model files to copy from niedev/RTranslator 2.0.0
           FILES=(
             "NLLB_cache_initializer.onnx"
             "NLLB_decoder.onnx"
@@ -31,7 +31,8 @@ jobs:
 
           for f in "${FILES[@]}"; do
             echo "Downloading $f ..."
-            curl -sL -o "models/$f"               "https://github.com/niedev/RTranslator/releases/download/2.0.0/$f"
+            curl -sL -o "models/$f" \
+              "https://github.com/niedev/RTranslator/releases/download/2.0.0/$f"
             ls -lh "models/$f"
           done
 
