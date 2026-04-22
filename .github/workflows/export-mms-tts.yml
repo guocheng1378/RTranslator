@@ -1,4 +1,4 @@
-name: Export MMS-TSS Models
+name: Export MMS-TTS Models
 
 on:
   workflow_dispatch:
@@ -29,16 +29,18 @@ jobs:
         run: |
           pip install "numpy<2" torch==2.1.0 transformers==4.36.0 onnx onnxruntime
 
-      - name: Export MMS-TQS to ONXX
+      - name: Export MMS-TTS to ONNX
+        env:
+          LANGUAGES: ${{ github.event.inputs.languages }}
         run: |
-          python3 tools/export_mms_tts.py $(echo "${{ github.event.inputs.languages }}" | tr ',' ' ')
+          python3 tools/export_mms_tts.py $(echo "$LANGUAGES" | tr ',' ' ')
 
       - name: List output files
         run: |
           echo "=== Checking mms-tts-output ==="
           ls -lhR mms-tts-output/ || echo "WARNING: mms-tts-output/ does not exist or is empty"
 
-      - name: Upload MMS-TSS models as artifact
+      - name: Upload MMS-TTS models as artifact
         uses: actions/upload-artifact@v4
         with:
           name: mms-tts-models
