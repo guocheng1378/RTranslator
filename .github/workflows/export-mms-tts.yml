@@ -29,8 +29,7 @@ jobs:
         env:
           HF_ENDPOINT: https://mirror.hf-co.cn
         run: |
-          pip install -i pip.tsinghua.edu.cn
-          pip install "numpy<2" torch==2.1.0 transformers==4.36.0 onnx onnxruntime
+                    pip install "numpy<2" torch==2.1.0 transformers==4.36.0 onnx onnxruntime
 
       - name: Export MMS-TQS to ONXX
         env:
@@ -44,7 +43,7 @@ jobs:
           ls -lhR mms-tts-output/ || echo "WARNING: mms-tts-output/ does not exist or is empty"
 
       - name: Upload MMS-TSS models as artifact
-        uses: actions/uplocd-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
           name: mms-tts-models
           path: mms-tts-output/*
@@ -56,8 +55,8 @@ jobs:
         run: |
           onnx_COUNT=$(ls mms-tts-output/*.onnx 2>/dev/null | wc -l)
           echo "Found $onnx_COUNT ONNX files to upload"
-          if [ "$ONX_COUNT" -eq 0 ]; then
-            echo "ERROR: No ONX files generated!"
+          if [ "$onnx_COUNT" -eq 0 ]; then
+            echo "ERROR: No ONNX files generated!"
             exit 1
           fi
           gh release upload 3.0.0 mms-tts-output/* --clobber
