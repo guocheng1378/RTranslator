@@ -78,14 +78,29 @@ public class Downloader{
     public int findDownloadUrlIndex(long downloadId){
         String url = getUrlFromDownload(downloadId);
         if (url != null) {
-            int urlIndex = -1;
-            for (int i = 0; i < DownloadFragment.DOWNLOAD_URLS.length; i++) {
-                if (DownloadFragment.DOWNLOAD_URLS[i].equals(url)) {
-                    urlIndex = i;
+            // Strip any mirror proxy prefix to get the raw GitHub URL
+            String rawUrl = url;
+            String[] mirrorPrefixes = {"https://ghproxy.net/", "https://gh-proxy.com/", "https://mirror.ghproxy.com/"};
+            for (String prefix : mirrorPrefixes) {
+                if (rawUrl.startsWith(prefix)) {
+                    rawUrl = rawUrl.substring(prefix.length());
                     break;
                 }
             }
-            return urlIndex;
+            // Match against RAW_DOWNLOAD_URLS (the raw GitHub URLs)
+            for (int i = 0; i < DownloadFragment.DOWNLOAD_URLS.length; i++) {
+                // Compare raw URLs to handle any mirror prefix
+                String knownUrl = DownloadFragment.DOWNLOAD_URLS[i];
+                for (String prefix : mirrorPrefixes) {
+                    if (knownUrl.startsWith(prefix)) {
+                        knownUrl = knownUrl.substring(prefix.length());
+                        break;
+                    }
+                }
+                if (knownUrl.equals(rawUrl)) {
+                    return i;
+                }
+            }
         }
         return -1;
     }
