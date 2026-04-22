@@ -35,7 +35,7 @@ jobs:
         env:
           HF_ENDPOINT: https://mirror.hf-co.cn
         run: |
-          python3 tools/export_mms_tts.py $(echo "{{ github.event.inputs.languages }}" | tr ',' ' ')
+          python3 tools/export_mms_tts.py $(echo "${{ github.event.inputs.languages }}" | tr ',' ' ')
 
       - name: List output files
         run: |

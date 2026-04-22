@@ -104,6 +104,9 @@ def main():
 
     print(f"\n{'='*60}")
     print(f"Done! Files in {OUTPUT_DIR}/:")
+    if not os.path.isdir(OUTPUT_DIR):
+        print("  (no output directory — no models exported)")
+        return
     for f in sorted(os.listdir(OUTPUT_DIR)):
         size = os.path.getsize(os.path.join(OUTPUT_DIR, f)) / (1024 * 1024)
         print(f"  {f} ({size:.1f} MB)")
