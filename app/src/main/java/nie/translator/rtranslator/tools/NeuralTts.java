@@ -380,7 +380,7 @@ public class NeuralTts implements ITts {
             vocabCache.put(languageCode, vocab);
             Log.i(TAG, "Loaded vocab for " + languageCode + ": " + vocab.size() + " tokens");
             return vocab;
-        } catch (IOException e) {
+        } catch (IOException | JSONException e) {
             Log.e(TAG, "Failed to load vocab for: " + languageCode, e);
             return null;
         }
