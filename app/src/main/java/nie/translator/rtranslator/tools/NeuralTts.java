@@ -41,6 +41,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -399,7 +400,9 @@ public class NeuralTts implements ITts {
         }
 
         JSONObject json = new JSONObject(sb.toString());
-        for (String key : json.keySet()) {
+        Iterator<String> keys = json.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
             vocab.put(key, json.getInt(key));
         }
         return vocab;
