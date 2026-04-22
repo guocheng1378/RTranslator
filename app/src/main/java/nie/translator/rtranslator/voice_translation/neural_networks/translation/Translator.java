@@ -115,14 +115,24 @@ public class Translator extends NeuralNetworkApi {
 
         final Thread t = new Thread("textTranslation") {
             public void run() {
-                onnxEnv = OrtEnvironment.getEnvironment();
-                //we transfer the vocab file from the assets to the internal memory (because the tokenizer can open vocab only via a path to internal or external memory)
+                // Verify all model files exist before attempting to load
+                String[] requiredFiles = {encoderPath, decoderPath, embedAndLmHeadPath, cacheInitializerPath};
+                for (String path : requiredFiles) {
+                    File f = new File(path);
+                    if (!f.exists() || f.length() == 0) {
+                        Log.e("Translator", "Missing or empty model file: " + path);
+                        mainHandler.post(() -> initListener.onError(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0));
+                        return;
+                    }
+                }
+                // Transfer vocab file from assets to internal memory
                 File outFile = new File(global.getFilesDir(), "sentencepiece_bpe.model");
-                if(!outFile.exists()) {
+                if (!outFile.exists()) {
                     FileTools.copyAssetToInternalMemory(global, "sentencepiece_bpe.model");
                 }
 
                 try {
+                    onnxEnv = OrtEnvironment.getEnvironment();
                     OrtSession.SessionOptions decoderOptions = new OrtSession.SessionOptions();
                     decoderOptions.setMemoryPatternOptimization(false);
                     decoderOptions.setCPUArenaAllocator(false);
@@ -155,17 +165,27 @@ public class Translator extends NeuralNetworkApi {
                     encoderOptions.close();
                     cacheInitOptions.close();
 
-                    //mainHandler.post(() -> initListener.onInitializationFinished());
+                    // Initialize tokenizer BEFORE notifying success
+                    if(mode == MADLAD_CACHE) {
+                        tokenizer = new Tokenizer(vocabPath, Tokenizer.MADLAD);
+                    }else{
+                        tokenizer = new Tokenizer(vocabPath, Tokenizer.NLLB);
+                    }
+
                     initListener.onInitializationFinished();
 
                 } catch (OrtException e) {
                     e.printStackTrace();
                     mainHandler.post(() -> initListener.onError(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0));
-                }
-                if(mode == MADLAD_CACHE) {
-                    tokenizer = new Tokenizer(vocabPath, Tokenizer.MADLAD);
-                }else{
-                    tokenizer = new Tokenizer(vocabPath, Tokenizer.NLLB);
+                } catch (OutOfMemoryError e) {
+                    e.printStackTrace();
+                    mainHandler.post(() -> initListener.onError(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0));
+                } catch (UnsatisfiedLinkError e) {
+                    e.printStackTrace();
+                    mainHandler.post(() -> initListener.onError(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    mainHandler.post(() -> initListener.onError(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0));
                 }
             }
         };

@@ -25,18 +25,22 @@ ext {
 
 android {
     namespace 'nie.translator.rtranslator'
-    compileSdkVersion 33  //33
+    compileSdkVersion 35
     defaultConfig {
         applicationId "nie.translator.rtranslator"
-        targetSdkVersion 32   //32
-        versionCode 25
-        versionName '2.1.5'
+        targetSdkVersion 35
+        versionCode 26
+        versionName '2.1.6'
         minSdkVersion 24
         externalNativeBuild {
             cmake {
                 cppFlags ''
                 abiFilters 'arm64-v8a'
             }
+        }
+        // Support Android 15 16KB native page size
+        ndk {
+            abiFilters 'arm64-v8a'
         }
     }
 
@@ -64,11 +68,14 @@ android {
             signingConfig signingConfigs.debug
         }
     }
-    lintOptions {
+    lint {
         checkReleaseBuilds false
-        // Or, if you prefer, you can continue to check for errors in release builds,
-        // but continue the build even when errors are found:
         abortOnError false
+    }
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging false
+        }
     }
     configurations.all {
         resolutionStrategy.force 'com.google.code.findbugs:jsr305:3.0.2'
@@ -101,9 +108,9 @@ dependencies {
     //implementation 'com.github.niedev:BluetoothCommunicator:1.0.6'
     //gallery image selector
     //implementation 'com.github.niedev:GalleryImageSelector:1.0.7'
-    //ONNX Runtime
-    implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.19.0'  //latest.release
-    implementation 'com.microsoft.onnxruntime:onnxruntime-extensions-android:0.12.4'   //latest.release
+    //ONNX Runtime (updated for Android 15 16KB page size support)
+    implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.20.0'
+    implementation 'com.microsoft.onnxruntime:onnxruntime-extensions-android:0.14.0'
     //Ml-Kit
     implementation 'com.google.mlkit:language-id:17.0.5'
     //JWS parser

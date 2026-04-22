@@ -179,8 +179,6 @@ public class Recognizer extends NeuralNetworkApi {
 
     public Recognizer(Global global, final boolean returnResultOnlyAtTheEnd, final NeuralNetworkApi.InitListener initListener) {
         this.global = global;
-        //onnxEnv = OrtEnvironment.getEnvironment(OrtLoggingLevel.ORT_LOGGING_LEVEL_VERBOSE);
-        onnxEnv = OrtEnvironment.getEnvironment();
 
         String modelInitPath = global.getFilesDir().getPath() + "/Whisper_initializer.onnx";
         String encoderPath = global.getFilesDir().getPath() + "/Whisper_encoder.onnx";
@@ -192,7 +190,18 @@ public class Recognizer extends NeuralNetworkApi {
         new Thread(new Runnable() {
             @Override
             public void run() {
+                // Verify all model files exist before attempting to load
+                String[] requiredFiles = {modelInitPath, encoderPath, decoderPath, cacheInitPath, cacheInitBatchPath, detokenizerPath};
+                for (String path : requiredFiles) {
+                    File f = new File(path);
+                    if (!f.exists() || f.length() == 0) {
+                        Log.e("Recognizer", "Missing or empty model file: " + path);
+                        initListener.onError(new int[]{ErrorCodes.ERROR_LOADING_MODEL}, 0);
+                        return;
+                    }
+                }
                 try {
+                    onnxEnv = OrtEnvironment.getEnvironment();
                     OrtSession.SessionOptions initSessionOptions = new OrtSession.SessionOptions();
                     initSessionOptions.registerCustomOpLibrary(OrtxPackage.getLibraryPath());
                     initSessionOptions.setCPUArenaAllocator(false);
@@ -237,6 +246,15 @@ public class Recognizer extends NeuralNetworkApi {
 
                     initListener.onInitializationFinished();
                 } catch (OrtException e) {
+                    e.printStackTrace();
+                    initListener.onError(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0);
+                } catch (OutOfMemoryError e) {
+                    e.printStackTrace();
+                    initListener.onError(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0);
+                } catch (UnsatisfiedLinkError e) {
+                    e.printStackTrace();
+                    initListener.onError(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0);
+                } catch (Exception e) {
                     e.printStackTrace();
                     initListener.onError(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0);
                 }

@@ -47,6 +47,12 @@ public class NeuralNetworkApi {
     public static void testModelIntegrity(@NonNull String testModelPath, InitListener initListener){
         //we try to load the model in testModelPath, if we don't have an exception the model file is perfect, else we have an integrity problem
         try {
+            java.io.File modelFile = new java.io.File(testModelPath);
+            if (!modelFile.exists() || modelFile.length() == 0) {
+                isVerifying = false;
+                initListener.onError(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0);
+                return;
+            }
             isVerifying = true;
             OrtEnvironment onnxEnv = OrtEnvironment.getEnvironment();
             OrtSession.SessionOptions testOptions = new OrtSession.SessionOptions();
@@ -61,6 +67,18 @@ public class NeuralNetworkApi {
             isVerifying = false;
             initListener.onInitializationFinished();
         } catch (OrtException e) {
+            e.printStackTrace();
+            isVerifying = false;
+            initListener.onError(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0);
+        } catch (OutOfMemoryError e) {
+            e.printStackTrace();
+            isVerifying = false;
+            initListener.onError(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0);
+        } catch (UnsatisfiedLinkError e) {
+            e.printStackTrace();
+            isVerifying = false;
+            initListener.onError(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0);
+        } catch (Exception e) {
             e.printStackTrace();
             isVerifying = false;
             initListener.onError(new int[]{ErrorCodes.ERROR_LOADING_MODEL},0);
