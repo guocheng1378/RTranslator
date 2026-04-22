@@ -30,8 +30,6 @@ jobs:
           pip install "numpy<2" torch==2.1.0 transformers==4.36.0 onnx onnxruntime
 
       - name: Export MMS-TTS to ONNX
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python3 tools/export_mms_tts.py $(echo "${{ github.event.inputs.languages }}" | tr ',' ' ')
 
