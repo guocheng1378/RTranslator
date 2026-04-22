@@ -32,7 +32,8 @@ jobs:
 
       - name: List output files
         run: |
-          ls -lh mms-tts-output/
+          echo "=== Checking mms-tts-output ==="
+          ls -lhR mms-tts-output/ || echo "WARNING: mms-tts-output/ does not exist or is empty"
 
       - name: Upload MMS-TTS models as artifact
         uses: actions/upload-artifact@v4
@@ -45,9 +46,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Create or update release 3.0.0
-          gh release create 3.0.0 mms-tts-output/* \
-            --title "MMS-TTS Models v3.0.0" \
-            --notes "MMS-TTS ONNX models for RTranslator offline TTS." \
-            --prerelease 2>/dev/null || \
+          # Check if files exist
+          if [ ! -d "mms-tts-output" ] || [ -z "$(ls -A mms-tts-output/ 2>/dev/null)" ]; then
+            echo "ERROR: No files found in mms-tts-output/"
+            exit 1
+          fi
+
+          FILE_COUNT=$(ls mms-tts-output/ | wc -l)
+          echo "Found $FILE_COUNT files to upload"
+
+          # Try to create release (will fail if tag already exists, that is OK)
+          gh release create 3.0.0             --title "MMS-TTS Models v3.0.0"             --notes "MMS-TTS ONNX models for RTranslator offline TTS."             --prerelease && echo "Release created" || echo "Release exists, uploading..."
+
+          # Upload files
           gh release upload 3.0.0 mms-tts-output/* --clobber
+          echo "Upload completed"
