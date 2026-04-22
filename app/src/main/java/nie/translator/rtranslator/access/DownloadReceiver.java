@@ -87,52 +87,58 @@ public class DownloadReceiver extends BroadcastReceiver {
                     }
                 }).start();
             } else if (downloadStatus == DownloadManager.STATUS_FAILED /*|| downloadStatus == -1*/) {
-                // Try next mirror before giving up
-                tryFallbackMirror(context, downloader);
+                try { tryFallbackMirror(context, downloader); } catch (Exception e) {
+                    android.util.Log.e("RTranslator", "Fallback failed", e);
+                    notifyDownloadFailed(context);
+                }
             }
         }
     }
 
     private static void tryFallbackMirror(Context context, Downloader downloader) {
-        SharedPreferences sharedPreferences = context.getSharedPreferences("default", Context.MODE_PRIVATE);
-        // Find which model was being downloaded
-        long currentDownloadId = sharedPreferences.getLong("currentDownloadId", -1);
-        int urlIndex = downloader.findDownloadUrlIndex(currentDownloadId);
-        if (urlIndex < 0) {
-            // Can't determine which model, try from lastDownloadSuccess
-            String lastDownloadSuccess = sharedPreferences.getString("lastDownloadSuccess", "");
-            if (!lastDownloadSuccess.isEmpty()) {
-                for (int i = 0; i < DownloadFragment.DOWNLOAD_NAMES.length; i++) {
-                    if (DownloadFragment.DOWNLOAD_NAMES[i].equals(lastDownloadSuccess)) {
-                        urlIndex = i + 1;  // next one after last success
-                        break;
+        try {
+            SharedPreferences sharedPreferences = context.getSharedPreferences("default", Context.MODE_PRIVATE);
+            long currentDownloadId = sharedPreferences.getLong("currentDownloadId", -1);
+            int urlIndex = downloader.findDownloadUrlIndex(currentDownloadId);
+            if (urlIndex < 0) {
+                String lastDownloadSuccess = sharedPreferences.getString("lastDownloadSuccess", "");
+                if (!lastDownloadSuccess.isEmpty()) {
+                    for (int i = 0; i < DownloadFragment.DOWNLOAD_NAMES.length; i++) {
+                        if (DownloadFragment.DOWNLOAD_NAMES[i].equals(lastDownloadSuccess)) {
+                            urlIndex = i + 1;
+                            break;
+                        }
                     }
+                } else {
+                    urlIndex = 0;
+                }
+            }
+            if (urlIndex < 0 || urlIndex >= DownloadFragment.DOWNLOAD_NAMES.length) {
+                urlIndex = 0;
+            }
+            int mirrorAttempt = sharedPreferences.getInt("mirrorAttempt_" + urlIndex, 0);
+            mirrorAttempt++;
+            String fallbackUrl = DownloadFragment.getFallbackUrl(urlIndex, mirrorAttempt);
+            if (fallbackUrl != null) {
+                SharedPreferences.Editor editor = sharedPreferences.edit();
+                editor.putInt("mirrorAttempt_" + urlIndex, mirrorAttempt);
+                editor.apply();
+                long newDownloadId = downloader.downloadModel(fallbackUrl, DownloadFragment.DOWNLOAD_NAMES[urlIndex]);
+                if (newDownloadId != -1) {
+                    editor = sharedPreferences.edit();
+                    editor.putLong("currentDownloadId", newDownloadId);
+                    editor.apply();
+                } else {
+                    notifyDownloadFailed(context);
                 }
             } else {
-                urlIndex = 0;  // start from beginning
+                SharedPreferences.Editor editor = sharedPreferences.edit();
+                editor.putInt("mirrorAttempt_" + urlIndex, 0);
+                editor.apply();
+                notifyDownloadFailed(context);
             }
-        }
-
-        // Get current mirror attempt count
-        int mirrorAttempt = sharedPreferences.getInt("mirrorAttempt_" + urlIndex, 0);
-        mirrorAttempt++;
-        String fallbackUrl = DownloadFragment.getFallbackUrl(urlIndex, mirrorAttempt);
-
-        if (fallbackUrl != null) {
-            // Save current attempt
-            SharedPreferences.Editor editor = sharedPreferences.edit();
-            editor.putInt("mirrorAttempt_" + urlIndex, mirrorAttempt);
-            editor.apply();
-            // Retry with next mirror
-            long newDownloadId = downloader.downloadModel(fallbackUrl, DownloadFragment.DOWNLOAD_NAMES[urlIndex]);
-            editor = sharedPreferences.edit();
-            editor.putLong("currentDownloadId", newDownloadId);
-            editor.apply();
-        } else {
-            // All mirrors exhausted, reset attempt counter and show error
-            SharedPreferences.Editor editor = sharedPreferences.edit();
-            editor.putInt("mirrorAttempt_" + urlIndex, 0);
-            editor.apply();
+        } catch (Exception e) {
+            android.util.Log.e("RTranslator", "tryFallbackMirror failed", e);
             notifyDownloadFailed(context);
         }
     }
