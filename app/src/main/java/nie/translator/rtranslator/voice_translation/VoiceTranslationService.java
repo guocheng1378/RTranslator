@@ -167,6 +167,31 @@ public abstract class VoiceTranslationService extends GeneralService {
     private void initializeTTS() {
         boolean useNeural = TtsEnginePreference.isNeuralTtsEnabled(this);
 
+        // Always initialize system TTS as fallback (needed when NeuralTts doesn't have a model for a language)
+        tts = new TTS(this, new TTS.InitListener() {
+            @Override
+            public void onInit() {
+                if (tts != null) {
+                    tts.setOnUtteranceProgressListener(ttsListener);
+                    // Only set activeTts to system TTS if NeuralTts is not active
+                    if (neuralTts == null || !neuralTts.isActive()) {
+                        activeTts = tts;
+                    }
+                }
+            }
+
+            @Override
+            public void onError(int reason) {
+                tts = null;
+                // Only set error state if NeuralTts is also not available
+                if (neuralTts == null || !neuralTts.isActive()) {
+                    activeTts = null;
+                    notifyError(new int[]{reason}, -1);
+                    isAudioMute = true;
+                }
+            }
+        });
+
         if (useNeural) {
             // Initialize Neural TTS (MMS-TTS) - preferred option
             neuralTts = new NeuralTts(this);
@@ -180,14 +205,11 @@ public abstract class VoiceTranslationService extends GeneralService {
 
                 @Override
                 public void onError(int reason) {
-                    android.util.Log.w("VoiceTranslationService", "NeuralTts failed, falling back to system TTS");
+                    android.util.Log.w("VoiceTranslationService", "NeuralTts failed, using system TTS");
                     neuralTts = null;
-                    // Fallback to system TTS
-                    initializeSystemTts();
+                    // activeTts is already set to system TTS from above (or will be when it finishes init)
                 }
             });
-        } else {
-            initializeSystemTts();
         }
     }
 
@@ -302,9 +324,28 @@ public abstract class VoiceTranslationService extends GeneralService {
                 }
                 String langCode = language.getLocale().getLanguage();
                 if (activeTts instanceof NeuralTts) {
-                    // Neural TTS handles language switching internally
-                    activeTts.speak(result, langCode, null, "c01");
-                } else {
+                    // Neural TTS: check if model exists for this language
+                    if (activeTts.isLanguageSupported(langCode)) {
+                        activeTts.speak(result, langCode, null, "c01");
+                    } else if (tts != null && tts.isActive()) {
+                        // Fallback: NeuralTts doesn't have this language, try system TTS
+                        android.util.Log.i("VoiceTranslationService",
+                                "NeuralTts has no model for " + langCode + ", falling back to system TTS");
+                        if (tts.isLanguageSupported(langCode)) {
+                            tts.speak(result, langCode, null, "c01");
+                        } else {
+                            // Neither engine supports this language — skip TTS
+                            android.util.Log.w("VoiceTranslationService",
+                                    "No TTS engine supports language: " + langCode);
+                            utterancesCurrentlySpeaking--;
+                        }
+                    } else {
+                        // No system TTS available and NeuralTts doesn't have the model
+                        android.util.Log.w("VoiceTranslationService",
+                                "No TTS model for language: " + langCode);
+                        utterancesCurrentlySpeaking--;
+                    }
+                } else if (activeTts instanceof TTS) {
                     // System TTS - use original logic
                     TTS systemTts = (TTS) activeTts;
                     if (systemTts.getVoice() != null && language.equals(new CustomLocale(systemTts.getVoice().getLocale()))) {
@@ -463,6 +504,10 @@ public abstract class VoiceTranslationService extends GeneralService {
                 case START_SOUND:
                     isAudioMute = false;
                     if (activeTts != null && !activeTts.isActive()) {
+                        // Clean up old TTS instances before reinitializing
+                        if (tts != null) { tts.stop(); tts.shutdown(); tts = null; }
+                        if (neuralTts != null) { neuralTts.shutdown(); neuralTts = null; }
+                        activeTts = null;
                         initializeTTS();
                     }
                     return true;

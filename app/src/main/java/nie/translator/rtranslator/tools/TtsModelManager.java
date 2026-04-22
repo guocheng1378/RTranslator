@@ -52,9 +52,9 @@ public class TtsModelManager {
     // Model storage directory
     private static final String MODEL_DIR = "mms-tts";
 
-    // GitHub Releases base URL (replace with your own repo URL)
+    // GitHub Releases base URL
     private static final String BASE_URL =
-            "https://github.com/niedev/RTranslator/releases/download/3.0.0/";
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/";
 
     // Available TTS models: language_code -> {display_name, filename, size_kb}
     public static final Map<String, TtsModelInfo> AVAILABLE_MODELS = new LinkedHashMap<>();

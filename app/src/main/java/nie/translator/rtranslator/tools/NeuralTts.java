@@ -126,6 +126,14 @@ public class NeuralTts implements ITts {
         final String textStr = text.toString();
         final String langCode = normalizeLanguageCode(languageCode);
 
+        // Pre-check: verify model exists before queuing inference
+        if (!getModelFile(langCode).exists()) {
+            Log.w(TAG, "No MMS-TTS model available for language: " + langCode
+                    + " (expected: " + getModelFile(langCode).getAbsolutePath() + ")");
+            notifyError(utteranceId);
+            return android.speech.tts.TextToSpeech.ERROR;
+        }
+
         executor.execute(() -> {
             synchronized (speakLock) {
                 if (stopRequested) return;
@@ -140,7 +148,7 @@ public class NeuralTts implements ITts {
                     // Get or load ONNX session for this language
                     OrtSession session = getOrLoadSession(langCode);
                     if (session == null) {
-                        Log.w(TAG, "No model available for language: " + langCode);
+                        Log.w(TAG, "Failed to load ONNX session for language: " + langCode);
                         notifyError(utteranceId);
                         return;
                     }

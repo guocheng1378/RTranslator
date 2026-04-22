@@ -46,17 +46,41 @@ import nie.translator.rtranslator.tools.FileTools;
 import nie.translator.rtranslator.voice_translation.neural_networks.NeuralNetworkApi;
 
 public class DownloadFragment extends Fragment {
+    // Index where MMS-TTS models start in the download arrays (for special handling)
+    public static final int MMS_TTS_START_INDEX = 10;
+
     public static final String[] DOWNLOAD_URLS = {
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/NLLB_cache_initializer.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/NLLB_decoder.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/NLLB_embed_and_lm_head.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/NLLB_encoder.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/Whisper_cache_initializer.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/Whisper_cache_initializer_batch.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/Whisper_decoder.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/Whisper_detokenizer.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/Whisper_encoder.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/Whisper_initializer.onnx"
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_cache_initializer.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_decoder.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_embed_and_lm_head.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_encoder.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_cache_initializer.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_cache_initializer_batch.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_decoder.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_detokenizer.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_encoder.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_initializer.onnx",
+            // MMS-TTS models (downloaded to mms-tts/ subdirectory)
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-lao.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-lao.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-zho.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-zho.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-eng.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-eng.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-jpn.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-jpn.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-tha.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-tha.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-vie.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-vie.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-fra.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-fra.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-deu.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-deu.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-spa.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-spa.vocab.json",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-kor.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-kor.vocab.json"
     };
     public static final String[] DOWNLOAD_NAMES = {
             "NLLB_cache_initializer.onnx",
@@ -68,7 +92,28 @@ public class DownloadFragment extends Fragment {
             "Whisper_decoder.onnx",
             "Whisper_detokenizer.onnx",
             "Whisper_encoder.onnx",
-            "Whisper_initializer.onnx"
+            "Whisper_initializer.onnx",
+            // MMS-TTS models — stored under mms-tts/ subdirectory
+            "mms-tts/mms-tts-lao.onnx",
+            "mms-tts/mms-tts-lao.vocab.json",
+            "mms-tts/mms-tts-zho.onnx",
+            "mms-tts/mms-tts-zho.vocab.json",
+            "mms-tts/mms-tts-eng.onnx",
+            "mms-tts/mms-tts-eng.vocab.json",
+            "mms-tts/mms-tts-jpn.onnx",
+            "mms-tts/mms-tts-jpn.vocab.json",
+            "mms-tts/mms-tts-tha.onnx",
+            "mms-tts/mms-tts-tha.vocab.json",
+            "mms-tts/mms-tts-vie.onnx",
+            "mms-tts/mms-tts-vie.vocab.json",
+            "mms-tts/mms-tts-fra.onnx",
+            "mms-tts/mms-tts-fra.vocab.json",
+            "mms-tts/mms-tts-deu.onnx",
+            "mms-tts/mms-tts-deu.vocab.json",
+            "mms-tts/mms-tts-spa.onnx",
+            "mms-tts/mms-tts-spa.vocab.json",
+            "mms-tts/mms-tts-kor.onnx",
+            "mms-tts/mms-tts-kor.vocab.json"
     };
     public static final int[] DOWNLOAD_SIZES = {   //the size of the models in Kb (they are not exact, because this is used only for show the progress in progressbar)
             24000,
@@ -80,7 +125,28 @@ public class DownloadFragment extends Fragment {
             173000,
             461,
             88000,
-            69
+            69,
+            // MMS-TTS models
+            12288,   // lao onnx
+            50,      // lao vocab
+            15360,   // zho onnx
+            200,     // zho vocab
+            14336,   // eng onnx
+            100,     // eng vocab
+            13312,   // jpn onnx
+            150,     // jpn vocab
+            12288,   // tha onnx
+            50,      // tha vocab
+            12288,   // vie onnx
+            100,     // vie vocab
+            14336,   // fra onnx
+            100,     // fra vocab
+            14336,   // deu onnx
+            100,     // deu vocab
+            14336,   // spa onnx
+            100,     // spa vocab
+            13312,   // kor onnx
+            150      // kor vocab
     };
     private static final long INTERVAL_TIME_FOR_GUI_UPDATES_MS = 100;  //500
     private AccessActivity activity;
