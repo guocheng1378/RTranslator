@@ -7,6 +7,10 @@ on:
         description: 'Language codes (comma-separated, e.g. lao,zho,eng). Leave empty for all.'
         required: false
         default: 'lao,zho,eng,jpn,kor,tha,vie,fra,deu,spa'
+      release_tag:
+        description: 'Release tag to upload to'
+        required: false
+        default: 'mms-tts-latest'
 
 permissions:
   contents: write
@@ -50,6 +54,7 @@ jobs:
       - name: Upload models to release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
         run: |
           onnx_COUNT=$(ls mms-tts-output/*.onnx 2>/dev/null | wc -l)
           echo "Found $onnx_COUNT ONNX files to upload"
@@ -57,5 +62,13 @@ jobs:
             echo "ERROR: No ONNX files generated!"
             exit 1
           fi
-          gh release upload 3.0.0 mms-tts-output/* --clobber
+
+          # Create release if it doesn't exist
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG not found, creating..."
+            gh release create "$RELEASE_TAG" --title "MMS-TTS Models" --notes "Auto-generated MMS-TTS ONNX models" --latest=false
+          fi
+
+          echo "Uploading to release $RELEASE_TAG..."
+          gh release upload "$RELEASE_TAG" mms-tts-output/* --clobber
           echo "Upload completed"
