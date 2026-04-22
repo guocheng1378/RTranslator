@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may obtain a copyFile of the License at
+ * You may obtain a copy of the License at
  *
  * http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -23,14 +23,22 @@ import android.os.Looper;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.speech.tts.Voice;
+
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-public class TTS {
+/**
+ * System TTS engine wrapper implementing ITts interface.
+ * This is the original TTS implementation using Android's TextToSpeech API.
+ */
+public class TTS implements ITts {
     //object
     private TextToSpeech tts;
 
@@ -46,39 +54,9 @@ public class TTS {
             @Override
             public void onInit(int status) {
                 if (status == TextToSpeech.SUCCESS) {
-                    /*List<EngineInfo> engineInfos=TTS.this.getEngines();   //method 1
-                    boolean found=false;
-                    for (int i=0;i<engineInfos.size() && !found;i++){
-                        if(engineInfos.get(i).name.equals("com.google.android.tts")){
-                            found=true;
-                        }
-                    }*/
-
-                    /*boolean found = false;*/    //method 2
                     if (tts != null) {
-                        /*ArrayList<TextToSpeech.EngineInfo> engines = new ArrayList<>(tts.getEngines());
-                        for (int i = 0; i < engines.size() && !found; i++) {
-                            switch (engines.get(i).name) {
-                                case "com.google.android.tts":
-                                    found = true; // Check Google TTS here.
-                                    break;
-                                case "com.samsung.SMT": // Check Samsung TTS here.
-                                    found = true;
-                                    break;
-                                case "com.huawei.hiai": // Check Huawei TTS here.
-                                    found = true;
-                                    break;
-                            }
-                        } // Look forward to supporting more TTS engine.
-                        if (!found) {
-                            tts = null;
-                            listener.onError(ErrorCodes.MISSING_GOOGLE_TTS);
-                        } else {
-                            listener.onInit();
-                        }
-                        return;*/
                         listener.onInit();
-                        return; // Set TTS to the default TTS directly.
+                        return;
                     }
                 }
                 tts = null;
@@ -88,16 +66,81 @@ public class TTS {
         null);// use default TTS when this is null
     }
 
+    // ========== ITts interface implementation ==========
+
+    @Override
     public boolean isActive() {
         return tts != null;
     }
 
-    public int speak(CharSequence text, int queueMode, Bundle params, String utteranceId) {
+    @Override
+    public int speak(CharSequence text, String languageCode, @Nullable Bundle params, String utteranceId) {
         if (isActive()) {
-            return tts.speak(text, queueMode, params, utteranceId);
+            // Set language if different from current
+            if (languageCode != null && !languageCode.isEmpty()) {
+                tts.setLanguage(new Locale(languageCode));
+            }
+            return tts.speak(text, TextToSpeech.QUEUE_ADD, params, utteranceId);
         }
         return TextToSpeech.ERROR;
     }
+
+    @Override
+    public int setOnUtteranceProgressListener(UtteranceProgressListener listener) {
+        if (isActive()) {
+            return tts.setOnUtteranceProgressListener(listener);
+        }
+        return TextToSpeech.ERROR;
+    }
+
+    @Override
+    public int stop() {
+        if (isActive()) {
+            return tts.stop();
+        }
+        return TextToSpeech.ERROR;
+    }
+
+    @Override
+    public void shutdown() {
+        if (isActive()) {
+            tts.shutdown();
+        }
+    }
+
+    @Override
+    public boolean isLanguageSupported(String languageCode) {
+        if (isActive()) {
+            Locale locale = new Locale(languageCode);
+            return tts.isLanguageAvailable(locale) >= TextToSpeech.LANG_AVAILABLE;
+        }
+        return false;
+    }
+
+    @NonNull
+    @Override
+    public List<String> getSupportedLanguages() {
+        List<String> languages = new ArrayList<>();
+        if (isActive()) {
+            Set<Voice> voices = tts.getVoices();
+            if (voices != null) {
+                for (Voice voice : voices) {
+                    if (voice.getLocale() != null) {
+                        languages.add(voice.getLocale().getLanguage());
+                    }
+                }
+            }
+        }
+        return languages;
+    }
+
+    @Override
+    public void initialize(Context context, InitCallback callback) {
+        // TTS is initialized in constructor; just call back
+        callback.onInit();
+    }
+
+    // ========== Original API (backward compatibility) ==========
 
     @Nullable
     public Voice getVoice() {
@@ -115,13 +158,6 @@ public class TTS {
         return null;
     }
 
-    public int setOnUtteranceProgressListener(UtteranceProgressListener listener) {
-        if (isActive()) {
-            return tts.setOnUtteranceProgressListener(listener);
-        }
-        return TextToSpeech.ERROR;
-    }
-
     public int setLanguage(CustomLocale loc, Context context) {
         if (isActive()) {
             return tts.setLanguage(new Locale(loc.getLocale().getLanguage()));
@@ -129,20 +165,7 @@ public class TTS {
         return TextToSpeech.ERROR;
     }
 
-    public int stop() {
-        if (isActive()) {
-            return tts.stop();
-        }
-        return TextToSpeech.ERROR;
-    }
-
-    public void shutdown() {
-        if (isActive()) {
-            tts.shutdown();
-        }
-    }
-
-    public static void getSupportedLanguages(Context context, SupportedLanguagesListener responseListener){
+    public static void getSupportedLanguages(Context context, SupportedLanguagesListener responseListener) {
         synchronized (lock) {
             if (responseListener != null) {
                 supportedLanguagesListeners.addLast(responseListener);
@@ -186,9 +209,7 @@ public class TTS {
         private SupportedLanguagesListener responseListener;
         private Context context;
         private static TTS tempTts;
-        private static android.os.Handler mainHandler;   // handler that can be used to post to the main thread
-
-
+        private static android.os.Handler mainHandler;
 
         private GetSupportedLanguageRunnable(Context context, final SupportedLanguagesListener responseListener) {
             this.responseListener = responseListener;
@@ -198,7 +219,7 @@ public class TTS {
 
         @Override
         public void run() {
-            tempTts = new TTS((context), new TTS.InitListener() {    // tts initialization (to be improved, automatic package installation)
+            tempTts = new TTS((context), new TTS.InitListener() {
                 @Override
                 public void onInit() {
                     Set<Voice> set = tempTts.getVoices();
@@ -210,25 +231,23 @@ public class TTS {
                     } else {
                         quality = Voice.QUALITY_NORMAL;
                     }
-                    boolean foundLanguage = false; // if there is available languages
+                    boolean foundLanguage = false;
                     if (set != null) {
-                        // we filter the languages that have a tts that reflects the quality characteristics we want
                         for (Voice aSet : set) {
                             if (aSet.getQuality() >= quality && (qualityLow || !aSet.getFeatures().contains("legacySetLanguageVoice"))) {
                                 CustomLocale language;
-                                if(aSet.getLocale() != null){
-                                    language = new CustomLocale(aSet.getLocale()); // Use .getLocale() for google
+                                if (aSet.getLocale() != null) {
+                                    language = new CustomLocale(aSet.getLocale());
                                     foundLanguage = true;
-                                }else{
-                                    language = CustomLocale.getInstance(aSet.getName()); // Use .getName() for samsung/huawei (maybe others also)
+                                } else {
+                                    language = CustomLocale.getInstance(aSet.getName());
                                     foundLanguage = true;
                                 }
-
                                 ttsLanguages.add(language);
                             }
                         }
                     }
-                    if (foundLanguage) {    // start TTS if the above lines find at least 1 supported language
+                    if (foundLanguage) {
                         mainHandler.post(new Runnable() {
                             @Override
                             public void run() {
@@ -257,7 +276,6 @@ public class TTS {
 
     public interface InitListener {
         void onInit();
-
         void onError(int reason);
     }
 
