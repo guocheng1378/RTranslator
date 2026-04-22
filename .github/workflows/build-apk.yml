@@ -20,6 +20,20 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Configure Gradle mirrors
+        run: |
+          mkdir -p ~/.gradle
+          cat > ~/.gradle/init.gradle << 'EOF'
+          allprojects {
+              repositories {
+                  maven { url 'https://maven.aliyun.com/repository/google' }
+                  maven { url 'https://maven.aliyun.com/repository/public' }
+                  maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+                  maven { url 'https://maven.aliyun.com/repository/jcenter' }
+              }
+          }
+          EOF
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
