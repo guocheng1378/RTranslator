@@ -3,6 +3,9 @@ name: Copy Models from Upstream
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   copy-models:
     runs-on: ubuntu-latest
