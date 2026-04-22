@@ -153,11 +153,7 @@ public class NeuralTts implements ITts {
                         return;
                     }
 
-                    // Romanize text for languages that need it
                     String speakText = textStr;
-                    if ("kor".equals(langCode) || "hak".equals(langCode) || "nan".equals(langCode)) {
-                        speakText = romanizeText(textStr);
-                    }
 
                     // Tokenize text
                     Map<String, Integer> vocab = getOrLoadVocab(langCode);
