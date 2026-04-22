@@ -185,6 +185,7 @@ public class DownloadReceiver extends BroadcastReceiver {
         //we save the success of the download
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("lastDownloadSuccess", DownloadFragment.DOWNLOAD_NAMES[urlIndex]);
+        editor.putInt("mirrorAttempt_" + urlIndex, 0);  // reset mirror counter on success
         editor.apply();
         //we reset the failure info of the transfer
         editor = sharedPreferences.edit();
