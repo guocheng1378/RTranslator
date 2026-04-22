@@ -56,6 +56,12 @@ public class TtsModelManager {
     private static final String BASE_URL =
             "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/";
 
+    // GitHub mirror proxies for faster downloads in China (auto-fallback)
+    private static final String[] MIRROR_PREFIXES = {
+            "",  // direct GitHub (primary)
+            "https://ghfast.top/",  // mirror fallback
+    };
+
     // Available TTS models: language_code -> {display_name, filename, size_kb}
     public static final Map<String, TtsModelInfo> AVAILABLE_MODELS = new LinkedHashMap<>();
     static {
@@ -102,6 +108,29 @@ public class TtsModelManager {
     }
 
     /**
+     * Returns the download URL with the best available mirror prefix.
+     * Uses ghfast.top mirror for faster downloads in China.
+     */
+    @NonNull
+    public static String getDownloadUrl(String filename) {
+        return MIRROR_PREFIXES[1] + BASE_URL + filename;
+    }
+
+    /**
+     * Get fallback URL when primary download fails.
+     * @param filename model filename
+     * @param attempt 0-based attempt number
+     * @return URL to try, or null if no more fallbacks
+     */
+    @Nullable
+    public static String getFallbackUrl(String filename, int attempt) {
+        if (attempt < MIRROR_PREFIXES.length) {
+            return MIRROR_PREFIXES[attempt] + BASE_URL + filename;
+        }
+        return null;
+    }
+
+    /**
      * Download a TTS model for the given language.
      *
      * @param languageCode ISO 639-3 code (e.g., "lao", "zho")
@@ -114,7 +143,7 @@ public class TtsModelManager {
             return -1;
         }
 
-        String url = BASE_URL + info.filename;
+        String url = getDownloadUrl(info.filename);
         DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url))
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
                 .setDestinationInExternalFilesDir(context, null, MODEL_DIR + "/" + info.filename)
@@ -131,6 +160,42 @@ public class TtsModelManager {
                 .apply();
 
         Log.i(TAG, "Started downloading TTS model for: " + languageCode + " (ID: " + downloadId + ")");
+        return downloadId;
+    }
+
+    /**
+     * Retry download with fallback mirror when primary fails.
+     * @param languageCode ISO 639-3 code
+     * @param attempt 0-based attempt number (increment on each failure)
+     * @return download ID, or -1 if no more fallbacks
+     */
+    public long retryWithFallback(String languageCode, int attempt) {
+        TtsModelInfo info = AVAILABLE_MODELS.get(languageCode);
+        if (info == null) return -1;
+
+        String url = getFallbackUrl(info.filename, attempt);
+        if (url == null) {
+            Log.w(TAG, "No more fallback mirrors for: " + languageCode + " (attempt " + attempt + ")");
+            return -1;
+        }
+
+        Log.i(TAG, "Retrying download for: " + languageCode + " with mirror attempt " + attempt + " -> " + url);
+
+        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url))
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
+                .setDestinationInExternalFilesDir(context, null, MODEL_DIR + "/" + info.filename)
+                .setTitle("RTranslator - " + info.displayName + " TTS")
+                .setDescription("Downloading TTS model...");
+
+        long downloadId = downloadManager.enqueue(request);
+
+        SharedPreferences prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE);
+        prefs.edit()
+                .putLong("tts_download_id_" + languageCode, downloadId)
+                .putString("tts_download_lang_" + downloadId, languageCode)
+                .putInt("tts_mirror_attempt_" + languageCode, attempt)
+                .apply();
+
         return downloadId;
     }
 
