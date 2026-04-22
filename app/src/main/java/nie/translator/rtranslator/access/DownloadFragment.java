@@ -50,7 +50,7 @@ public class DownloadFragment extends Fragment {
     public static final int MMS_TTS_START_INDEX = 10;
 
     // GitHub mirror proxy prefix for faster downloads in China (supports fallback)
-    private static final String MIRROR_PREFIX = "https://mirror.ghproxy.com/";
+    private static final String MIRROR_PREFIX = "https://ghproxy.net/";
 
     public static final String[] DOWNLOAD_URLS = {
             MIRROR_PREFIX + "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_cache_initializer.onnx",
