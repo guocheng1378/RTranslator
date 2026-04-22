@@ -80,8 +80,6 @@ public class DownloadFragment extends Fragment {
         return null;
     }
 
-    private static final String[] RAW_DOWNLOAD_URLS = {
-
     public static final String[] DOWNLOAD_URLS = buildDownloadUrls();
 
     private static String[] buildDownloadUrls() {
