@@ -161,4 +161,23 @@
     <string name="walkietalkie_mode" >WalkieTalkie</string>
     <string name="walkietalkie_mode_running" >WalkieTalkie mode is running...</string>
 
+    <!-- TTS Engine Selection -->
+    <string name="preference_title_tts_engine">TTS Engine</string>
+    <string name="preference_description_tts_engine">Select the text-to-speech engine</string>
+    <string name="preference_tts_engine_neural_summary">Built-in TTS (MMS, recommended)</string>
+    <string name="preference_tts_engine_system_summary">System TTS</string>
+    <string name="preference_title_manage_tts_models">TTS Model Management</string>
+    <string name="preference_description_manage_tts_models">Download or manage offline TTS models</string>
+    <string name="tts_engine_neural">Built-in TTS (MMS)</string>
+    <string name="tts_engine_system">System TTS</string>
+
+    <string-array name="tts_engine_entries">
+        <item>@string/tts_engine_neural</item>
+        <item>@string/tts_engine_system</item>
+    </string-array>
+    <string-array name="tts_engine_values">
+        <item>neural</item>
+        <item>system</item>
+    </string-array>
+
 </resources>
