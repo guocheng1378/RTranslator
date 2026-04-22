@@ -51,9 +51,9 @@ public class DownloadFragment extends Fragment {
 
     // GitHub mirror proxies for faster downloads in China (auto-fallback)
     private static final String[] MIRROR_PREFIXES = {
-            "https://ghproxy.net/",
-            "https://gh-proxy.com/",
-            "",  // direct GitHub (fallback)
+            "",  // direct GitHub (primary)
+            "https://ghproxy.net/",  // mirror fallback
+            "https://gh-proxy.com/",  // second fallback
     };
 
     /**
