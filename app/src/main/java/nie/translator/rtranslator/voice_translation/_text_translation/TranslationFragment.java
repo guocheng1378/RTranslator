@@ -46,6 +46,8 @@ import nie.translator.rtranslator.bluetooth.Message;
 import nie.translator.rtranslator.settings.SettingsActivity;
 import nie.translator.rtranslator.tools.CustomLocale;
 import nie.translator.rtranslator.tools.ErrorCodes;
+import nie.translator.rtranslator.tools.ITts;
+import nie.translator.rtranslator.tools.NeuralTts;
 import nie.translator.rtranslator.tools.TTS;
 import nie.translator.rtranslator.tools.Tools;
 import nie.translator.rtranslator.tools.gui.AnimatedTextView;
@@ -65,6 +67,8 @@ public class TranslationFragment extends Fragment {
     private TextWatcher inputTextListener;
     private TextWatcher outputTextListener;
     private TTS tts;
+    private NeuralTts neuralTts;
+    private ITts activeTts;
     private UtteranceProgressListener ttsListener;
 
     //TranslatorFragment's GUI
@@ -575,12 +579,12 @@ public class TranslationFragment extends Fragment {
         ttsInputButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(tts == null || !tts.isActive()){
+                if(activeTts == null || !activeTts.isActive()){
                     Toast.makeText(activity, "TTS not available", Toast.LENGTH_SHORT).show();
                     return;
                 }
                 if(((int) ttsInputButton.getTag()) == R.drawable.stop_icon){
-                    tts.stop();
+                    activeTts.stop();
                     ttsListener.onDone("");  //we call this to make eventual visual updates to the tts buttons (stop() doesn't call onDone automatically)
                 }else {
                     global.getFirstTextLanguage(true, new Global.GetLocaleListener() {
@@ -590,7 +594,7 @@ public class TranslationFragment extends Fragment {
                                 @Override
                                 public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
                                     if (CustomLocale.containsLanguage(ttsLanguages, firstLanguage)) { // check if the language can be speak
-                                        tts.stop();
+                                        activeTts.stop();
                                         ttsListener.onDone("");  //we call this to make eventual visual updates to the tts buttons (stop() doesn't call onDone automatically)
                                         speak(inputText.getText().toString(), firstLanguage);
                                         ttsInputButton.setImageResource(R.drawable.stop_icon);
@@ -617,12 +621,12 @@ public class TranslationFragment extends Fragment {
         ttsOutputButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(tts == null || !tts.isActive()){
+                if(activeTts == null || !activeTts.isActive()){
                     Toast.makeText(activity, "TTS not available", Toast.LENGTH_SHORT).show();
                     return;
                 }
                 if(((int) ttsOutputButton.getTag()) == R.drawable.stop_icon){
-                    tts.stop();
+                    activeTts.stop();
                     ttsListener.onDone("");  //we call this to make eventual visual updates to the tts buttons (stop() doesn't call onDone automatically)
                 }else {
                     global.getSecondTextLanguage(true, new Global.GetLocaleListener() {
@@ -632,7 +636,7 @@ public class TranslationFragment extends Fragment {
                                 @Override
                                 public void onSuccess(ArrayList<CustomLocale> ttsLanguages) {
                                     if (CustomLocale.containsLanguage(ttsLanguages, secondLanguage)) { // check if the language can be speak
-                                        tts.stop();
+                                        activeTts.stop();
                                         ttsListener.onDone("");  //we call this to make eventual visual updates to the tts buttons (stop() doesn't call onDone automatically)
                                         speak(outputText.getText().toString(), secondLanguage);
                                         ttsOutputButton.setImageResource(R.drawable.stop_icon);
@@ -714,20 +718,45 @@ public class TranslationFragment extends Fragment {
     }
 
     private void initializeTTS() {
+        // Always initialize system TTS as fallback
         tts = new TTS(activity, new TTS.InitListener() {
             @Override
             public void onInit() {
                 if(tts != null) {
                     tts.setOnUtteranceProgressListener(ttsListener);
+                    if (neuralTts == null || !neuralTts.isActive()) {
+                        activeTts = tts;
+                    }
                 }
             }
 
             @Override
             public void onError(int reason) {
                 tts = null;
-                if(activity != null) {
-                    Toast.makeText(activity, "TTS initialization failed (error " + reason + ")", Toast.LENGTH_SHORT).show();
+                if (neuralTts == null || !neuralTts.isActive()) {
+                    activeTts = null;
+                    if(activity != null) {
+                        Toast.makeText(activity, "TTS initialization failed (error " + reason + ")", Toast.LENGTH_SHORT).show();
+                    }
                 }
+            }
+        });
+
+        // Initialize Neural TTS (MMS-TTS) for offline speech synthesis
+        neuralTts = new NeuralTts(activity);
+        neuralTts.initialize(activity, new ITts.InitCallback() {
+            @Override
+            public void onInit() {
+                neuralTts.setOnUtteranceProgressListener(ttsListener);
+                activeTts = neuralTts;
+                android.util.Log.i("TranslationFragment", "NeuralTts initialized successfully");
+            }
+
+            @Override
+            public void onError(int reason) {
+                android.util.Log.w("TranslationFragment", "NeuralTts failed, using system TTS");
+                neuralTts = null;
+                // activeTts is already set to system TTS from above
             }
         });
     }
