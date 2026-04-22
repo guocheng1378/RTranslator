@@ -1,0 +1,43 @@
+name: Copy Models from Upstream
+
+on:
+  workflow_dispatch:
+
+jobs:
+  copy-models:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Download models from upstream release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p models
+
+          # Model files to copy from niedev/RTranslator 2.0.0
+          FILES=(
+            "NLLB_cache_initializer.onnx"
+            "NLLB_decoder.onnx"
+            "NLLB_embed_and_lm_head.onnx"
+            "NLLB_encoder.onnx"
+            "Whisper_cache_initializer.onnx"
+            "Whisper_cache_initializer_batch.onnx"
+            "Whisper_decoder.onnx"
+            "Whisper_detokenizer.onnx"
+            "Whisper_encoder.onnx"
+            "Whisper_initializer.onnx"
+          )
+
+          for f in "${FILES[@]}"; do
+            echo "Downloading $f ..."
+            curl -sL -o "models/$f"               "https://github.com/niedev/RTranslator/releases/download/2.0.0/$f"
+            ls -lh "models/$f"
+          done
+
+      - name: Upload to release 2.0.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload 2.0.0 models/* --clobber
+          echo "Upload complete!"
