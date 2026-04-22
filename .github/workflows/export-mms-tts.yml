@@ -27,7 +27,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install torch transformers onnx onnxruntime onnxscript
+          pip install torch==2.1.0 transformers==4.36.0 onnx onnxruntime
 
       - name: Export MMS-TTS to ONNX
         run: |
@@ -45,24 +45,15 @@ jobs:
           path: mms-tts-output/*
           retention-days: 30
 
-      - name: Create GitHub Release and upload models
+      - name: Upload models to release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Check if files exist
-          if [ ! -d "mms-tts-output" ] || [ -z "$(ls -A mms-tts-output/ 2>/dev/null)" ]; then
-            echo "ERROR: No files found in mms-tts-output/"
-            exit 1
-          fi
-
           ONNX_COUNT=$(ls mms-tts-output/*.onnx 2>/dev/null | wc -l)
           echo "Found $ONNX_COUNT ONNX files to upload"
-
           if [ "$ONNX_COUNT" -eq 0 ]; then
             echo "ERROR: No ONNX files generated!"
             exit 1
           fi
-
-          # Upload files to existing release
           gh release upload 3.0.0 mms-tts-output/* --clobber
           echo "Upload completed"
