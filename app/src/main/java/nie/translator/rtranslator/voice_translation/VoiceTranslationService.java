@@ -35,8 +35,11 @@ import java.util.ArrayList;
 import nie.translator.rtranslator.GeneralService;
 import nie.translator.rtranslator.bluetooth.tools.Timer;
 import nie.translator.rtranslator.tools.CustomLocale;
+import nie.translator.rtranslator.tools.ITts;
+import nie.translator.rtranslator.tools.NeuralTts;
 import nie.translator.rtranslator.tools.TTS;
 import nie.translator.rtranslator.tools.Tools;
+import nie.translator.rtranslator.settings.TtsEnginePreference;
 import nie.translator.rtranslator.tools.gui.messages.GuiMessage;
 import nie.translator.rtranslator.tools.services_communication.ServiceCallback;
 import nie.translator.rtranslator.tools.services_communication.ServiceCommunicator;
@@ -86,6 +89,10 @@ public abstract class VoiceTranslationService extends GeneralService {
     protected UtteranceProgressListener ttsListener;
     @Nullable
     protected TTS tts;
+    @Nullable
+    protected NeuralTts neuralTts;
+    @Nullable
+    protected ITts activeTts;  // currently active TTS engine
     protected Handler mainHandler;
     private static final long WAKELOCK_TIMEOUT = 600 * 1000L;  // 10 minutes, so if the service stopped without calling onDestroyed the wakeLock would still be released within 10 minutes (the wakeLock will be reacquired before the 10 minutes if the service is still running)
     private Timer wakeLockTimer;  // to reactivate the timer every 10 minutes, so as long as the service is active the wakelock will never expire
@@ -158,17 +165,46 @@ public abstract class VoiceTranslationService extends GeneralService {
     }
 
     private void initializeTTS() {
-        tts = new TTS(this, new TTS.InitListener() {  // tts initialization (to be improved, automatic package installation)
+        boolean useNeural = TtsEnginePreference.isNeuralTtsEnabled(this);
+
+        if (useNeural) {
+            // Initialize Neural TTS (MMS-TTS) - preferred option
+            neuralTts = new NeuralTts(this);
+            neuralTts.initialize(this, new ITts.InitCallback() {
+                @Override
+                public void onInit() {
+                    neuralTts.setOnUtteranceProgressListener(ttsListener);
+                    activeTts = neuralTts;
+                    android.util.Log.i("VoiceTranslationService", "NeuralTts initialized successfully");
+                }
+
+                @Override
+                public void onError(int reason) {
+                    android.util.Log.w("VoiceTranslationService", "NeuralTts failed, falling back to system TTS");
+                    neuralTts = null;
+                    // Fallback to system TTS
+                    initializeSystemTts();
+                }
+            });
+        } else {
+            initializeSystemTts();
+        }
+    }
+
+    private void initializeSystemTts() {
+        tts = new TTS(this, new TTS.InitListener() {
             @Override
             public void onInit() {
-                if(tts != null) {
+                if (tts != null) {
                     tts.setOnUtteranceProgressListener(ttsListener);
+                    activeTts = tts;
                 }
             }
 
             @Override
             public void onError(int reason) {
                 tts = null;
+                activeTts = null;
                 notifyError(new int[]{reason}, -1);
                 isAudioMute = true;
             }
@@ -258,17 +294,25 @@ public abstract class VoiceTranslationService extends GeneralService {
 
     public synchronized void speak(String result, CustomLocale language) {
         synchronized (mLock) {
-            if (tts != null && tts.isActive() && !isAudioMute) {
+            if (activeTts != null && activeTts.isActive() && !isAudioMute) {
                 utterancesCurrentlySpeaking++;
                 if (shouldDeactivateMicDuringTTS()) {
                     stopVoiceRecorder();
                     notifyMicDeactivated();   // we notify the client
                 }
-                if (tts.getVoice() != null && language.equals(new CustomLocale(tts.getVoice().getLocale()))) {
-                    tts.speak(result, TextToSpeech.QUEUE_ADD, null, "c01");
+                String langCode = language.getLocale().getLanguage();
+                if (activeTts instanceof NeuralTts) {
+                    // Neural TTS handles language switching internally
+                    activeTts.speak(result, langCode, null, "c01");
                 } else {
-                    tts.setLanguage(language,this);
-                    tts.speak(result, TextToSpeech.QUEUE_ADD, null, "c01");
+                    // System TTS - use original logic
+                    TTS systemTts = (TTS) activeTts;
+                    if (systemTts.getVoice() != null && language.equals(new CustomLocale(systemTts.getVoice().getLocale()))) {
+                        systemTts.speak(result, langCode, null, "c01");
+                    } else {
+                        systemTts.setLanguage(language, this);
+                        systemTts.speak(result, langCode, null, "c01");
+                    }
                 }
             }
         }
@@ -344,9 +388,17 @@ public abstract class VoiceTranslationService extends GeneralService {
             mVoiceRecorder = null;
         }
         //stop tts
-        if(tts != null) {
+        if (activeTts != null) {
+            activeTts.stop();
+            activeTts.shutdown();
+        }
+        // Clean up the inactive engine if different from active
+        if (tts != null && tts != activeTts) {
             tts.stop();
             tts.shutdown();
+        }
+        if (neuralTts != null && neuralTts != activeTts) {
+            neuralTts.shutdown();
         }
         //stop foreground
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -410,7 +462,7 @@ public abstract class VoiceTranslationService extends GeneralService {
                     return true;
                 case START_SOUND:
                     isAudioMute = false;
-                    if (tts != null && !tts.isActive()) {
+                    if (activeTts != null && !activeTts.isActive()) {
                         initializeTTS();
                     }
                     return true;
@@ -418,8 +470,8 @@ public abstract class VoiceTranslationService extends GeneralService {
                     isAudioMute = true;
                     if (utterancesCurrentlySpeaking > 0) {
                         utterancesCurrentlySpeaking = 0;
-                        if(tts != null) {
-                            tts.stop();
+                        if (activeTts != null) {
+                            activeTts.stop();
                         }
                         ttsListener.onDone("");
                     }
@@ -433,7 +485,7 @@ public abstract class VoiceTranslationService extends GeneralService {
                     bundle.putParcelableArrayList("messages", messages);
                     bundle.putBoolean("isMicMute", isMicMute);
                     bundle.putBoolean("isAudioMute", isAudioMute);
-                    bundle.putBoolean("isTTSError", tts == null);
+                    bundle.putBoolean("isTTSError", activeTts == null);
                     bundle.putBoolean("isEditTextOpen", isEditTextOpen);
                     bundle.putBoolean("isBluetoothHeadsetConnected", isBluetoothHeadsetConnected());
                     bundle.putBoolean("isMicAutomatic", isMicAutomatic);
