@@ -110,7 +110,7 @@ dependencies {
     //implementation 'com.github.niedev:GalleryImageSelector:1.0.7'
     //ONNX Runtime (updated for Android 15 16KB page size support)
     implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.20.0'
-    implementation 'com.microsoft.onnxruntime:onnxruntime-extensions-android:0.14.0'
+    implementation 'com.microsoft.onnxruntime:onnxruntime-extensions-android:0.13.0'
     //Ml-Kit
     implementation 'com.google.mlkit:language-id:17.0.5'
     //JWS parser
