@@ -80,16 +80,7 @@ public class DownloadFragment extends Fragment {
         return null;
     }
 
-    public static final String[] DOWNLOAD_URLS = buildDownloadUrls();
-
-    private static String[] buildDownloadUrls() {
-        String[] urls = new String[RAW_DOWNLOAD_URLS.length];
-        for (int i = 0; i < RAW_DOWNLOAD_URLS.length; i++) {
-            urls[i] = MIRROR_PREFIXES[0] + RAW_DOWNLOAD_URLS[i];
-        }
-        return urls;
-    }
-
+    // RAW URLs must be declared BEFORE DOWNLOAD_URLS (which calls buildDownloadUrls)
     private static final String[] RAW_DOWNLOAD_URLS = {
             "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_cache_initializer.onnx",
             "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_decoder.onnx",
@@ -123,6 +114,16 @@ public class DownloadFragment extends Fragment {
             "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-kor.onnx",
             "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/mms-tts-kor.vocab.json"
     };
+
+    private static String[] buildDownloadUrls() {
+        String[] urls = new String[RAW_DOWNLOAD_URLS.length];
+        for (int i = 0; i < RAW_DOWNLOAD_URLS.length; i++) {
+            urls[i] = MIRROR_PREFIXES[0] + RAW_DOWNLOAD_URLS[i];
+        }
+        return urls;
+    }
+
+    public static final String[] DOWNLOAD_URLS = buildDownloadUrls();
     public static final String[] DOWNLOAD_NAMES = {
             "NLLB_cache_initializer.onnx",
             "NLLB_decoder.onnx",
