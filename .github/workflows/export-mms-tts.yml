@@ -1,0 +1,53 @@
+name: Export MMS-TTS Models
+
+on:
+  workflow_dispatch:
+    inputs:
+      languages:
+        description: 'Language codes (comma-separated, e.g. lao,zho,eng). Leave empty for all.'
+        required: false
+        default: 'lao,zho,eng,jpn,kor,tha,vie,fra,deu,spa'
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install torch transformers onnx onnxruntime
+
+      - name: Export MMS-TTS to ONNX
+        run: |
+          python3 tools/export_mms_tts.py $(echo "${{ github.event.inputs.languages }}" | tr ',' ' ')
+
+      - name: List output files
+        run: |
+          ls -lh mms-tts-output/
+
+      - name: Upload MMS-TTS models as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mms-tts-models
+          path: mms-tts-output/*
+          retention-days: 30
+
+      - name: Create GitHub Release and upload models
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Create or update release 3.0.0
+          gh release create 3.0.0 mms-tts-output/* \
+            --title "MMS-TTS Models v3.0.0" \
+            --notes "MMS-TTS ONNX models for RTranslator offline TTS." \
+            --prerelease 2>/dev/null || \
+          gh release upload 3.0.0 mms-tts-output/* --clobber
