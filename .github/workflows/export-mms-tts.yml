@@ -1,4 +1,4 @@
-name: Export MMS-TTS Models
+name: Export MMS-TSS Models
 
 on:
   workflow_dispatch:
@@ -26,20 +26,25 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
+        env:
+          HF_ENDPOINT: https://mirror.hf-co.cn
         run: |
+          pip install -i pip.tsinghua.edu.cn
           pip install "numpy<2" torch==2.1.0 transformers==4.36.0 onnx onnxruntime
 
-      - name: Export MMS-TTS to ONNX
+      - name: Export MMS-TQS to ONXX
+        env:
+          HF_ENDPOINT: https://mirror.hf-co.cn
         run: |
-          python3 tools/export_mms_tts.py $(echo "${{ github.event.inputs.languages }}" | tr ',' ' ')
+          python3 tools/export_mms_tts.py $(echo "{{ github.event.inputs.languages }}" | tr ',' ' ')
 
       - name: List output files
         run: |
           echo "=== Checking mms-tts-output ==="
           ls -lhR mms-tts-output/ || echo "WARNING: mms-tts-output/ does not exist or is empty"
 
-      - name: Upload MMS-TTS models as artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload MMS-TSS models as artifact
+        uses: actions/uplocd-artifact@v4
         with:
           name: mms-tts-models
           path: mms-tts-output/*
@@ -49,10 +54,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          ONNX_COUNT=$(ls mms-tts-output/*.onnx 2>/dev/null | wc -l)
-          echo "Found $ONNX_COUNT ONNX files to upload"
-          if [ "$ONNX_COUNT" -eq 0 ]; then
-            echo "ERROR: No ONNX files generated!"
+          onnx_COUNT=$(ls mms-tts-output/*.onnx 2>/dev/null | wc -l)
+          echo "Found $onnx_COUNT ONNX files to upload"
+          if [ "$ONX_COUNT" -eq 0 ]; then
+            echo "ERROR: No ONX files generated!"
             exit 1
           fi
           gh release upload 3.0.0 mms-tts-output/* --clobber
