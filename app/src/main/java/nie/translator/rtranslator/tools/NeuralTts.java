@@ -30,6 +30,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -388,7 +389,7 @@ public class NeuralTts implements ITts {
     /**
      * Load vocab.json (HuggingFace tokenizer format).
      */
-    private Map<String, Integer> loadVocabFile(File file) throws IOException {
+    private Map<String, Integer> loadVocabFile(File file) throws IOException, JSONException {
         Map<String, Integer> vocab = new HashMap<>();
         StringBuilder sb = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(
