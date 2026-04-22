@@ -85,7 +85,7 @@ public class Downloader{
         if (url != null) {
             // Strip any mirror proxy prefix to get the raw GitHub URL
             String rawUrl = url;
-            String[] mirrorPrefixes = {"https://ghproxy.net/", "https://gh-proxy.com/", "https://mirror.ghproxy.com/"};
+            String[] mirrorPrefixes = {"https://ghfast.top/", "https://ghproxy.net/", "https://gh-proxy.com/"};
             for (String prefix : mirrorPrefixes) {
                 if (rawUrl.startsWith(prefix)) {
                     rawUrl = rawUrl.substring(prefix.length());
