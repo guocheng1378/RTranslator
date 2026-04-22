@@ -36,15 +36,15 @@ import java.util.Map;
  *
  * Supported languages and their approximate model sizes:
  *   lao (Lao)       - ~12MB
- *   zho (Chinese)   - ~15MB
  *   eng (English)   - ~14MB
- *   jpn (Japanese)  - ~13MB
  *   kor (Korean)    - ~13MB
  *   tha (Thai)      - ~12MB
  *   vie (Vietnamese) - ~12MB
  *   fra (French)    - ~14MB
  *   deu (German)    - ~14MB
  *   spa (Spanish)   - ~14MB
+ *   hak (Hakka)     - ~14MB
+ *   nan (Min Nan)   - ~14MB
  */
 public class TtsModelManager {
     private static final String TAG = "TtsModelManager";
@@ -66,15 +66,15 @@ public class TtsModelManager {
     public static final Map<String, TtsModelInfo> AVAILABLE_MODELS = new LinkedHashMap<>();
     static {
         AVAILABLE_MODELS.put("lao", new TtsModelInfo("Lao / ລາວ", "mms-tts-lao.onnx", 12288));
-        AVAILABLE_MODELS.put("zho", new TtsModelInfo("Chinese / 中文", "mms-tts-zho.onnx", 15360));
         AVAILABLE_MODELS.put("eng", new TtsModelInfo("English", "mms-tts-eng.onnx", 14336));
-        AVAILABLE_MODELS.put("jpn", new TtsModelInfo("Japanese / 日本語", "mms-tts-jpn.onnx", 13312));
         AVAILABLE_MODELS.put("kor", new TtsModelInfo("Korean / 한국어", "mms-tts-kor.onnx", 13312));
         AVAILABLE_MODELS.put("tha", new TtsModelInfo("Thai / ไทย", "mms-tts-tha.onnx", 12288));
         AVAILABLE_MODELS.put("vie", new TtsModelInfo("Vietnamese / Tiếng Việt", "mms-tts-vie.onnx", 12288));
         AVAILABLE_MODELS.put("fra", new TtsModelInfo("French / Français", "mms-tts-fra.onnx", 14336));
         AVAILABLE_MODELS.put("deu", new TtsModelInfo("German / Deutsch", "mms-tts-deu.onnx", 14336));
         AVAILABLE_MODELS.put("spa", new TtsModelInfo("Spanish / Español", "mms-tts-spa.onnx", 14336));
+        AVAILABLE_MODELS.put("hak", new TtsModelInfo("Hakka / 客家話", "mms-tts-hak.onnx", 14336));
+        AVAILABLE_MODELS.put("nan", new TtsModelInfo("Min Nan / 閩南語", "mms-tts-nan.onnx", 14336));
     }
 
     private final Context context;

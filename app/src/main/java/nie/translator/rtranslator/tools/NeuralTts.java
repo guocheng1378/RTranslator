@@ -153,9 +153,15 @@ public class NeuralTts implements ITts {
                         return;
                     }
 
+                    // Romanize text for languages that need it
+                    String speakText = textStr;
+                    if ("kor".equals(langCode) || "hak".equals(langCode) || "nan".equals(langCode)) {
+                        speakText = romanizeText(textStr);
+                    }
+
                     // Tokenize text
                     Map<String, Integer> vocab = getOrLoadVocab(langCode);
-                    long[] inputIds = tokenize(textStr, vocab);
+                    long[] inputIds = tokenize(speakText, vocab);
 
                     if (inputIds.length == 0) {
                         Log.w(TAG, "Tokenization produced empty input for: " + textStr);
@@ -275,7 +281,7 @@ public class NeuralTts implements ITts {
 
     /**
      * Normalize language code to MMS format.
-     * MMS uses ISO 639-3 codes (e.g., "lao", "zho", "eng").
+     * MMS uses ISO 639-3 codes (e.g., "lao", "eng", "kor").
      * Input may be ISO 639-1 (e.g., "lo", "zh", "en").
      */
     private String normalizeLanguageCode(String code) {
@@ -285,15 +291,15 @@ public class NeuralTts implements ITts {
         // Common ISO 639-1 to ISO 639-3 mappings for RTranslator languages
         switch (lower) {
             case "lo": return "lao";
-            case "zh": return "zho";
             case "en": return "eng";
-            case "ja": return "jpn";
             case "ko": return "kor";
             case "th": return "tha";
             case "vi": return "vie";
             case "fr": return "fra";
             case "de": return "deu";
             case "es": return "spa";
+            case "hak": return "hak";
+            case "nan": return "nan";
             case "it": return "ita";
             case "pt": return "por";
             case "ru": return "rus";

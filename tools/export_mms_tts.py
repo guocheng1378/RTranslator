@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
 Export Facebook MMS-TTS models to ONNX format for RTranslator.
+
+Available models: https://dl.fbaipublicfiles.com/mms/tts/all-tts-languages.html
+HuggingFace models: facebook/mms-tts-{iso_code}
 """
 
 import sys
@@ -10,20 +13,39 @@ import time
 import torch
 import numpy as np
 
+# Languages that have HuggingFace MMS-TTS models
 LANGUAGES = {
     "lao": ("facebook/mms-tts-lao", "ສະບາຍດີ"),
-    "zho": ("facebook/mms-tts-zho", "你好世界"),
     "eng": ("facebook/mms-tts-eng", "Hello world"),
-    "jpn": ("facebook/mms-tts-jpn", "こんにちは世界"),
-    "kor": ("facebook/mms-tts-kor", "안녕하세요"),
+    "kor": ("facebook/mms-tts-kor", "annyeonghaseyo"),  # romanized Korean
     "tha": ("facebook/mms-tts-tha", "สวัสดีชาวโลก"),
     "vie": ("facebook/mms-tts-vie", "Xin chào thế giới"),
     "fra": ("facebook/mms-tts-fra", "Bonjour le monde"),
     "deu": ("facebook/mms-tts-deu", "Hallo Welt"),
     "spa": ("facebook/mms-tts-spa", "Hola mundo"),
+    "hak": ("facebook/mms-tts-hak", "ngi ho"),          # Hakka Chinese (romanized)
+    "nan": ("facebook/mms-tts-nan", "li ho"),           # Min Nan Chinese (romanized)
 }
 
 OUTPUT_DIR = "mms-tts-output"
+
+
+def romanize_text(text, lang_code):
+    """Romanize text for languages that require it (kor, hak, nan)."""
+    try:
+        import uroman as ur
+        romanizer = ur.Uroman()
+        result = romanizer.romanize_string(text)
+        print(f"  Romanized: '{text}' -> '{result}'")
+        return result
+    except ImportError:
+        print(f"  WARNING: uroman not installed, trying pip install...")
+        os.system(f"{sys.executable} -m pip install -q uroman")
+        import uroman as ur
+        romanizer = ur.Uroman()
+        result = romanizer.romanize_string(text)
+        print(f"  Romanized: '{text}' -> '{result}'")
+        return result
 
 
 def download_with_retry(model_name, max_retries=3):
@@ -55,6 +77,11 @@ def export_language(lang_code: str, model_name: str, dummy_text: str):
 
     model, tokenizer = download_with_retry(model_name)
     model.eval()
+
+    # Romanize dummy text for languages that need it
+    needs_roman = lang_code in ("kor", "hak", "nan")
+    if needs_roman:
+        dummy_text = romanize_text(dummy_text, lang_code)
 
     # Export vocab.json
     vocab_path = os.path.join(OUTPUT_DIR, f"mms-tts-{lang_code}.vocab.json")
