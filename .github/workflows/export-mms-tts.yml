@@ -27,7 +27,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install torch transformers onnx onnxruntime
+          pip install torch transformers onnx onnxruntime onnxscript
 
       - name: Export MMS-TTS to ONNX
         run: |
@@ -55,15 +55,14 @@ jobs:
             exit 1
           fi
 
-          FILE_COUNT=$(ls mms-tts-output/ | wc -l)
-          echo "Found $FILE_COUNT files to upload"
+          ONNX_COUNT=$(ls mms-tts-output/*.onnx 2>/dev/null | wc -l)
+          echo "Found $ONNX_COUNT ONNX files to upload"
 
-          # Try to create release (will fail if tag already exists, that is OK)
-          gh release create 3.0.0 \
-            --title "MMS-TTS Models v3.0.0" \
-            --notes "MMS-TTS ONNX models for RTranslator offline TTS." \
-            --prerelease && echo "Release created" || echo "Release exists, uploading..."
+          if [ "$ONNX_COUNT" -eq 0 ]; then
+            echo "ERROR: No ONNX files generated!"
+            exit 1
+          fi
 
-          # Upload files
+          # Upload files to existing release
           gh release upload 3.0.0 mms-tts-output/* --clobber
           echo "Upload completed"
