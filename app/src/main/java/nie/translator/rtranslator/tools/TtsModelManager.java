@@ -54,7 +54,7 @@ public class TtsModelManager {
 
     // GitHub Releases base URL
     private static final String BASE_URL =
-            "https://github.com/guocheng1378/RTranslator/releases/download/3.0.0/";
+            "https://github.com/guocheng1378/RTranslator/releases/download/mms-tts-latest/";
 
     // GitHub mirror proxies for faster downloads in China (auto-fallback)
     private static final String[] MIRROR_PREFIXES = {
