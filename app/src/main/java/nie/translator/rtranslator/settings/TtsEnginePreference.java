@@ -20,7 +20,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.AttributeSet;
 
-import androidx.preference.DialogPreference;
+import androidx.preference.ListPreference;
 import androidx.preference.PreferenceViewHolder;
 
 import nie.translator.rtranslator.R;
@@ -32,7 +32,7 @@ import nie.translator.rtranslator.R;
  *   "neural"  - Use built-in MMS-TTS (recommended)
  *   "system"  - Use system TextToSpeech engine
  */
-public class TtsEnginePreference extends DialogPreference {
+public class TtsEnginePreference extends ListPreference {
 
     private static final String DEFAULT_VALUE = "neural";
 
