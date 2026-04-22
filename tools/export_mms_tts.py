@@ -44,7 +44,6 @@ def export_language(lang_code: str, model_name: str):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     # Download and load model + tokenizer
-    # Use HF mirror for faster downloads in China
     hf_endpoint = os.environ.get("HF_ENDPOINT", "https://huggingface.co")
     print(f"  Downloading model from {hf_endpoint}...")
 
@@ -63,10 +62,10 @@ def export_language(lang_code: str, model_name: str):
         json.dump(vocab, f, ensure_ascii=False, indent=2)
     print(f"  Saved vocab: {vocab_path} ({len(vocab)} tokens)")
 
-    # Prepare dummy input
-    dummy_text = "Hello world" if lang_code == "eng" else "ສະບາຍດີ"
+    # Prepare dummy input - ensure it's Long type
+    dummy_text = "Hello world" if lang_code == "eng" else "\u0e2a\u0e30\u0e1a\u0e32\u0e22\u0e14\u0e35"
     inputs = tokenizer(dummy_text, return_tensors="pt")
-    input_ids = inputs["input_ids"]
+    input_ids = inputs["input_ids"].long()  # Ensure Long type for embedding layer
 
     # Export to ONNX
     onnx_path = os.path.join(OUTPUT_DIR, f"mms-tts-{lang_code}.onnx")
