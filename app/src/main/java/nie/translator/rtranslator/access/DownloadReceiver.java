@@ -198,44 +198,12 @@ public class DownloadReceiver extends BroadcastReceiver {
         editor.putString("lastTransferFailure", "");
         editor.apply();
 
-        // MMS-TTS models: keep in external storage (persists across uninstall)
-        if (urlIndex >= DownloadFragment.MMS_TTS_START_INDEX) {
-            editor = sharedPreferences.edit();
-            editor.putString("lastTransferSuccess", DownloadFragment.DOWNLOAD_NAMES[urlIndex]);
-            editor.apply();
-            internalCheckAndStartNextDownload(context, downloader, urlIndex);
-            return;
-        }
-
-        //we move the downloaded content to internal storage and start the next download
-        File from = new File(context.getExternalFilesDir(null) + "/" + DownloadFragment.DOWNLOAD_NAMES[urlIndex]);
-        File to = new File(context.getFilesDir() + "/" + DownloadFragment.DOWNLOAD_NAMES[urlIndex]);
-        // Ensure parent directory exists (needed for mms-tts/ subdirectory)
-        if (to.getParentFile() != null && !to.getParentFile().exists()) {
-            to.getParentFile().mkdirs();
-        }
-        int finalUrlIndex = urlIndex;
-        FileTools.moveFile(from, to, new FileTools.MoveFileCallback() {
-            @Override
-            public void onSuccess() {
-                //we save the success of the transfer
-                SharedPreferences.Editor editor = sharedPreferences.edit();
-                editor.putString("lastTransferSuccess", DownloadFragment.DOWNLOAD_NAMES[finalUrlIndex]);
-                editor.apply();
-
-                internalCheckAndStartNextDownload(context, downloader, finalUrlIndex);
-            }
-
-            @Override
-            public void onFailure() {
-                //we save the failure of the transfer
-                SharedPreferences.Editor editor = sharedPreferences.edit();
-                editor.putString("lastTransferFailure", DownloadFragment.DOWNLOAD_NAMES[finalUrlIndex]);
-                editor.apply();
-                //we notify the failure to the user
-                notifyTransferFailed(context);
-            }
-        });
+        // Keep all models in external storage (persists across uninstall).
+        // NeuralTts, Translator, and Recognizer all use resolveModelPath() to find them.
+        editor = sharedPreferences.edit();
+        editor.putString("lastTransferSuccess", DownloadFragment.DOWNLOAD_NAMES[urlIndex]);
+        editor.apply();
+        internalCheckAndStartNextDownload(context, downloader, urlIndex);
     }
 
     public static void internalCheckAndStartNextDownload(Context context, Downloader downloader, int urlIndex){
@@ -246,10 +214,10 @@ public class DownloadReceiver extends BroadcastReceiver {
             //we verify if the model to be downloaded next is already in memory and if it is not corrupted
             String nextDownloadInternalPath = context.getFilesDir() + "/" + DownloadFragment.DOWNLOAD_NAMES[nextIndex];
             File nextDownloadInternalFile = new File(nextDownloadInternalPath);
-            // MMS-TTS models live in external storage (persist across uninstall)
+            // All models may live in external storage (persist across uninstall)
             String nextDownloadExternalPath = context.getExternalFilesDir(null) + "/" + DownloadFragment.DOWNLOAD_NAMES[nextIndex];
             File nextDownloadExternalFile = new File(nextDownloadExternalPath);
-            if(nextDownloadInternalFile.exists() || (nextIndex >= DownloadFragment.MMS_TTS_START_INDEX && nextDownloadExternalFile.exists())){
+            if(nextDownloadInternalFile.exists() || nextDownloadExternalFile.exists()){
                 if (nextIndex >= DownloadFragment.MMS_TTS_START_INDEX) {
                     // MMS-TTS models: check either internal or external, just verify non-empty
                     File mmsFile = nextDownloadInternalFile.exists() ? nextDownloadInternalFile : nextDownloadExternalFile;
@@ -266,10 +234,12 @@ public class DownloadReceiver extends BroadcastReceiver {
                         externalCheckAndStartNextDownload(context, downloader, urlIndex);
                     }
                 } else {
-                    // NLLB/Whisper models: full integrity check
-                    NeuralNetworkApi.testModelIntegrity(nextDownloadInternalPath, new NeuralNetworkApi.InitListener() {
+                    // NLLB/Whisper models: full integrity check (check wherever the file is)
+                    String checkPath = nextDownloadInternalFile.exists() ? nextDownloadInternalPath : nextDownloadExternalPath;
+                    File checkFile = nextDownloadInternalFile.exists() ? nextDownloadInternalFile : nextDownloadExternalFile;
+                    NeuralNetworkApi.testModelIntegrity(checkPath, new NeuralNetworkApi.InitListener() {
                         @Override
-                        public void onInitializationFinished() {   //the model to be downloaded next is already in internal memory and it is not corrupted
+                        public void onInitializationFinished() {   //the model to be downloaded next is already in memory and it is not corrupted
                             //we save the success of the download
                             SharedPreferences.Editor editor = sharedPreferences.edit();
                             editor.putString("lastDownloadSuccess", DownloadFragment.DOWNLOAD_NAMES[nextIndex]);
@@ -284,7 +254,7 @@ public class DownloadReceiver extends BroadcastReceiver {
 
                         @Override
                         public void onError(int[] reasons, long value) {
-                            boolean result = nextDownloadInternalFile.delete();
+                            checkFile.delete();
                             externalCheckAndStartNextDownload(context, downloader, urlIndex);
                         }
                     });

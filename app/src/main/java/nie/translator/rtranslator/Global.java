@@ -786,6 +786,19 @@ public class Global extends Application implements DefaultLifecycleObserver {
         return -1;
     }
 
+    /**
+     * Resolve a model filename to its full path.
+     * Checks external files dir first (persists across uninstall), then falls back to internal.
+     */
+    public String resolveModelPath(String filename) {
+        File external = getExternalFilesDir(null);
+        if (external != null) {
+            File extFile = new File(external, filename);
+            if (extFile.exists()) return extFile.getAbsolutePath();
+        }
+        return new File(getFilesDir(), filename).getAbsolutePath();
+    }
+
 
 
     public boolean isNetworkOnWifi() {

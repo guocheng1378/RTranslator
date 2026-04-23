@@ -107,11 +107,11 @@ public class Translator extends NeuralNetworkApi {
         mainHandler = new android.os.Handler(Looper.getMainLooper());
         initializeNllbLanguagesCodes(global);
 
-        String encoderPath = global.getFilesDir().getPath() + "/NLLB_encoder.onnx";
-        String decoderPath = global.getFilesDir().getPath() + "/NLLB_decoder.onnx";
-        String vocabPath = global.getFilesDir().getPath() + "/sentencepiece_bpe.model";
-        String embedAndLmHeadPath = global.getFilesDir().getPath() + "/NLLB_embed_and_lm_head.onnx";
-        String cacheInitializerPath = global.getFilesDir().getPath() + "/NLLB_cache_initializer.onnx";
+        String encoderPath = global.resolveModelPath("NLLB_encoder.onnx");
+        String decoderPath = global.resolveModelPath("NLLB_decoder.onnx");
+        String vocabPath = global.resolveModelPath("sentencepiece_bpe.model");
+        String embedAndLmHeadPath = global.resolveModelPath("NLLB_embed_and_lm_head.onnx");
+        String cacheInitializerPath = global.resolveModelPath("NLLB_cache_initializer.onnx");
 
         final Thread t = new Thread("textTranslation") {
             public void run() {
@@ -125,9 +125,14 @@ public class Translator extends NeuralNetworkApi {
                         return;
                     }
                 }
-                // Transfer vocab file from assets to internal memory
-                File outFile = new File(global.getFilesDir(), "sentencepiece_bpe.model");
-                if (!outFile.exists()) {
+                // Transfer vocab file from assets to memory (check external first, then internal)
+                File externalVocab = null;
+                File externalDir = global.getExternalFilesDir(null);
+                if (externalDir != null) {
+                    externalVocab = new File(externalDir, "sentencepiece_bpe.model");
+                }
+                File internalVocab = new File(global.getFilesDir(), "sentencepiece_bpe.model");
+                if ((externalVocab == null || !externalVocab.exists()) && !internalVocab.exists()) {
                     FileTools.copyAssetToInternalMemory(global, "sentencepiece_bpe.model");
                 }
 

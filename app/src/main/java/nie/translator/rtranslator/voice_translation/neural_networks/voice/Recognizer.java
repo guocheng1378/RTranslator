@@ -181,12 +181,12 @@ public class Recognizer extends NeuralNetworkApi {
     public Recognizer(Global global, final boolean returnResultOnlyAtTheEnd, final NeuralNetworkApi.InitListener initListener) {
         this.global = global;
 
-        String modelInitPath = global.getFilesDir().getPath() + "/Whisper_initializer.onnx";
-        String encoderPath = global.getFilesDir().getPath() + "/Whisper_encoder.onnx";
-        String decoderPath = global.getFilesDir().getPath() + "/Whisper_decoder.onnx";
-        String cacheInitPath = global.getFilesDir().getPath() + "/Whisper_cache_initializer.onnx";
-        String cacheInitBatchPath = global.getFilesDir().getPath() + "/Whisper_cache_initializer_batch.onnx";
-        String detokenizerPath = global.getFilesDir().getPath() + "/Whisper_detokenizer.onnx";
+        String modelInitPath = global.resolveModelPath("Whisper_initializer.onnx");
+        String encoderPath = global.resolveModelPath("Whisper_encoder.onnx");
+        String decoderPath = global.resolveModelPath("Whisper_decoder.onnx");
+        String cacheInitPath = global.resolveModelPath("Whisper_cache_initializer.onnx");
+        String cacheInitBatchPath = global.resolveModelPath("Whisper_cache_initializer_batch.onnx");
+        String detokenizerPath = global.resolveModelPath("Whisper_detokenizer.onnx");
 
         new Thread(new Runnable() {
             @Override
