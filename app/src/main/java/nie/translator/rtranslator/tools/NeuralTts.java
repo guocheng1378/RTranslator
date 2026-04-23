@@ -79,7 +79,7 @@ public class NeuralTts implements ITts {
     private static final long NOISE_SEED = 0;
 
     // Speed control: >1.0 = slower, <1.0 = faster. 1.3 is a good default for Lao.
-    private float speedScale = 1.3f;
+    private float speedScale = 2.0f;
 
     // State
     private OrtEnvironment onnxEnv;
