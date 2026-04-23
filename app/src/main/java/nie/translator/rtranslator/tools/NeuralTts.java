@@ -593,7 +593,7 @@ public class NeuralTts implements ITts {
 
         int rate = DEFAULT_SAMPLE_RATE;
         try {
-            java.util.Map<String, String> metadata = session.getMetadata();
+            java.util.Map<String, String> metadata = session.getMetadata().getCustomMetadata();
             String sr = metadata.get("sampling_rate");
             if (sr != null) {
                 rate = Integer.parseInt(sr);
