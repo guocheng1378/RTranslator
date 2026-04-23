@@ -136,6 +136,8 @@ public class NeuralTts implements ITts {
             return android.speech.tts.TextToSpeech.ERROR;
         }
 
+        Log.i(TAG, "speak() model found: " + getModelFile(langCode).getAbsolutePath());
+
         executor.execute(() -> {
             synchronized (speakLock) {
                 if (stopRequested) return;
@@ -286,6 +288,24 @@ public class NeuralTts implements ITts {
     @NonNull
     public static List<String> getAvailableLanguages(@NonNull Context context) {
         List<String> languages = new ArrayList<>();
+        // Check external files dir first (persists across uninstall)
+        File external = context.getExternalFilesDir(null);
+        if (external != null) {
+            File extDir = new File(external, MODEL_DIR);
+            if (extDir.exists() && extDir.isDirectory()) {
+                File[] files = extDir.listFiles();
+                if (files != null) {
+                    for (File file : files) {
+                        String name = file.getName();
+                        if (name.startsWith("mms-tts-") && name.endsWith(".onnx")) {
+                            String lang = name.substring(8, name.length() - 5);
+                            languages.add(lang);
+                        }
+                    }
+                }
+            }
+        }
+        // Also check internal files dir
         File dir = new File(context.getFilesDir(), MODEL_DIR);
         if (dir.exists() && dir.isDirectory()) {
             File[] files = dir.listFiles();
@@ -294,7 +314,9 @@ public class NeuralTts implements ITts {
                     String name = file.getName();
                     if (name.startsWith("mms-tts-") && name.endsWith(".onnx")) {
                         String lang = name.substring(8, name.length() - 5);
-                        languages.add(lang);
+                        if (!languages.contains(lang)) {
+                            languages.add(lang);
+                        }
                     }
                 }
             }
@@ -361,6 +383,13 @@ public class NeuralTts implements ITts {
 
     @NonNull
     private File getModelDirectory() {
+        // Primary: external files dir (persists across app uninstall)
+        File external = context.getExternalFilesDir(null);
+        if (external != null) {
+            File dir = new File(external, MODEL_DIR);
+            if (dir.exists()) return dir;
+        }
+        // Fallback: internal files dir
         return new File(context.getFilesDir(), MODEL_DIR);
     }
 

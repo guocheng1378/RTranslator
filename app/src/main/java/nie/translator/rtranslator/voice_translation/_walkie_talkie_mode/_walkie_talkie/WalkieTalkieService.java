@@ -400,8 +400,12 @@ public class WalkieTalkieService extends VoiceTranslationService {
 
         if(finalFirstLanguage==null || finalSecondLanguage==null ) {  //se è il primo avvio
             //we attach the speech recognition callbacks
-            speechRecognizer.addMultiCallback(speechRecognizerCallback);
-            speechRecognizer.addCallback(speechRecognizerSingleCallback);
+            if (speechRecognizer != null) {
+                speechRecognizer.addMultiCallback(speechRecognizerCallback);
+                speechRecognizer.addCallback(speechRecognizerSingleCallback);
+            } else {
+                android.util.Log.w("WalkieTalkieService", "speechRecognizer is null in onStartCommand, skipping callback registration");
+            }
         }
         return super.onStartCommand(intent, flags, startId);
     }
@@ -409,8 +413,10 @@ public class WalkieTalkieService extends VoiceTranslationService {
     @Override
     public void onDestroy() {
         //disconnect speechRecognizerCallback
-        speechRecognizer.removeMultiCallback(speechRecognizerCallback);
-        speechRecognizer.removeCallback(speechRecognizerSingleCallback);
+        if (speechRecognizer != null) {
+            speechRecognizer.removeMultiCallback(speechRecognizerCallback);
+            speechRecognizer.removeCallback(speechRecognizerSingleCallback);
+        }
         super.onDestroy();
     }
 
