@@ -756,16 +756,21 @@ public class TranslationFragment extends Fragment {
             public void onError(int reason) {
                 android.util.Log.w("TranslationFragment", "NeuralTts failed, using system TTS");
                 neuralTts = null;
-                // activeTts is already set to system TTS from above
+                // Restore activeTts to system TTS if available
+                if (tts != null && tts.isActive()) {
+                    activeTts = tts;
+                } else if (activeTts instanceof NeuralTts) {
+                    activeTts = null;
+                }
             }
         });
     }
 
     public void speak(String text, CustomLocale language) {
         if (text == null || text.isEmpty()) return;
-        if (tts != null && tts.isActive() && language != null) {
+        if (activeTts != null && activeTts.isActive() && language != null) {
             String langCode = language.getLocale() != null ? language.getLocale().getLanguage() : language.getCode();
-            tts.speak(text, langCode, null, "c01");
+            activeTts.speak(text, langCode, null, "c01");
         }
     }
 
@@ -945,11 +950,17 @@ public class TranslationFragment extends Fragment {
         //we detach the translate listener
         global.getTranslator().removeCallback(translateListener);
         //clean up TTS to prevent leaks on restart
+        if(neuralTts != null){
+            neuralTts.stop();
+            neuralTts.shutdown();
+            neuralTts = null;
+        }
         if(tts != null){
             tts.stop();
             tts.shutdown();
             tts = null;
         }
+        activeTts = null;
     }
 
     private void setFirstLanguage(CustomLocale language) {
