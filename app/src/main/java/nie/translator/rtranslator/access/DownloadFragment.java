@@ -124,8 +124,8 @@ public class DownloadFragment extends Fragment {
             "Whisper_encoder.onnx",
             "Whisper_initializer.onnx",
             // MMS-TTS models — stored under mms-tts/ subdirectory
-            "mms-tts/mms-tts-lao.onnx",
-            "mms-tts/mms-tts-lao.vocab.json"
+            "mms-tts-lao.onnx",
+            "mms-tts-lao.vocab.json"
     };
     public static final int[] DOWNLOAD_SIZES = {   //the size of the models in Kb (they are not exact, because this is used only for show the progress in progressbar)
             24000,
@@ -501,7 +501,17 @@ public class DownloadFragment extends Fragment {
             if(nameIndex != -1) {
                 //we restart the transfer
                 File from = new File(global.getExternalFilesDir(null) + "/" + DownloadFragment.DOWNLOAD_NAMES[nameIndex]);
-                File to = new File(global.getFilesDir() + "/" + DownloadFragment.DOWNLOAD_NAMES[nameIndex]);
+                File to;
+                if (nameIndex >= MMS_TTS_START_INDEX) {
+                    // MMS-TTS models go to Downloads/RTranslator/models/ (persists across uninstall)
+                    File downloads = android.os.Environment.getExternalStoragePublicDirectory(
+                            android.os.Environment.DIRECTORY_DOWNLOADS);
+                    File modelsDir = new File(downloads, "RTranslator/models");
+                    if (!modelsDir.exists()) modelsDir.mkdirs();
+                    to = new File(modelsDir, DownloadFragment.DOWNLOAD_NAMES[nameIndex]);
+                } else {
+                    to = new File(global.getFilesDir() + "/" + DownloadFragment.DOWNLOAD_NAMES[nameIndex]);
+                }
                 int finalNameIndex = nameIndex;
                 FileTools.moveFile(from, to, new FileTools.MoveFileCallback() {
                     @Override

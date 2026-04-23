@@ -106,6 +106,9 @@ public class NeuralTts implements ITts {
     public void initialize(Context context, InitCallback callback) {
         executor.execute(() -> {
             try {
+                // Migrate models from old internal storage to new external location
+                migrateModelsFromInternal();
+
                 onnxEnv = OrtEnvironment.getEnvironment();
                 isActive = true;
                 Log.i(TAG, "NeuralTts initialized successfully");
@@ -379,6 +382,29 @@ public class NeuralTts implements ITts {
             case "ta": return "tam";
             case "ur": return "urd";
             default: return lower;
+        }
+    }
+
+    /**
+     * One-time migration: move models from old getFilesDir()/mms-tts/ to Downloads/RTranslator/models/.
+     */
+    private void migrateModelsFromInternal() {
+        File oldDir = new File(context.getFilesDir(), MODEL_DIR);
+        if (!oldDir.exists()) return;
+        File newDir = getModelDirectory();
+        File[] files = oldDir.listFiles();
+        if (files == null) return;
+        for (File old : files) {
+            File target = new File(newDir, old.getName());
+            if (!target.exists()) {
+                if (old.renameTo(target)) {
+                    Log.i(TAG, "Migrated model: " + old.getName());
+                }
+            }
+        }
+        // Clean up old directory if empty
+        if (oldDir.listFiles() == null || oldDir.listFiles().length == 0) {
+            oldDir.delete();
         }
     }
 
