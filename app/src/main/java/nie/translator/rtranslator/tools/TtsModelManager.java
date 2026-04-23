@@ -102,7 +102,7 @@ public class TtsModelManager {
      * Called once on app startup.
      */
     public void migrateFromInternalStorage() {
-        File oldDir = new File(context.getFilesDir(), MODEL_DIR);
+        File oldDir = new File(context.getFilesDir(), "mms-tts");
         if (!oldDir.exists()) return;
         File newDir = getModelDirectory();
         File[] files = oldDir.listFiles();
