@@ -387,10 +387,23 @@ public class NeuralTts implements ITts {
         File external = context.getExternalFilesDir(null);
         if (external != null) {
             File dir = new File(external, MODEL_DIR);
-            if (dir.exists()) return dir;
+            if (dir.exists() && dir.listFiles() != null && dir.listFiles().length > 0) {
+                return dir;
+            }
         }
         // Fallback: internal files dir
-        return new File(context.getFilesDir(), MODEL_DIR);
+        File internal = new File(context.getFilesDir(), MODEL_DIR);
+        if (internal.exists() && internal.listFiles() != null && internal.listFiles().length > 0) {
+            return internal;
+        }
+        // Default: return external dir (even if empty) for write operations
+        if (external != null) {
+            File dir = new File(external, MODEL_DIR);
+            if (!dir.exists()) dir.mkdirs();
+            return dir;
+        }
+        internal.mkdirs();
+        return internal;
     }
 
     @NonNull

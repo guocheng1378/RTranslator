@@ -18,8 +18,6 @@ package nie.translator.rtranslator.voice_translation.neural_networks;
 
 import androidx.annotation.NonNull;
 
-import java.util.ArrayList;
-
 import ai.onnxruntime.OrtEnvironment;
 import ai.onnxruntime.OrtException;
 import ai.onnxruntime.OrtSession;
@@ -29,20 +27,7 @@ import nie.translator.rtranslator.tools.ErrorCodes;
 
 public class NeuralNetworkApi {
     protected Global global;
-    private ArrayList<Thread> pendingThreads= new ArrayList<>();
-    public static boolean isVerifying = false;
-
-    protected void addPendingThread(Thread thread){
-        pendingThreads.add(thread);
-    }
-
-    protected Thread takePendingThread(){
-        if(pendingThreads.size()>0) {
-            return pendingThreads.remove(0);
-        }else{
-            return null;
-        }
-    }
+    public static volatile boolean isVerifying = false;
 
     public static void testModelIntegrity(@NonNull String testModelPath, InitListener initListener){
         //we try to load the model in testModelPath, if we don't have an exception the model file is perfect, else we have an integrity problem

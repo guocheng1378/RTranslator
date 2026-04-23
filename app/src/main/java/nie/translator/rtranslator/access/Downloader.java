@@ -50,6 +50,7 @@ public class Downloader{
         return downloadManager.getUriForDownloadedFile(downloadId);
     }
 
+    @Nullable
     public Cursor query(long downloadId){
         return downloadManager.query(new DownloadManager.Query().setFilterById(downloadId));
     }
@@ -57,12 +58,16 @@ public class Downloader{
     @Nullable
     public String getUrlFromDownload(long downloadId){
         Cursor result = query(downloadId);
-        int index = result.getColumnIndex(DownloadManager.COLUMN_URI);
-        if(index > 0 && result.moveToFirst() && result.getCount() > 0) {
-            return result.getString(index);
-        }else{
-            return null;
+        if (result == null) return null;
+        try {
+            int index = result.getColumnIndex(DownloadManager.COLUMN_URI);
+            if(index > 0 && result.moveToFirst() && result.getCount() > 0) {
+                return result.getString(index);
+            }
+        } finally {
+            result.close();
         }
+        return null;
     }
 
     public int getRunningDownloadStatus(){
@@ -70,9 +75,14 @@ public class Downloader{
         long downloadId = sharedPreferences.getLong("currentDownloadId", -1);
         if(downloadId >= 0) {
             Cursor result = query(downloadId);
-            int index = result.getColumnIndex(DownloadManager.COLUMN_STATUS);
-            if (index > 0 && result.moveToFirst() && result.getCount() > 0) {
-                return result.getInt(index);
+            if (result == null) return -1;
+            try {
+                int index = result.getColumnIndex(DownloadManager.COLUMN_STATUS);
+                if (index > 0 && result.moveToFirst() && result.getCount() > 0) {
+                    return result.getInt(index);
+                }
+            } finally {
+                result.close();
             }
         }else if(downloadId == -3){
             return DownloadManager.STATUS_FAILED;
@@ -111,7 +121,7 @@ public class Downloader{
     }
 
     public int getDownloadProgress(int max){
-        //here we return a value between 0 and max that represents the total prograss made so far with the download (for this we consider only the downloads, not the transfers)
+        //here we return a value between 0 and max that represents the total progress made so far with the download (for this we consider only the downloads, not the transfers)
         int totalSize = 0;
         for (int i=0; i<DownloadFragment.DOWNLOAD_SIZES.length; i++){
             totalSize = totalSize + DownloadFragment.DOWNLOAD_SIZES[i];
@@ -142,13 +152,17 @@ public class Downloader{
             int index = findDownloadUrlIndex(downloadId);
             if(index != -1 && index != lastDownloadSuccessIndex) {   //we check that the current download is different from the last success download (if they are the same that means that the next download is not started yet)
                 Cursor result = query(downloadId);
-                int indexBytesDownloaded = result.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR);
-                //int indexBytesTotal = result.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES);
-                if (indexBytesDownloaded > 0 && /*indexBytesTotal>0 &&*/ result.moveToFirst() && result.getCount() > 0) {
-                    int bytesDownloaded = result.getInt(indexBytesDownloaded);
-                    //int bytesTotal = result.getInt(indexBytesTotal);
-                    int kbDownloaded = bytesDownloaded / 1000;
-                    currentProgress = (kbDownloaded * max) / totalSize;       //kbDownloaded : totalSize = x : max   (where x is currentProgress)
+                if (result != null) {
+                    try {
+                        int indexBytesDownloaded = result.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR);
+                        if (indexBytesDownloaded > 0 && result.moveToFirst() && result.getCount() > 0) {
+                            int bytesDownloaded = result.getInt(indexBytesDownloaded);
+                            int kbDownloaded = bytesDownloaded / 1024;  // use 1024 to match DOWNLOAD_SIZES unit (KiB)
+                            currentProgress = (kbDownloaded * max) / totalSize;       //kbDownloaded : totalSize = x : max   (where x is currentProgress)
+                        }
+                    } finally {
+                        result.close();
+                    }
                 }
             }
         }

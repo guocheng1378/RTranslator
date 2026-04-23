@@ -279,15 +279,15 @@ public class DownloadReceiver extends BroadcastReceiver {
         SharedPreferences sharedPreferences = context.getSharedPreferences("default", Context.MODE_PRIVATE);
         int nextIndex = urlIndex + 1;
         //we verify if the model to be downloaded next is already in external memory and if it is not corrupted
-        String nextDownloadInternalPath = context.getExternalFilesDir(null) + "/" + DownloadFragment.DOWNLOAD_NAMES[nextIndex];
-        File nextDownloadInternalFile = new File(nextDownloadInternalPath);
-        if(nextDownloadInternalFile.exists()){
+        String nextDownloadExternalPath = context.getExternalFilesDir(null) + "/" + DownloadFragment.DOWNLOAD_NAMES[nextIndex];
+        File nextDownloadExternalFile = new File(nextDownloadExternalPath);
+        if(nextDownloadExternalFile.exists()){
             if (nextIndex >= DownloadFragment.MMS_TTS_START_INDEX) {
                 // MMS-TTS models: just check file is non-empty
-                if (nextDownloadInternalFile.length() > 0) {
+                if (nextDownloadExternalFile.length() > 0) {
                     transferModelAndStartNextDownload(context, downloader, nextIndex);
                 } else {
-                    nextDownloadInternalFile.delete();
+                    nextDownloadExternalFile.delete();
                     long newDownloadId = downloader.downloadModel(DownloadFragment.DOWNLOAD_URLS[nextIndex], DownloadFragment.DOWNLOAD_NAMES[nextIndex]);
                     SharedPreferences.Editor editor = sharedPreferences.edit();
                     editor.putLong("currentDownloadId", newDownloadId);
@@ -295,7 +295,7 @@ public class DownloadReceiver extends BroadcastReceiver {
                 }
             } else {
                 // NLLB/Whisper models: full integrity check
-                NeuralNetworkApi.testModelIntegrity(nextDownloadInternalPath, new NeuralNetworkApi.InitListener() {
+                NeuralNetworkApi.testModelIntegrity(nextDownloadExternalPath, new NeuralNetworkApi.InitListener() {
                     @Override
                     public void onInitializationFinished() {   //the model to be downloaded next is already in external memory and it is not corrupted
                         transferModelAndStartNextDownload(context, downloader, nextIndex);
@@ -303,7 +303,7 @@ public class DownloadReceiver extends BroadcastReceiver {
 
                     @Override
                     public void onError(int[] reasons, long value) {
-                        boolean result = nextDownloadInternalFile.delete();
+                        boolean result = nextDownloadExternalFile.delete();
                         //we start the next download
                         long newDownloadId = downloader.downloadModel(DownloadFragment.DOWNLOAD_URLS[nextIndex], DownloadFragment.DOWNLOAD_NAMES[nextIndex]);
                         SharedPreferences.Editor editor = sharedPreferences.edit();

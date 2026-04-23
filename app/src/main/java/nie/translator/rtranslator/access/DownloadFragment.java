@@ -57,26 +57,23 @@ public class DownloadFragment extends Fragment {
 
     /**
      * Returns the download URL with the best available mirror prefix.
-     * Tries each mirror in order; returns the first one that resolves.
+     * All models start with direct GitHub (MIRROR_PREFIXES[0]).
+     * Fallback mirrors are tried via getFallbackUrl() on failure.
      */
     public static String getDownloadUrl(int index) {
-        String rawUrl = RAW_DOWNLOAD_URLS[index];
-        // MMS-TTS models use mirror for faster download in China
-        if (index >= MMS_TTS_START_INDEX) {
-            return MIRROR_PREFIXES[1] + rawUrl;  // ghfast.top mirror
-        }
-        return MIRROR_PREFIXES[0] + rawUrl;  // direct GitHub
+        return MIRROR_PREFIXES[0] + RAW_DOWNLOAD_URLS[index];
     }
 
     /**
      * Get fallback URL when primary download fails.
      * @param index model index
-     * @param attempt 0-based attempt number
+     * @param attempt 1-based attempt number (1 = first fallback, 2 = second, etc.)
      * @return URL to try, or null if no more fallbacks
      */
     public static String getFallbackUrl(int index, int attempt) {
         String rawUrl = RAW_DOWNLOAD_URLS[index];
-        if (attempt < MIRROR_PREFIXES.length) {
+        // attempt 1 -> MIRROR_PREFIXES[1] (ghfast.top), attempt 2 -> out of range
+        if (attempt >= 1 && attempt < MIRROR_PREFIXES.length) {
             return MIRROR_PREFIXES[attempt] + rawUrl;
         }
         return null;
@@ -102,11 +99,7 @@ public class DownloadFragment extends Fragment {
     private static String[] buildDownloadUrls() {
         String[] urls = new String[RAW_DOWNLOAD_URLS.length];
         for (int i = 0; i < RAW_DOWNLOAD_URLS.length; i++) {
-            if (i >= MMS_TTS_START_INDEX) {
-                urls[i] = MIRROR_PREFIXES[1] + RAW_DOWNLOAD_URLS[i];  // mirror for MMS-TTS
-            } else {
-                urls[i] = MIRROR_PREFIXES[0] + RAW_DOWNLOAD_URLS[i];  // direct for NLLB/Whisper
-            }
+            urls[i] = MIRROR_PREFIXES[0] + RAW_DOWNLOAD_URLS[i];  // direct GitHub for all models
         }
         return urls;
     }

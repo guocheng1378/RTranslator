@@ -268,6 +268,8 @@ public class Recognizer extends NeuralNetworkApi {
      * is returned from onVoice.
      *
      * @param data The audio data.
+     * @param beamSize Beam search size. NOTE: currently unused — always uses greedy search.
+     * @param languageCode ISO 639-1 language code.
      */
     public void recognize(final float[] data, int beamSize, final String languageCode) {
         new Thread("recognizer"){
