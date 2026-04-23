@@ -45,6 +45,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -76,6 +77,9 @@ public class NeuralTts implements ITts {
     private static final float DEFAULT_LENGTH_SCALE = 1.0f;
     private static final float DEFAULT_NOISE_SCALE = 0.667f;
     private static final long NOISE_SEED = 0;
+
+    // Speed control: >1.0 = slower, <1.0 = faster. 1.3 is a good default for Lao.
+    private float speedScale = 1.3f;
 
     // State
     private OrtEnvironment onnxEnv;
@@ -300,6 +304,18 @@ public class NeuralTts implements ITts {
             }
         }
         return languages;
+    }
+
+    /**
+     * Set the speech speed scale factor.
+     * @param scale >1.0 = slower speech, <1.0 = faster speech, 1.0 = normal.
+     */
+    public void setSpeedScale(float scale) {
+        this.speedScale = Math.max(0.5f, Math.min(3.0f, scale));
+    }
+
+    public float getSpeedScale() {
+        return speedScale;
     }
 
     // ========== Internal methods ==========
@@ -597,25 +613,79 @@ public class NeuralTts implements ITts {
                 Map<String, OnnxTensor> inputs = new HashMap<>();
                 inputs.put("input_ids", inputTensor);
 
+                // Check model input names and pass speed/noise params if supported
+                Set<String> inputNames = session.getInputNames();
+
+                // MMS-TTS VITS models accept length_scale (speed) and noise_scale
+                if (inputNames.contains("length_scale")) {
+                    float effectiveLength = DEFAULT_LENGTH_SCALE * speedScale;
+                    try (OnnxTensor lsTensor = OnnxTensor.createTensor(onnxEnv,
+                            new float[]{effectiveLength})) {
+                        inputs.put("length_scale", lsTensor);
+                    }
+                }
+                if (inputNames.contains("noise_scale")) {
+                    try (OnnxTensor nsTensor = OnnxTensor.createTensor(onnxEnv,
+                            new float[]{DEFAULT_NOISE_SCALE})) {
+                        inputs.put("noise_scale", nsTensor);
+                    }
+                }
+                if (inputNames.contains("noise_w")) {
+                    try (OnnxTensor nwTensor = OnnxTensor.createTensor(onnxEnv,
+                            new float[]{DEFAULT_NOISE_SCALE})) {
+                        inputs.put("noise_w", nwTensor);
+                    }
+                }
+
                 try (OrtSession.Result result = session.run(inputs)) {
                     // Get output tensor (first output)
                     Object outputValue = result.get(0).getValue();
 
+                    float[] audio;
                     if (outputValue instanceof float[][]) {
                         float[][] output = (float[][]) outputValue;
-                        return output[0]; // shape [1, samples] -> [samples]
+                        audio = output[0]; // shape [1, samples] -> [samples]
                     } else if (outputValue instanceof float[]) {
-                        return (float[]) outputValue;
+                        audio = (float[]) outputValue;
+                    } else {
+                        Log.w(TAG, "Unexpected output type: " + outputValue.getClass().getName());
+                        return null;
                     }
 
-                    Log.w(TAG, "Unexpected output type: " + outputValue.getClass().getName());
-                    return null;
+                    // Fallback: if model doesn't support length_scale, resample audio to slow down
+                    if (!inputNames.contains("length_scale") && speedScale != 1.0f && audio != null) {
+                        audio = resampleAudio(audio, speedScale);
+                    }
+
+                    return audio;
                 }
             }
         } catch (OrtException e) {
             Log.e(TAG, "ONNX inference failed", e);
             return null;
         }
+    }
+
+    /**
+     * Resample audio by stretching it (slowing down) or compressing (speeding up).
+     * Uses linear interpolation for simplicity.
+     */
+    private float[] resampleAudio(float[] audio, float scale) {
+        int newLength = (int) (audio.length * scale);
+        float[] result = new float[newLength];
+        for (int i = 0; i < newLength; i++) {
+            float srcPos = i / scale;
+            int srcIdx = (int) srcPos;
+            float frac = srcPos - srcIdx;
+            if (srcIdx + 1 < audio.length) {
+                result[i] = audio[srcIdx] * (1 - frac) + audio[srcIdx + 1] * frac;
+            } else if (srcIdx < audio.length) {
+                result[i] = audio[srcIdx];
+            } else {
+                result[i] = 0;
+            }
+        }
+        return result;
     }
 
     /**
