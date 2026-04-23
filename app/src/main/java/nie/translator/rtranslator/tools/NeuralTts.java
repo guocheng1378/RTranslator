@@ -671,7 +671,7 @@ public class NeuralTts implements ITts {
 
         AudioTrack audioTrack = new AudioTrack(
                 new AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ASSISTANT)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                         .build(),
                 new AudioFormat.Builder()
