@@ -127,20 +127,20 @@ public class DownloadFragment extends Fragment {
             "mms-tts-lao.onnx",
             "mms-tts-lao.vocab.json"
     };
-    public static final int[] DOWNLOAD_SIZES = {   //the size of the models in Kb (they are not exact, because this is used only for show the progress in progressbar)
-            24000,
-            171000,
-            500000,
-            254000,
-            14000,
-            14000,
-            173000,
-            461,
-            88000,
-            69,
+    public static final int[] DOWNLOAD_SIZES = {   //the size of the models in Kb
+            24774,     // NLLB_cache_initializer.onnx
+            174912,    // NLLB_decoder.onnx
+            512414,    // NLLB_embed_and_lm_head.onnx
+            260241,    // NLLB_encoder.onnx
+            13980,     // Whisper_cache_initializer.onnx
+            13979,     // Whisper_cache_initializer_batch.onnx
+            177482,    // Whisper_decoder.onnx
+            461,       // Whisper_detokenizer.onnx
+            90319,     // Whisper_encoder.onnx
+            70,        // Whisper_initializer.onnx
             // MMS-TTS models
-            12288,   // lao onnx
-            50       // lao vocab
+            111724,    // mms-tts-lao.onnx (~109MB)
+            1          // mms-tts-lao.vocab.json
     };
     private static final long INTERVAL_TIME_FOR_GUI_UPDATES_MS = 100;  //500
     private AccessActivity activity;
