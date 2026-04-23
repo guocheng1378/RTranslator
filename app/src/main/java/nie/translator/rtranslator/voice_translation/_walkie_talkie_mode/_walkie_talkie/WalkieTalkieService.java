@@ -301,7 +301,7 @@ public class WalkieTalkieService extends VoiceTranslationService {
                         // we save every new message in the exchanged messages so that the fragment can restore them
                         WalkieTalkieService.super.addOrUpdateMessage(message);
                         //if the tts is not active we restart the mic here
-                        if(isFinal && (tts == null || !CustomLocale.containsLanguage(ttsLanguages, languageOfText) || !tts.isActive() || isAudioMute)){
+                        if(isFinal && (activeTts == null || !CustomLocale.containsLanguage(ttsLanguages, languageOfText) || !activeTts.isActive() || isAudioMute)){
                             startVoiceRecorder();
                             notifyMicActivated();
                         }
@@ -324,7 +324,7 @@ public class WalkieTalkieService extends VoiceTranslationService {
             public void onFailure(int[] reasons, long value) {
                 WalkieTalkieService.super.notifyError(reasons,value);
                 //if the tts is not active we restart the mic here
-                if(tts == null || !tts.isActive() || isAudioMute){
+                if(activeTts == null || !activeTts.isActive() || isAudioMute){
                     startVoiceRecorder();
                     notifyMicActivated();
                 }
@@ -344,7 +344,7 @@ public class WalkieTalkieService extends VoiceTranslationService {
                         // we save every new message in the exchanged messages so that the fragment can restore them
                         WalkieTalkieService.super.addOrUpdateMessage(message);
                         //if the tts is not active we restart the mic here
-                        if(isFinal && (tts == null || !CustomLocale.containsLanguage(ttsLanguages, languageOfText) || !tts.isActive() || isAudioMute)){
+                        if(isFinal && (activeTts == null || !CustomLocale.containsLanguage(ttsLanguages, languageOfText) || !activeTts.isActive() || isAudioMute)){
                             startVoiceRecorder();
                             notifyMicActivated();
                         }
@@ -367,7 +367,7 @@ public class WalkieTalkieService extends VoiceTranslationService {
             public void onFailure(int[] reasons, long value) {
                 WalkieTalkieService.super.notifyError(reasons,value);
                 //if the tts is not active we restart the mic here
-                if(tts == null || !tts.isActive() || isAudioMute){
+                if(activeTts == null || !activeTts.isActive() || isAudioMute){
                     startVoiceRecorder();
                     notifyMicActivated();
                 }
