@@ -37,20 +37,17 @@ import java.util.Map;
  * Supported languages and their approximate model sizes:
  *   lao (Lao)       - ~12MB
  *   eng (English)   - ~14MB
- *   kor (Korean)    - ~13MB
- *   tha (Thai)      - ~12MB
- *   vie (Vietnamese) - ~12MB
- *   fra (French)    - ~14MB
- *   deu (German)    - ~14MB
- *   spa (Spanish)   - ~14MB
- *   hak (Hakka)     - ~14MB
- *   nan (Min Nan)   - ~14MB
+ *   kor (Korean)    - ~109MB
+ *   tha (Thai)      - ~109MB
+ *   vie (Vietnamese) - ~109MB
+ *   fra (French)    - ~109MB
+ *   deu (German)    - ~109MB
+ *   spa (Spanish)   - ~109MB
+ *   hak (Hakka)     - ~109MB
+ *   nan (Min Nan)   - ~109MB
  */
 public class TtsModelManager {
     private static final String TAG = "TtsModelManager";
-
-    // Model storage directory
-    private static final String MODEL_DIR = "mms-tts";
 
     // GitHub Releases base URL
     private static final String BASE_URL =
@@ -65,7 +62,16 @@ public class TtsModelManager {
     // Available TTS models: language_code -> {display_name, filename, size_kb}
     public static final Map<String, TtsModelInfo> AVAILABLE_MODELS = new LinkedHashMap<>();
     static {
-        AVAILABLE_MODELS.put("lao", new TtsModelInfo("Lao / ລາວ", "mms-tts-lao.onnx", 12288));
+        AVAILABLE_MODELS.put("lao", new TtsModelInfo("Lao / ລາວ", "mms-tts-lao.onnx", 111724));
+        AVAILABLE_MODELS.put("eng", new TtsModelInfo("English", "mms-tts-eng.onnx", 111714));
+        AVAILABLE_MODELS.put("kor", new TtsModelInfo("Korean / 한국어", "mms-tts-kor.onnx", 111704));
+        AVAILABLE_MODELS.put("tha", new TtsModelInfo("Thai / ไทย", "mms-tts-tha.onnx", 111739));
+        AVAILABLE_MODELS.put("vie", new TtsModelInfo("Vietnamese / Tiếng Việt", "mms-tts-vie.onnx", 111757));
+        AVAILABLE_MODELS.put("fra", new TtsModelInfo("French / Français", "mms-tts-fra.onnx", 111719));
+        AVAILABLE_MODELS.put("deu", new TtsModelInfo("German / Deutsch", "mms-tts-deu.onnx", 111719));
+        AVAILABLE_MODELS.put("spa", new TtsModelInfo("Spanish / Español", "mms-tts-spa.onnx", 111719));
+        AVAILABLE_MODELS.put("hak", new TtsModelInfo("Hakka / 客家話", "mms-tts-hak.onnx", 111718));
+        AVAILABLE_MODELS.put("nan", new TtsModelInfo("Min Nan / 閩南語", "mms-tts-nan.onnx", 111722));
     }
 
     private final Context context;
@@ -158,9 +164,12 @@ public class TtsModelManager {
         }
 
         String url = getDownloadUrl(info.filename);
+        // Download directly to persistent Downloads/RTranslator/models/ (survives uninstall)
         DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url))
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
-                .setDestinationInExternalFilesDir(context, null, MODEL_DIR + "/" + info.filename)
+                .setDestinationInExternalPublicDir(
+                        android.os.Environment.DIRECTORY_DOWNLOADS,
+                        "RTranslator/models/" + info.filename)
                 .setTitle("RTranslator - " + info.displayName + " TTS")
                 .setDescription("Downloading TTS model...");
 
@@ -197,7 +206,9 @@ public class TtsModelManager {
 
         DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url))
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
-                .setDestinationInExternalFilesDir(context, null, MODEL_DIR + "/" + info.filename)
+                .setDestinationInExternalPublicDir(
+                        android.os.Environment.DIRECTORY_DOWNLOADS,
+                        "RTranslator/models/" + info.filename)
                 .setTitle("RTranslator - " + info.displayName + " TTS")
                 .setDescription("Downloading TTS model...");
 
@@ -233,46 +244,29 @@ public class TtsModelManager {
     }
 
     /**
-     * Transfer a completed download to internal storage.
-     * Call this when download is complete.
+     * Mark a download as completed and clean up the download record.
+     * Call this when download is complete. No file transfer needed since
+     * we download directly to Downloads/RTranslator/models/.
      */
-    public boolean transferDownloadedModel(String languageCode) {
+    public boolean onDownloadCompleted(String languageCode) {
         SharedPreferences prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE);
         long downloadId = prefs.getLong("tts_download_id_" + languageCode, -1);
         if (downloadId < 0) return false;
 
-        TtsModelInfo info = AVAILABLE_MODELS.get(languageCode);
-        if (info == null) return false;
-
-        Uri downloadUri = downloadManager.getUriForDownloadedFile(downloadId);
-        if (downloadUri == null) return false;
-
-        try {
-            File destFile = new File(getModelDirectory(), info.filename);
-            java.io.InputStream in = context.getContentResolver().openInputStream(downloadUri);
-            java.io.OutputStream out = new java.io.FileOutputStream(destFile);
-
-            byte[] buffer = new byte[8192];
-            int bytesRead;
-            while ((bytesRead = in.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
-            }
-            out.flush();
-            out.close();
-            in.close();
-
-            // Clean up download record
-            prefs.edit()
-                    .remove("tts_download_id_" + languageCode)
-                    .putLong("tts_download_completed_" + languageCode, System.currentTimeMillis())
-                    .apply();
-
-            Log.i(TAG, "Transferred TTS model for: " + languageCode);
-            return true;
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to transfer model for: " + languageCode, e);
+        // Verify file exists in persistent location
+        if (!isModelDownloaded(languageCode)) {
+            Log.w(TAG, "Model file not found after download: " + languageCode);
             return false;
         }
+
+        // Clean up download record
+        prefs.edit()
+                .remove("tts_download_id_" + languageCode)
+                .putLong("tts_download_completed_" + languageCode, System.currentTimeMillis())
+                .apply();
+
+        Log.i(TAG, "TTS model download completed: " + languageCode);
+        return true;
     }
 
     /**
