@@ -159,6 +159,25 @@ public abstract class VoiceTranslationService extends GeneralService {
 
             @Override
             public void onError(String s) {
+                // Decrement counter on TTS error to prevent permanent stuck state
+                synchronized (mLock) {
+                    if (utterancesCurrentlySpeaking > 0) {
+                        utterancesCurrentlySpeaking--;
+                    }
+                    if (utterancesCurrentlySpeaking == 0) {
+                        mainHandler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (shouldDeactivateMicDuringTTS()) {
+                                    if(!isMicMute) {
+                                        startVoiceRecorder();
+                                    }
+                                    notifyMicActivated();
+                                }
+                            }
+                        }, 500);
+                    }
+                }
             }
         };
         initializeTTS();
@@ -189,6 +208,8 @@ public abstract class VoiceTranslationService extends GeneralService {
                     notifyError(new int[]{reason}, -1);
                     isAudioMute = true;
                 }
+                // If neuralTts exists but hasn't finished init yet, don't set isAudioMute —
+                // NeuralTts.onInit() will handle it when it completes.
             }
         });
 
@@ -200,6 +221,9 @@ public abstract class VoiceTranslationService extends GeneralService {
                 public void onInit() {
                     neuralTts.setOnUtteranceProgressListener(ttsListener);
                     activeTts = neuralTts;
+                    // Clear mute flag — NeuralTts is now available (fixes race condition
+                    // where system TTS failure set isAudioMute=true before NeuralTts init completed)
+                    isAudioMute = false;
                     android.util.Log.i("VoiceTranslationService", "NeuralTts initialized successfully");
                 }
 
@@ -207,7 +231,17 @@ public abstract class VoiceTranslationService extends GeneralService {
                 public void onError(int reason) {
                     android.util.Log.w("VoiceTranslationService", "NeuralTts failed, using system TTS");
                     neuralTts = null;
-                    // activeTts is already set to system TTS from above (or will be when it finishes init)
+                    // Restore activeTts to system TTS if available
+                    if (tts != null && tts.isActive()) {
+                        activeTts = tts;
+                        isAudioMute = false;
+                    } else {
+                        // Neither engine available — leave activeTts as-is,
+                        // isAudioMute was already set by system TTS onError if applicable
+                        if (activeTts instanceof NeuralTts) {
+                            activeTts = null;
+                        }
+                    }
                 }
             });
         }
