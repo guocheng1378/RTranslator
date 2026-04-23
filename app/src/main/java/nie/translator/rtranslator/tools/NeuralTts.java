@@ -652,11 +652,6 @@ public class NeuralTts implements ITts {
                         return null;
                     }
 
-                    // Fallback: if model doesn't support length_scale, resample audio to slow down
-                    if (!inputNames.contains("length_scale") && speedScale != 1.0f && audio != null) {
-                        audio = resampleAudio(audio, speedScale);
-                    }
-
                     return audio;
                 }
             }
@@ -667,35 +662,16 @@ public class NeuralTts implements ITts {
     }
 
     /**
-     * Resample audio by stretching it (slowing down) or compressing (speeding up).
-     * Uses linear interpolation for simplicity.
-     */
-    private float[] resampleAudio(float[] audio, float scale) {
-        int newLength = (int) (audio.length * scale);
-        float[] result = new float[newLength];
-        for (int i = 0; i < newLength; i++) {
-            float srcPos = i / scale;
-            int srcIdx = (int) srcPos;
-            float frac = srcPos - srcIdx;
-            if (srcIdx + 1 < audio.length) {
-                result[i] = audio[srcIdx] * (1 - frac) + audio[srcIdx + 1] * frac;
-            } else if (srcIdx < audio.length) {
-                result[i] = audio[srcIdx];
-            } else {
-                result[i] = 0;
-            }
-        }
-        return result;
-    }
-
-    /**
      * Play PCM audio data through AudioTrack at the given sample rate.
      */
     private void playAudio(float[] audioData, int sampleRate) {
         if (stopRequested) return;
 
-        Log.i(TAG, "Playing audio: " + audioData.length + " samples at " + sampleRate + " Hz ("
-                + (audioData.length * 1000L / sampleRate) + " ms)");
+        // Apply speed control: lower playback sample rate = slower speech
+        int playbackRate = (int) (sampleRate / speedScale);
+
+        Log.i(TAG, "Playing audio: " + audioData.length + " samples at " + playbackRate + " Hz (model: " + sampleRate + " Hz, speedScale: " + speedScale + ")"
+                + " (" + (audioData.length * 1000L / playbackRate) + " ms)");
 
         // Convert float [-1.0, 1.0] to short [-32768, 32767]
         short[] pcmData = new short[audioData.length];
@@ -705,7 +681,7 @@ public class NeuralTts implements ITts {
         }
 
         int minBufferSize = AudioTrack.getMinBufferSize(
-                sampleRate,
+                playbackRate,
                 AudioFormat.CHANNEL_OUT_MONO,
                 AudioFormat.ENCODING_PCM_16BIT
         );
@@ -716,7 +692,7 @@ public class NeuralTts implements ITts {
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                         .build(),
                 new AudioFormat.Builder()
-                        .setSampleRate(sampleRate)
+                        .setSampleRate(playbackRate)
                         .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                         .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                         .build(),
