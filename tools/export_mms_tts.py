@@ -81,7 +81,7 @@ def export_language(lang_code: str, model_name: str, dummy_text: str):
     # Romanize text for languages with non-Latin scripts.
     # MMS-TTS models for these languages were trained on uroman-processed text.
     # Without romanization, the model receives native script and produces garbled output.
-    needs_roman = lang_code in ("kor", "hak", "nan", "lao", "tha", "ara", "hin")
+    needs_roman = lang_code in ("kor", "hak", "nan")
     if needs_roman:
         dummy_text = romanize_text(dummy_text, lang_code)
 
