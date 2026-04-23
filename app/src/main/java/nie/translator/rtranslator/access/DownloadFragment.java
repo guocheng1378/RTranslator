@@ -499,39 +499,21 @@ public class DownloadFragment extends Fragment {
                 }
             }
             if(nameIndex != -1) {
-                //we restart the transfer
-                File from = new File(global.getExternalFilesDir(null) + "/" + DownloadFragment.DOWNLOAD_NAMES[nameIndex]);
-                File to = new File(global.getFilesDir() + "/" + DownloadFragment.DOWNLOAD_NAMES[nameIndex]);
+                // Models stay in external storage (no transfer needed) — just mark success and continue
                 int finalNameIndex = nameIndex;
-                FileTools.moveFile(from, to, new FileTools.MoveFileCallback() {
-                    @Override
-                    public void onSuccess() {
-                        //we save the success of the transfer
-                        SharedPreferences.Editor editor = sharedPreferences.edit();
-                        editor.putString("lastTransferSuccess", DownloadFragment.DOWNLOAD_NAMES[finalNameIndex]);
-                        editor.apply();
+                SharedPreferences.Editor editor = sharedPreferences.edit();
+                editor.putString("lastTransferSuccess", DownloadFragment.DOWNLOAD_NAMES[finalNameIndex]);
+                editor.putString("lastTransferFailure", "");
+                editor.apply();
 
-                        if (finalNameIndex < (DownloadFragment.DOWNLOAD_URLS.length - 1)) {  //if the download done is not the last one
-                            //we start the next download
-                            new Thread(() -> DownloadReceiver.internalCheckAndStartNextDownload(global, downloader, finalNameIndex)).start();
-                        } else {
-                            //we notify the completion of the download of all models
-                            editor = sharedPreferences.edit();
-                            editor.putLong("currentDownloadId", -2);
-                            editor.apply();
-
-                            startRTranslator();
-                        }
-                    }
-
-                    @Override
-                    public void onFailure() {
-                        //we save the failure of the transfer
-                        SharedPreferences.Editor editor = sharedPreferences.edit();
-                        editor.putString("lastTransferFailure", DownloadFragment.DOWNLOAD_NAMES[finalNameIndex]);
-                        editor.apply();
-                    }
-                });
+                if (finalNameIndex < (DownloadFragment.DOWNLOAD_URLS.length - 1)) {
+                    new Thread(() -> DownloadReceiver.internalCheckAndStartNextDownload(global, downloader, finalNameIndex)).start();
+                } else {
+                    editor = sharedPreferences.edit();
+                    editor.putLong("currentDownloadId", -2);
+                    editor.apply();
+                    startRTranslator();
+                }
             }
         }
     }
