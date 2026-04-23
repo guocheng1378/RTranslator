@@ -156,7 +156,7 @@ public class NeuralTts implements ITts {
 
                     String speakText = textStr;
 
-                    // Apply uroman romanization for non-Latin scripts (MMS-TTS requirement)
+                    // Apply uroman romanization for non-Latin scripts (MMS-TTS requirement).
                     // MMS-TTS models for Lao/Thai/Arabic/etc. were trained on romanized text.
                     // Without this, non-Latin characters map to <unk> and produce garbled audio.
                     if (needsRomanization(langCode)) {
@@ -312,9 +312,10 @@ public class NeuralTts implements ITts {
     /**
      * Languages that require romanization before MMS-TTS inference.
      * MMS-TTS models for these languages were trained on romanized (Latin) text,
-     * so non-Latin script input must be converted first.
+     * so non-Latin script input must be converted to Latin first.
      *
-     * Reference: https://github.com/isi-nlp/uroman
+     * This implements the same romanization as Meta's uroman tool:
+     * https://github.com/isi-nlp/uroman
      */
     private static boolean needsRomanization(String langCode) {
         switch (langCode) {
@@ -347,9 +348,8 @@ public class NeuralTts implements ITts {
 
     /**
      * Romanize text for MMS-TTS using character-level transliteration.
-     * Implements uroman-compatible mappings for supported scripts.
+     * Uses uroman-compatible mappings generated from Meta's uroman tool.
      *
-     * For Lao: converts Lao script to Latin text that MMS-TTS expects.
      * Reference: https://github.com/isi-nlp/uroman
      */
     private String romanizeForMms(String text, String langCode) {
@@ -357,8 +357,6 @@ public class NeuralTts implements ITts {
             case "lao":
                 return romanizeLao(text);
             default:
-                // For other languages, return as-is for now.
-                // TODO: Add romanization for tha, ara, hin, etc.
                 Log.w(TAG, "Romanization not yet implemented for: " + langCode);
                 return text;
         }
@@ -367,74 +365,95 @@ public class NeuralTts implements ITts {
     /**
      * Romanize Lao script to Latin text compatible with MMS-TTS.
      *
-     * MMS-TTS Lao model was trained on uroman-processed text.
-     * This implements the core Lao-to-Latin character mapping following
-     * the uroman standard and MMS-TTS training conventions.
+     * Character mappings are generated from uroman (Meta's universal romanizer)
+     * to match exactly what the MMS-TTS Lao model was trained on.
      *
-     * Lao script range: U+0E81-U+0EDF
+     * Key mappings (uroman output):
+     *   ຍ -> "nyo", ອ -> "o", ຈ -> "c", ີ -> "ii"
+     *   ຶ -> "y", ື -> "yy", ູ -> "uu", ຣ/ລ -> "l"
+     *   ແ -> "ei", ໃ -> "ay", ໄ -> "ai"
+     *
+     * Tone marks (U+0EC8-0ECB) are dropped (empty romanization).
      */
     private String romanizeLao(String text) {
         if (text == null || text.isEmpty()) return text;
 
-        final Map<Character, String> consonants = new LinkedHashMap<>();
-        consonants.put('ກ', "k");  // ກ
-        consonants.put('ຂ', "kh");  // ຂ
-        consonants.put('ຄ', "kh");  // ຄ
-        consonants.put('ງ', "ng");  // ງ
-        consonants.put('ຈ', "j");  // ຈ
-        consonants.put('ຊ', "s");  // ຊ
-        consonants.put('ຍ', "ny");  // ຍ
-        consonants.put('ດ', "d");  // ດ
-        consonants.put('ຕ', "t");  // ຕ
-        consonants.put('ຖ', "th");  // ຖ
-        consonants.put('ທ', "th");  // ທ
-        consonants.put('ນ', "n");  // ນ
-        consonants.put('ບ', "b");  // ບ
-        consonants.put('ປ', "p");  // ປ
-        consonants.put('ຜ', "ph");  // ຜ
-        consonants.put('ຝ', "ph");  // ຝ
-        consonants.put('ພ', "ph");  // ພ
-        consonants.put('ຟ', "f");  // ຟ
-        consonants.put('ມ', "m");  // ມ
-        consonants.put('ຢ', "y");  // ຢ
-        consonants.put('ຣ', "r");  // ຣ
-        consonants.put('ລ', "l");  // ລ
-        consonants.put('ວ', "w");  // ວ
-        consonants.put('ສ', "s");  // ສ
-        consonants.put('ຫ', "h");  // ຫ
-        consonants.put('ອ', "a");  // ອ
-        consonants.put('ຯ', "o");  // ຯ
-        consonants.put('ະ', "a");  // ະ
-        consonants.put('ັ', "a");  // ັ
-        consonants.put('າ', "aa");  // າ
-        consonants.put('ຳ', "am");  // ຳ
-        consonants.put('ິ', "i");  // ິ
-        consonants.put('ີ', "i");  // ີ
-        consonants.put('ຶ', "ue");  // ຶ
-        consonants.put('ື', "ue");  // ື
-        consonants.put('ຸ', "u");  // ຸ
-        consonants.put('ູ', "u");  // ູ
-        consonants.put('ົ', "o");  // ົ
-        consonants.put('ຼ', "o");  // ຼ
-        consonants.put('ຽ', "ny");  // ຽ
-        consonants.put('່', "");  // ່
-        consonants.put('້', "");  // ້
-        consonants.put('໊', "");  // ໊
-        consonants.put('໋', "");  // ໋
-        consonants.put('໌', "");  // ໌
-        consonants.put('ໍ', "");  // ໍ
-        consonants.put('໎', "");  // ໎
-        consonants.put('໏', "");  // ໏
-        consonants.put('໐', "0");  // ໐
-        consonants.put('໑', "1");  // ໑
-        consonants.put('໒', "2");  // ໒
-        consonants.put('໓', "3");  // ໓
-        consonants.put('໔', "4");  // ໔
-        consonants.put('໕', "5");  // ໕
-        consonants.put('໖', "6");  // ໖
-        consonants.put('໗', "7");  // ໗
-        consonants.put('໘', "8");  // ໘
-        consonants.put('໙', "9");  // ໙
+        // Lao character to Latin mapping (from uroman)
+        final Map<Character, String> laoToLatin = new LinkedHashMap<>();
+        consonants.put('ກ', "k");
+        consonants.put('ຂ', "kh");
+        consonants.put('ຄ', "kh");
+        consonants.put('ຆ', "gh");
+        consonants.put('ງ', "ng");
+        consonants.put('ຈ', "c");
+        consonants.put('ຉ', "ch");
+        consonants.put('ຊ', "s");
+        consonants.put('ຌ', "jh");
+        consonants.put('ຍ', "nyo");
+        consonants.put('ຎ', "nya");
+        consonants.put('ຏ', "tt");
+        consonants.put('ຐ', "tth");
+        consonants.put('ຑ', "dd");
+        consonants.put('ຒ', "ddh");
+        consonants.put('ຓ', "nn");
+        consonants.put('ດ', "d");
+        consonants.put('ຕ', "t");
+        consonants.put('ຖ', "th");
+        consonants.put('ທ', "th");
+        consonants.put('ຘ', "dh");
+        consonants.put('ນ', "n");
+        consonants.put('ບ', "b");
+        consonants.put('ປ', "p");
+        consonants.put('ຜ', "ph");
+        consonants.put('ຝ', "f");
+        consonants.put('ພ', "ph");
+        consonants.put('ຟ', "f");
+        consonants.put('ຠ', "bh");
+        consonants.put('ມ', "m");
+        consonants.put('ຢ', "y");
+        consonants.put('ຣ', "l");
+        consonants.put('ລ', "l");
+        consonants.put('ວ', "w");
+        consonants.put('ຨ', "sh");
+        consonants.put('ຩ', "ss");
+        consonants.put('ສ', "s");
+        consonants.put('ຫ', "h");
+        consonants.put('ຬ', "ll");
+        consonants.put('ອ', "o");
+        consonants.put('ຮ', "h");
+        consonants.put('ະ', "a");
+        consonants.put('ັ', "a");
+        consonants.put('າ', "aa");
+        consonants.put('ຳ', "am");
+        consonants.put('ິ', "i");
+        consonants.put('ີ', "ii");
+        consonants.put('ຶ', "y");
+        consonants.put('ື', "yy");
+        consonants.put('ຸ', "u");
+        consonants.put('ູ', "uu");
+        consonants.put('຺', "virama");
+        consonants.put('ົ', "o");
+        consonants.put('ຼ', "l");
+        consonants.put('ຽ', "y");
+        consonants.put('ເ', "e");
+        consonants.put('ແ', "ei");
+        consonants.put('ໂ', "o");
+        consonants.put('ໃ', "ay");
+        consonants.put('ໄ', "ai");
+        consonants.put('ໆ', "²");
+        consonants.put('ໍ', "oo");
+        consonants.put('໐', "0");
+        consonants.put('໑', "1");
+        consonants.put('໒', "2");
+        consonants.put('໓', "3");
+        consonants.put('໔', "4");
+        consonants.put('໕', "5");
+        consonants.put('໖', "6");
+        consonants.put('໗', "7");
+        consonants.put('໘', "8");
+        consonants.put('໙', "9");
+        consonants.put('ໜ', "n");
+        consonants.put('ໝ', "m");
 
         StringBuilder sb = new StringBuilder();
         int len = text.length();
@@ -442,20 +461,21 @@ public class NeuralTts implements ITts {
         for (int i = 0; i < len; i++) {
             char c = text.charAt(i);
 
-            // Handle Lao character range
             if (c >= '\u0E81' && c <= '\u0EDF') {
-                String roman = consonants.get(c);
+                // Lao character range: look up romanization
+                String roman = laoToLatin.get(c);
                 if (roman != null) {
                     sb.append(roman);
-                } else {
-                    sb.append(' ');
                 }
+                // If null (e.g., unmapped combining mark), skip it
             } else if (c == ' ' || c == '\u00A0') {
                 sb.append(' ');
             } else if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
                     || (c >= '0' && c <= '9')) {
+                // Already Latin/digit, keep as-is
                 sb.append(c);
             } else {
+                // Punctuation and other characters: keep as-is
                 sb.append(c);
             }
         }
