@@ -188,19 +188,11 @@ public class DownloadReceiver extends BroadcastReceiver {
 
     private static void transferModelAndStartNextDownload(Context context, Downloader downloader, int urlIndex){
         SharedPreferences sharedPreferences = context.getSharedPreferences("default", Context.MODE_PRIVATE);
-        //we save the success of the download
+        //we save the success of the download and transfer in a single edit (batched)
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("lastDownloadSuccess", DownloadFragment.DOWNLOAD_NAMES[urlIndex]);
         editor.putInt("mirrorAttempt_" + urlIndex, 0);  // reset mirror counter on success
-        editor.apply();
-        //we reset the failure info of the transfer
-        editor = sharedPreferences.edit();
         editor.putString("lastTransferFailure", "");
-        editor.apply();
-
-        // Keep all models in external storage (persists across uninstall).
-        // NeuralTts, Translator, and Recognizer all use resolveModelPath() to find them.
-        editor = sharedPreferences.edit();
         editor.putString("lastTransferSuccess", DownloadFragment.DOWNLOAD_NAMES[urlIndex]);
         editor.apply();
         internalCheckAndStartNextDownload(context, downloader, urlIndex);
@@ -224,8 +216,6 @@ public class DownloadReceiver extends BroadcastReceiver {
                     if (mmsFile.length() > 0) {
                         SharedPreferences.Editor ed = sharedPreferences.edit();
                         ed.putString("lastDownloadSuccess", DownloadFragment.DOWNLOAD_NAMES[nextIndex]);
-                        ed.apply();
-                        ed = sharedPreferences.edit();
                         ed.putString("lastTransferSuccess", DownloadFragment.DOWNLOAD_NAMES[nextIndex]);
                         ed.apply();
                         internalCheckAndStartNextDownload(context, downloader, nextIndex);
@@ -240,12 +230,8 @@ public class DownloadReceiver extends BroadcastReceiver {
                     NeuralNetworkApi.testModelIntegrity(checkPath, new NeuralNetworkApi.InitListener() {
                         @Override
                         public void onInitializationFinished() {   //the model to be downloaded next is already in memory and it is not corrupted
-                            //we save the success of the download
                             SharedPreferences.Editor editor = sharedPreferences.edit();
                             editor.putString("lastDownloadSuccess", DownloadFragment.DOWNLOAD_NAMES[nextIndex]);
-                            editor.apply();
-                            //we save the success of the transfer
-                            editor = sharedPreferences.edit();
                             editor.putString("lastTransferSuccess", DownloadFragment.DOWNLOAD_NAMES[nextIndex]);
                             editor.apply();
                             //we start the next download

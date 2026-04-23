@@ -626,7 +626,34 @@ public class Recognizer extends NeuralNetworkApi {
     }
 
     public void destroy() {
-        //eventually if in the future I decide to load Whisper only for WalkieTalkie and Conversation then all the resources will be released here
+        if (initSession != null) {
+            try { initSession.close(); } catch (Exception e) { /* ignore */ }
+            initSession = null;
+        }
+        if (encoderSession != null) {
+            try { encoderSession.close(); } catch (Exception e) { /* ignore */ }
+            encoderSession = null;
+        }
+        if (cacheInitSession != null) {
+            try { cacheInitSession.close(); } catch (Exception e) { /* ignore */ }
+            cacheInitSession = null;
+        }
+        if (cacheInitBatchSession != null) {
+            try { cacheInitBatchSession.close(); } catch (Exception e) { /* ignore */ }
+            cacheInitBatchSession = null;
+        }
+        if (decoderSession != null) {
+            try { decoderSession.close(); } catch (Exception e) { /* ignore */ }
+            decoderSession = null;
+        }
+        if (detokenizerSession != null) {
+            try { detokenizerSession.close(); } catch (Exception e) { /* ignore */ }
+            detokenizerSession = null;
+        }
+        if (session != null) {
+            try { session.close(); } catch (Exception e) { /* ignore */ }
+            session = null;
+        }
     }
 
     public int getLanguageID(String language){

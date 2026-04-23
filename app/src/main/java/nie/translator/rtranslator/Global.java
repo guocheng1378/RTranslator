@@ -233,6 +233,9 @@ public class Global extends Application implements DefaultLifecycleObserver {
     }
 
     public void deleteTranslator(){
+        if (translator != null) {
+            translator.destroy();
+        }
         translator = null;
     }
 
@@ -241,6 +244,9 @@ public class Global extends Application implements DefaultLifecycleObserver {
     }
 
     public void deleteSpeechRecognizer(){
+        if (speechRecognizer != null) {
+            speechRecognizer.destroy();
+        }
         speechRecognizer = null;
     }
 

@@ -198,6 +198,33 @@ public class Translator extends NeuralNetworkApi {
     }
 
 
+    /**
+     * Release all ONNX sessions and native resources.
+     * Must be called when the Translator is no longer needed to prevent native memory leaks.
+     */
+    public void destroy() {
+        if (encoderSession != null) {
+            try { encoderSession.close(); } catch (Exception e) { /* ignore */ }
+            encoderSession = null;
+        }
+        if (decoderSession != null) {
+            try { decoderSession.close(); } catch (Exception e) { /* ignore */ }
+            decoderSession = null;
+        }
+        if (cacheInitSession != null) {
+            try { cacheInitSession.close(); } catch (Exception e) { /* ignore */ }
+            cacheInitSession = null;
+        }
+        if (embedAndLmHeadSession != null) {
+            try { embedAndLmHeadSession.close(); } catch (Exception e) { /* ignore */ }
+            embedAndLmHeadSession = null;
+        }
+        if (embedSession != null) {
+            try { embedSession.close(); } catch (Exception e) { /* ignore */ }
+            embedSession = null;
+        }
+    }
+
     public void translate(final String textToTranslate, final CustomLocale languageInput, final CustomLocale languageOutput, int beamSize, boolean saveResults) {
         final Thread t = new Thread("textTranslation") {
             public void run() {
@@ -681,12 +708,11 @@ public class Translator extends NeuralNetworkApi {
             OnnxTensor inputIDsTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, input_ids);
             OnnxTensor encoderAttentionMaskTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, input.getAttentionMask());
             OnnxTensor decoderOutput = null;
-            Map<String,OnnxTensor> decoderInput = new HashMap<String,OnnxTensor>();
             float[][][] value = null;
             float [] outputValues = null;
             int[] outputIDs = null;
             //we prepare the input of the cache initializer
-            Map<String,OnnxTensor> initInput = new HashMap<String,OnnxTensor>();
+            Map<String,OnnxTensor> initInput = new HashMap<String,OnnxTensor>(1);
             initInput.put("encoder_hidden_states", encoderResult);
             //cache initializer execution
             OrtSession.Result initResult = null;
@@ -698,34 +724,44 @@ public class Translator extends NeuralNetworkApi {
             OrtSession.Result oldResult = null;
             OnnxTensor emptyPreLogits = TensorUtils.createFloatTensorWithSingleValue(onnxEnv, 0, new long[]{EMPTY_BATCH_SIZE, 1, 1024});
             OnnxTensor emptyInputIds = TensorUtils.createInt64TensorWithSingleValue(onnxEnv, 0, new long[]{EMPTY_BATCH_SIZE, 2});
+
+            // Pre-create reusable containers and constant tensors to reduce GC pressure in the loop
+            // (decoder loop can run hundreds of iterations)
+            Map<String,OnnxTensor> decoderInput = new HashMap<String,OnnxTensor>(4 + 4*nLayers);
+            Map<String,OnnxTensor> embedInput = new HashMap<>(3);
+            ArraySet<String> requestedOutputsEmbed = new ArraySet<>(1);
+            requestedOutputsEmbed.add("embed_matrix");
+            Map<String, OnnxTensor> lmHeadInput = mode == NLLB_CACHE ? new HashMap<>(3) : null;
+            ArraySet<String> requestedOutputsLmHead = mode == NLLB_CACHE ? new ArraySet<>(1) : null;
+            if (requestedOutputsLmHead != null) requestedOutputsLmHead.add("logits");
+            // Pre-create constant boolean tensors (reused every iteration like inputIDsTensor)
+            OnnxTensor useLmHeadFalse = mode == NLLB_CACHE ? TensorUtils.convertBooleanToTensor(onnxEnv, false) : null;
+            OnnxTensor useLmHeadTrue = mode == NLLB_CACHE ? TensorUtils.convertBooleanToTensor(onnxEnv, true) : null;
+
             int max = -1;
             int j = 1;
             while(max != eos){
                 initialTime = System.currentTimeMillis();
                 time = System.currentTimeMillis();
-                //we prepare the decoder input
-                decoderInput = new HashMap<String,OnnxTensor>();
+                //we prepare the decoder input (reuse map instead of allocating new one)
+                decoderInput.clear();
                 decoderInput.put("input_ids", inputIDsTensor);
                 decoderInput.put("encoder_attention_mask", encoderAttentionMaskTensor);
                 OrtSession.Result embedResult = null;
                 if(mode == NLLB_CACHE){
                     //we do the embedding separately and then we pass the result to the encoder
-                    Map<String,OnnxTensor> embedInput = new HashMap<String,OnnxTensor>();
+                    embedInput.clear();
                     embedInput.put("input_ids", inputIDsTensor);
                     embedInput.put("pre_logits", emptyPreLogits);
-                    embedInput.put("use_lm_head", TensorUtils.convertBooleanToTensor(onnxEnv, false));
-                    ArraySet<String> requestedOutputs = new ArraySet<>();
-                    requestedOutputs.add("embed_matrix");
-                    embedResult = embedAndLmHeadSession.run(embedInput, requestedOutputs);
+                    embedInput.put("use_lm_head", useLmHeadFalse);
+                    embedResult = embedAndLmHeadSession.run(embedInput, requestedOutputsEmbed);
 
                     decoderInput.put("embed_matrix", (OnnxTensor) embedResult.get(0));
                 }
                 if(mode == MADLAD_CACHE) {
-                    Map<String,OnnxTensor> embedInput = new HashMap<String,OnnxTensor>();
+                    embedInput.clear();
                     embedInput.put("input_ids", inputIDsTensor);
-                    ArraySet<String> requestedOutputs = new ArraySet<>();
-                    requestedOutputs.add("embed_matrix");
-                    embedResult = embedSession.run(embedInput, requestedOutputs);
+                    embedResult = embedSession.run(embedInput, requestedOutputsEmbed);
 
                     decoderInput.put("embed_matrix", (OnnxTensor) embedResult.get(0));
                     decoderInput.put("encoder_hidden_states", encoderResult);
@@ -767,13 +803,11 @@ public class Translator extends NeuralNetworkApi {
                 OrtSession.Result lmHeadResult = null;
                 if(mode == NLLB_CACHE) {
                     //we execute the lmHead separately to get the logits
-                    Map<String, OnnxTensor> lmHeadInput = new HashMap<String, OnnxTensor>();
+                    lmHeadInput.clear();
                     lmHeadInput.put("input_ids", emptyInputIds);
                     lmHeadInput.put("pre_logits", (OnnxTensor) result.get("pre_logits").get());
-                    lmHeadInput.put("use_lm_head", TensorUtils.convertBooleanToTensor(onnxEnv, true));
-                    ArraySet<String> requestedOutputs = new ArraySet<>();
-                    requestedOutputs.add("logits");
-                    lmHeadResult = embedAndLmHeadSession.run(lmHeadInput, requestedOutputs);
+                    lmHeadInput.put("use_lm_head", useLmHeadTrue);
+                    lmHeadResult = embedAndLmHeadSession.run(lmHeadInput, requestedOutputsLmHead);
                     decoderOutput = (OnnxTensor) lmHeadResult.get(0);
                 }else {
                     decoderOutput = (OnnxTensor) result.get("logits").get();
@@ -791,7 +825,10 @@ public class Translator extends NeuralNetworkApi {
                 }else{
                     input_ids[0] = max;
                 }
+                // Close old tensor before reassigning (native memory leak prevention)
+                OnnxTensor oldInputIDs = inputIDsTensor;
                 inputIDsTensor = TensorUtils.convertIntArrayToTensor(onnxEnv, input_ids);
+                oldInputIDs.close();
                 android.util.Log.i("performance", "post-execution of"+j+"th word done in: " + (System.currentTimeMillis()-time) + "ms");
                 android.util.Log.i("performance", "Generation of"+j+"th word done in: " + (System.currentTimeMillis() - initialTime) + "ms");
                 //we return the partial result
