@@ -197,6 +197,16 @@ public class DownloadReceiver extends BroadcastReceiver {
         editor = sharedPreferences.edit();
         editor.putString("lastTransferFailure", "");
         editor.apply();
+
+        // MMS-TTS models: keep in external storage (persists across uninstall)
+        if (urlIndex >= DownloadFragment.MMS_TTS_START_INDEX) {
+            editor = sharedPreferences.edit();
+            editor.putString("lastTransferSuccess", DownloadFragment.DOWNLOAD_NAMES[urlIndex]);
+            editor.apply();
+            internalCheckAndStartNextDownload(context, downloader, urlIndex);
+            return;
+        }
+
         //we move the downloaded content to internal storage and start the next download
         File from = new File(context.getExternalFilesDir(null) + "/" + DownloadFragment.DOWNLOAD_NAMES[urlIndex]);
         File to = new File(context.getFilesDir() + "/" + DownloadFragment.DOWNLOAD_NAMES[urlIndex]);
@@ -233,13 +243,17 @@ public class DownloadReceiver extends BroadcastReceiver {
         SharedPreferences.Editor editor;
         if (urlIndex < (DownloadFragment.DOWNLOAD_URLS.length - 1)) {  //if the download done is not the last one
             int nextIndex = urlIndex + 1;
-            //we verify if the model to be downloaded next is already in internal memory and if it is not corrupted
+            //we verify if the model to be downloaded next is already in memory and if it is not corrupted
             String nextDownloadInternalPath = context.getFilesDir() + "/" + DownloadFragment.DOWNLOAD_NAMES[nextIndex];
             File nextDownloadInternalFile = new File(nextDownloadInternalPath);
-            if(nextDownloadInternalFile.exists()){
+            // MMS-TTS models live in external storage (persist across uninstall)
+            String nextDownloadExternalPath = context.getExternalFilesDir(null) + "/" + DownloadFragment.DOWNLOAD_NAMES[nextIndex];
+            File nextDownloadExternalFile = new File(nextDownloadExternalPath);
+            if(nextDownloadInternalFile.exists() || (nextIndex >= DownloadFragment.MMS_TTS_START_INDEX && nextDownloadExternalFile.exists())){
                 if (nextIndex >= DownloadFragment.MMS_TTS_START_INDEX) {
-                    // MMS-TTS models: just check file is non-empty
-                    if (nextDownloadInternalFile.length() > 0) {
+                    // MMS-TTS models: check either internal or external, just verify non-empty
+                    File mmsFile = nextDownloadInternalFile.exists() ? nextDownloadInternalFile : nextDownloadExternalFile;
+                    if (mmsFile.length() > 0) {
                         SharedPreferences.Editor ed = sharedPreferences.edit();
                         ed.putString("lastDownloadSuccess", DownloadFragment.DOWNLOAD_NAMES[nextIndex]);
                         ed.apply();
@@ -248,7 +262,7 @@ public class DownloadReceiver extends BroadcastReceiver {
                         ed.apply();
                         internalCheckAndStartNextDownload(context, downloader, nextIndex);
                     } else {
-                        nextDownloadInternalFile.delete();
+                        mmsFile.delete();
                         externalCheckAndStartNextDownload(context, downloader, urlIndex);
                     }
                 } else {
