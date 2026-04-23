@@ -290,7 +290,14 @@ public class NeuralTts implements ITts {
     @NonNull
     public static List<String> getAvailableLanguages(@NonNull Context context) {
         List<String> languages = new ArrayList<>();
-        File dir = new File(context.getFilesDir(), MODEL_DIR);
+        // Check external storage (persists across uninstall)
+        File downloads = android.os.Environment.getExternalStoragePublicDirectory(
+                android.os.Environment.DIRECTORY_DOWNLOADS);
+        File dir = new File(downloads, "RTranslator/models");
+        if (!dir.exists() || !dir.isDirectory()) {
+            // Fallback to internal storage
+            dir = new File(context.getFilesDir(), MODEL_DIR);
+        }
         if (dir.exists() && dir.isDirectory()) {
             File[] files = dir.listFiles();
             if (files != null) {
@@ -377,7 +384,14 @@ public class NeuralTts implements ITts {
 
     @NonNull
     private File getModelDirectory() {
-        return new File(context.getFilesDir(), MODEL_DIR);
+        // Use Downloads/RTranslator/models/ so models survive app uninstall
+        File downloads = android.os.Environment.getExternalStoragePublicDirectory(
+                android.os.Environment.DIRECTORY_DOWNLOADS);
+        File dir = new File(downloads, "RTranslator/models");
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+        return dir;
     }
 
     @NonNull

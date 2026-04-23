@@ -81,11 +81,34 @@ public class TtsModelManager {
      */
     @NonNull
     public File getModelDirectory() {
-        File dir = new File(context.getFilesDir(), MODEL_DIR);
+        // Use Downloads/RTranslator/models/ so models survive app uninstall
+        File downloads = android.os.Environment.getExternalStoragePublicDirectory(
+                android.os.Environment.DIRECTORY_DOWNLOADS);
+        File dir = new File(downloads, "RTranslator/models");
         if (!dir.exists()) {
             dir.mkdirs();
         }
         return dir;
+    }
+
+    /**
+     * Migrate models from old internal storage to new external location.
+     * Called once on app startup.
+     */
+    public void migrateFromInternalStorage() {
+        File oldDir = new File(context.getFilesDir(), MODEL_DIR);
+        if (!oldDir.exists()) return;
+        File newDir = getModelDirectory();
+        File[] files = oldDir.listFiles();
+        if (files == null) return;
+        for (File old : files) {
+            File target = new File(newDir, old.getName());
+            if (!target.exists()) {
+                old.renameTo(target);
+                Log.i(TAG, "Migrated model: " + old.getName() + " -> " + target.getAbsolutePath());
+            }
+        }
+        oldDir.delete();
     }
 
     /**
