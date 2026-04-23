@@ -159,8 +159,11 @@ public class NeuralTts implements ITts {
                     // Apply uroman romanization for non-Latin scripts (MMS-TTS requirement).
                     // MMS-TTS models for Lao/Thai/Arabic/etc. were trained on romanized text.
                     // Without this, non-Latin characters map to <unk> and produce garbled audio.
-                    if (needsRomanization(langCode)) {
-                        speakText = romanizeForMms(speakText, langCode);
+                    // Note: normalize langCode to ISO 639-3 before checking, since VoiceTranslationService
+                    // passes ISO 639-1 codes (e.g. "lo") but needsRomanization expects ISO 639-3 ("lao").
+                    String normalizedForRoman = normalizeLanguageCode(langCode);
+                    if (needsRomanization(normalizedForRoman)) {
+                        speakText = romanizeForMms(speakText, normalizedForRoman);
                         Log.d(TAG, "Romanized text for " + langCode + ": " + speakText);
                     }
 
@@ -318,28 +321,49 @@ public class NeuralTts implements ITts {
      * https://github.com/isi-nlp/uroman
      */
     private static boolean needsRomanization(String langCode) {
+        // Accept both ISO 639-1 (e.g. "lo") and ISO 639-3 (e.g. "lao") codes.
+        // The langCode parameter should already be normalized to ISO 639-3 by caller,
+        // but we handle both for robustness.
         switch (langCode) {
-            case "lao":  // Lao script to Latin
-            case "tha":  // Thai script to Latin
-            case "mya":  // Burmese to Latin
-            case "khm":  // Khmer to Latin
-            case "amh":  // Ethiopic to Latin
-            case "ara":  // Arabic to Latin
-            case "heb":  // Hebrew to Latin
-            case "hin":  // Devanagari to Latin
-            case "ben":  // Bengali to Latin
-            case "tam":  // Tamil to Latin
-            case "tel":  // Telugu to Latin
-            case "kan":  // Kannada to Latin
-            case "mal":  // Malayalam to Latin
-            case "sin":  // Sinhala to Latin
-            case "urd":  // Urdu to Latin
-            case "nep":  // Nepali to Latin
-            case "mar":  // Marathi to Latin
-            case "guj":  // Gujarati to Latin
-            case "pan":  // Punjabi to Latin
-            case "ori":  // Odia to Latin
-            case "asm":  // Assamese to Latin
+            // Lao
+            case "lao": case "lo":
+            // Thai
+            case "tha": case "th":
+            // Burmese
+            case "mya": case "my":
+            // Khmer
+            case "khm": case "km":
+            // Ethiopic (Amharic)
+            case "amh": case "am":
+            // Arabic
+            case "ara": case "ar":
+            // Hebrew
+            case "heb": case "he":
+            // Devanagari (Hindi, Nepali, Marathi)
+            case "hin": case "hi":
+            case "nep": case "ne":
+            case "mar": case "mr":
+            // Bengali / Assamese
+            case "ben": case "bn":
+            case "asm": case "as":
+            // Tamil
+            case "tam": case "ta":
+            // Telugu
+            case "tel": case "te":
+            // Kannada
+            case "kan": case "kn":
+            // Malayalam
+            case "mal": case "ml":
+            // Sinhala
+            case "sin": case "si":
+            // Urdu
+            case "urd": case "ur":
+            // Gujarati
+            case "guj": case "gu":
+            // Punjabi
+            case "pan": case "pa":
+            // Odia
+            case "ori": case "or":
                 return true;
             default:
                 return false;
