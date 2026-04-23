@@ -78,8 +78,10 @@ def export_language(lang_code: str, model_name: str, dummy_text: str):
     model, tokenizer = download_with_retry(model_name)
     model.eval()
 
-    # Romanize dummy text for languages that need it
-    needs_roman = lang_code in ("kor", "hak", "nan")
+    # Romanize text for languages with non-Latin scripts.
+    # MMS-TTS models for these languages were trained on uroman-processed text.
+    # Without romanization, the model receives native script and produces garbled output.
+    needs_roman = lang_code in ("kor", "hak", "nan", "lao", "tha", "ara", "hin")
     if needs_roman:
         dummy_text = romanize_text(dummy_text, lang_code)
 
