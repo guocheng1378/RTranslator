@@ -50,20 +50,9 @@ public class DownloadReceiver extends BroadcastReceiver {
                             int urlIndex = downloader.findDownloadUrlIndex(downloadId);
                             if (urlIndex != -1) {
                                 String downloadedModelPath = context.getExternalFilesDir(null) + "/" + DownloadFragment.DOWNLOAD_NAMES[urlIndex];
-                                if (urlIndex >= DownloadFragment.MMS_TTS_START_INDEX) {
-                                    // MMS-TTS models: skip ONNX integrity check, just verify file exists and is non-empty
-                                    File modelFile = new File(downloadedModelPath);
-                                    if (modelFile.exists() && modelFile.length() > 0) {
-                                        transferModelAndStartNextDownload(context, downloader, urlIndex);
-                                    } else {
-                                        SharedPreferences sharedPreferences = context.getSharedPreferences("default", Context.MODE_PRIVATE);
-                                        SharedPreferences.Editor editor = sharedPreferences.edit();
-                                        editor.putLong("currentDownloadId", -3);
-                                        editor.apply();
-                                        notifyDownloadFailed(context);
-                                    }
-                                } else {
-                                    // NLLB/Whisper models: full ONNX integrity check
+                                String downloadedName = DownloadFragment.DOWNLOAD_NAMES[urlIndex];
+                                if (downloadedName.endsWith(".onnx")) {
+                                    // ONNX models: full integrity check
                                     NeuralNetworkApi.testModelIntegrity(downloadedModelPath, new NeuralNetworkApi.InitListener() {
                                         @Override
                                         public void onInitializationFinished() {
@@ -74,13 +63,24 @@ public class DownloadReceiver extends BroadcastReceiver {
                                         public void onError(int[] reasons, long value) {
                                             SharedPreferences sharedPreferences = context.getSharedPreferences("default", Context.MODE_PRIVATE);
                                             SharedPreferences.Editor editor;
-                                            //we save in the preferences that this download has failed (in this case we save it because because otherwise the downloader would return STATUS_SUCCESSFUL)
                                             editor = sharedPreferences.edit();
                                             editor.putLong("currentDownloadId", -3);
                                             editor.apply();
                                             notifyDownloadFailed(context);
                                         }
                                     });
+                                } else {
+                                    // Non-ONNX files (e.g. .vocab.json): just check exists and non-empty
+                                    File modelFile = new File(downloadedModelPath);
+                                    if (modelFile.exists() && modelFile.length() > 0) {
+                                        transferModelAndStartNextDownload(context, downloader, urlIndex);
+                                    } else {
+                                        SharedPreferences sharedPreferences = context.getSharedPreferences("default", Context.MODE_PRIVATE);
+                                        SharedPreferences.Editor editor = sharedPreferences.edit();
+                                        editor.putLong("currentDownloadId", -3);
+                                        editor.apply();
+                                        notifyDownloadFailed(context);
+                                    }
                                 }
                             }
                         }
@@ -210,23 +210,50 @@ public class DownloadReceiver extends BroadcastReceiver {
             String nextDownloadExternalPath = context.getExternalFilesDir(null) + "/" + DownloadFragment.DOWNLOAD_NAMES[nextIndex];
             File nextDownloadExternalFile = new File(nextDownloadExternalPath);
             if(nextDownloadInternalFile.exists() || nextDownloadExternalFile.exists()){
+                // Check wherever the file is — use full integrity check for all models
+                String checkPath = nextDownloadInternalFile.exists() ? nextDownloadInternalPath : nextDownloadExternalPath;
+                File checkFile = nextDownloadInternalFile.exists() ? nextDownloadInternalFile : nextDownloadExternalFile;
                 if (nextIndex >= DownloadFragment.MMS_TTS_START_INDEX) {
-                    // MMS-TTS models: check either internal or external, just verify non-empty
-                    File mmsFile = nextDownloadInternalFile.exists() ? nextDownloadInternalFile : nextDownloadExternalFile;
-                    if (mmsFile.length() > 0) {
-                        SharedPreferences.Editor ed = sharedPreferences.edit();
-                        ed.putString("lastDownloadSuccess", DownloadFragment.DOWNLOAD_NAMES[nextIndex]);
-                        ed.putString("lastTransferSuccess", DownloadFragment.DOWNLOAD_NAMES[nextIndex]);
-                        ed.apply();
-                        internalCheckAndStartNextDownload(context, downloader, nextIndex);
+                    // MMS-TTS models: differentiate between ONNX and non-ONNX files
+                    String checkName = DownloadFragment.DOWNLOAD_NAMES[nextIndex];
+                    if (checkName.endsWith(".onnx")) {
+                        // ONNX model: full integrity check
+                        if (checkFile.length() > 0) {
+                            NeuralNetworkApi.testModelIntegrity(checkPath, new NeuralNetworkApi.InitListener() {
+                                @Override
+                                public void onInitializationFinished() {
+                                    SharedPreferences.Editor ed = sharedPreferences.edit();
+                                    ed.putString("lastDownloadSuccess", DownloadFragment.DOWNLOAD_NAMES[nextIndex]);
+                                    ed.putString("lastTransferSuccess", DownloadFragment.DOWNLOAD_NAMES[nextIndex]);
+                                    ed.apply();
+                                    internalCheckAndStartNextDownload(context, downloader, nextIndex);
+                                }
+
+                                @Override
+                                public void onError(int[] reasons, long value) {
+                                    checkFile.delete();
+                                    externalCheckAndStartNextDownload(context, downloader, urlIndex);
+                                }
+                            });
+                        } else {
+                            checkFile.delete();
+                            externalCheckAndStartNextDownload(context, downloader, urlIndex);
+                        }
                     } else {
-                        mmsFile.delete();
-                        externalCheckAndStartNextDownload(context, downloader, urlIndex);
+                        // Non-ONNX files (e.g. .vocab.json): just check non-empty
+                        if (checkFile.length() > 0) {
+                            SharedPreferences.Editor ed = sharedPreferences.edit();
+                            ed.putString("lastDownloadSuccess", DownloadFragment.DOWNLOAD_NAMES[nextIndex]);
+                            ed.putString("lastTransferSuccess", DownloadFragment.DOWNLOAD_NAMES[nextIndex]);
+                            ed.apply();
+                            internalCheckAndStartNextDownload(context, downloader, nextIndex);
+                        } else {
+                            checkFile.delete();
+                            externalCheckAndStartNextDownload(context, downloader, urlIndex);
+                        }
                     }
                 } else {
-                    // NLLB/Whisper models: full integrity check (check wherever the file is)
-                    String checkPath = nextDownloadInternalFile.exists() ? nextDownloadInternalPath : nextDownloadExternalPath;
-                    File checkFile = nextDownloadInternalFile.exists() ? nextDownloadInternalFile : nextDownloadExternalFile;
+                    // NLLB/Whisper models: full integrity check
                     NeuralNetworkApi.testModelIntegrity(checkPath, new NeuralNetworkApi.InitListener() {
                         @Override
                         public void onInitializationFinished() {   //the model to be downloaded next is already in memory and it is not corrupted
@@ -268,9 +295,28 @@ public class DownloadReceiver extends BroadcastReceiver {
         String nextDownloadExternalPath = context.getExternalFilesDir(null) + "/" + DownloadFragment.DOWNLOAD_NAMES[nextIndex];
         File nextDownloadExternalFile = new File(nextDownloadExternalPath);
         if(nextDownloadExternalFile.exists()){
+            // Integrity check for all model types (catches partial downloads from interrupted installs)
             if (nextIndex >= DownloadFragment.MMS_TTS_START_INDEX) {
-                // MMS-TTS models: just check file is non-empty
-                if (nextDownloadExternalFile.length() > 0) {
+                String checkName = DownloadFragment.DOWNLOAD_NAMES[nextIndex];
+                if (checkName.endsWith(".onnx") && nextDownloadExternalFile.length() > 0) {
+                    // ONNX model: full integrity check
+                    NeuralNetworkApi.testModelIntegrity(nextDownloadExternalPath, new NeuralNetworkApi.InitListener() {
+                        @Override
+                        public void onInitializationFinished() {
+                            transferModelAndStartNextDownload(context, downloader, nextIndex);
+                        }
+
+                        @Override
+                        public void onError(int[] reasons, long value) {
+                            nextDownloadExternalFile.delete();
+                            long newDownloadId = downloader.downloadModel(DownloadFragment.DOWNLOAD_URLS[nextIndex], DownloadFragment.DOWNLOAD_NAMES[nextIndex]);
+                            SharedPreferences.Editor editor = sharedPreferences.edit();
+                            editor.putLong("currentDownloadId", newDownloadId);
+                            editor.apply();
+                        }
+                    });
+                } else if (!checkName.endsWith(".onnx") && nextDownloadExternalFile.length() > 0) {
+                    // Non-ONNX file (e.g. .vocab.json): just check non-empty
                     transferModelAndStartNextDownload(context, downloader, nextIndex);
                 } else {
                     nextDownloadExternalFile.delete();
