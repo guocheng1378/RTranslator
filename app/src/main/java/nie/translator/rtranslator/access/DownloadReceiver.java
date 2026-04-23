@@ -197,10 +197,20 @@ public class DownloadReceiver extends BroadcastReceiver {
         editor = sharedPreferences.edit();
         editor.putString("lastTransferFailure", "");
         editor.apply();
-        //we move the downloaded content to internal storage and start the next download
+        //we move the downloaded content to storage and start the next download
         File from = new File(context.getExternalFilesDir(null) + "/" + DownloadFragment.DOWNLOAD_NAMES[urlIndex]);
-        File to = new File(context.getFilesDir() + "/" + DownloadFragment.DOWNLOAD_NAMES[urlIndex]);
-        // Ensure parent directory exists (needed for mms-tts/ subdirectory)
+        final File to;
+        if (urlIndex >= DownloadFragment.MMS_TTS_START_INDEX) {
+            // MMS-TTS models: store in Downloads/RTranslator/models/ (persists across uninstall)
+            File downloads = android.os.Environment.getExternalStoragePublicDirectory(
+                    android.os.Environment.DIRECTORY_DOWNLOADS);
+            File modelsDir = new File(downloads, "RTranslator/models");
+            if (!modelsDir.exists()) modelsDir.mkdirs();
+            to = new File(modelsDir, DownloadFragment.DOWNLOAD_NAMES[urlIndex]);
+        } else {
+            to = new File(context.getFilesDir() + "/" + DownloadFragment.DOWNLOAD_NAMES[urlIndex]);
+        }
+        // Ensure parent directory exists
         if (to.getParentFile() != null && !to.getParentFile().exists()) {
             to.getParentFile().mkdirs();
         }
@@ -233,9 +243,17 @@ public class DownloadReceiver extends BroadcastReceiver {
         SharedPreferences.Editor editor;
         if (urlIndex < (DownloadFragment.DOWNLOAD_URLS.length - 1)) {  //if the download done is not the last one
             int nextIndex = urlIndex + 1;
-            //we verify if the model to be downloaded next is already in internal memory and if it is not corrupted
-            String nextDownloadInternalPath = context.getFilesDir() + "/" + DownloadFragment.DOWNLOAD_NAMES[nextIndex];
-            File nextDownloadInternalFile = new File(nextDownloadInternalPath);
+            //we verify if the model to be downloaded next is already in storage and if it is not corrupted
+            File nextDownloadInternalFile;
+            if (nextIndex >= DownloadFragment.MMS_TTS_START_INDEX) {
+                // MMS-TTS models: check persistent Downloads location
+                File downloads = android.os.Environment.getExternalStoragePublicDirectory(
+                        android.os.Environment.DIRECTORY_DOWNLOADS);
+                nextDownloadInternalFile = new File(new File(downloads, "RTranslator/models"), DownloadFragment.DOWNLOAD_NAMES[nextIndex]);
+            } else {
+                nextDownloadInternalFile = new File(context.getFilesDir() + "/" + DownloadFragment.DOWNLOAD_NAMES[nextIndex]);
+            }
+            String nextDownloadInternalPath = nextDownloadInternalFile.getAbsolutePath();
             if(nextDownloadInternalFile.exists()){
                 if (nextIndex >= DownloadFragment.MMS_TTS_START_INDEX) {
                     // MMS-TTS models: just check file is non-empty
