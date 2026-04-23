@@ -78,8 +78,17 @@ public class NeuralTts implements ITts {
     private static final float DEFAULT_NOISE_SCALE = 0.667f;
     private static final long NOISE_SEED = 0;
 
-    // Speed control: >1.0 = slower, <1.0 = faster. 1.3 is a good default for Lao.
+    // Speed control: >1.0 = slower, <1.0 = faster.
     private float speedScale = 2.0f;
+
+    // Per-language speed overrides (language code -> speed scale).
+    // Languages like Lao with naturally fast TTS models need higher values.
+    private static final Map<String, Float> LANGUAGE_SPEED_OVERRIDES = new HashMap<>();
+    static {
+        LANGUAGE_SPEED_OVERRIDES.put("lao", 3.5f);   // Lao model speaks very fast, needs more slowdown
+        LANGUAGE_SPEED_OVERRIDES.put("tha", 2.5f);   // Thai: slightly faster default
+        LANGUAGE_SPEED_OVERRIDES.put("vie", 2.5f);   // Vietnamese
+    }
 
     // State
     private OrtEnvironment onnxEnv;
@@ -175,8 +184,9 @@ public class NeuralTts implements ITts {
                         return;
                     }
 
-                    // Run inference
-                    float[] audioData = runInference(session, inputIds);
+                    // Run inference with per-language speed scale
+                    float langSpeedScale = getSpeedScaleForLanguage(langCode);
+                    float[] audioData = runInference(session, inputIds, langSpeedScale);
 
                     if (audioData == null || audioData.length == 0 || stopRequested) {
                         notifyError(utteranceId);
@@ -185,7 +195,7 @@ public class NeuralTts implements ITts {
 
                     // Detect model output sample rate and play audio
                     int sampleRate = detectSampleRate(session, langCode);
-                    playAudio(audioData, sampleRate);
+                    playAudio(audioData, sampleRate, langSpeedScale);
 
                     // Notify done
                     if (utteranceListener != null && !stopRequested) {
@@ -321,11 +331,29 @@ public class NeuralTts implements ITts {
      * @param scale >1.0 = slower speech, <1.0 = faster speech, 1.0 = normal.
      */
     public void setSpeedScale(float scale) {
-        this.speedScale = Math.max(0.5f, Math.min(3.0f, scale));
+        this.speedScale = Math.max(0.5f, Math.min(5.0f, scale));
     }
 
     public float getSpeedScale() {
         return speedScale;
+    }
+
+    /**
+     * Get the effective speed scale for a specific language.
+     * Returns per-language override if set, otherwise the global speedScale.
+     */
+    private float getSpeedScaleForLanguage(String langCode) {
+        Float override = LANGUAGE_SPEED_OVERRIDES.get(langCode);
+        return override != null ? override : speedScale;
+    }
+
+    /**
+     * Set per-language speed scale override.
+     * @param langCode ISO 639-3 language code (e.g. "lao", "eng")
+     * @param scale >1.0 = slower, <1.0 = faster
+     */
+    public void setLanguageSpeedScale(String langCode, float scale) {
+        LANGUAGE_SPEED_OVERRIDES.put(langCode, Math.max(0.5f, Math.min(5.0f, scale)));
     }
 
     // ========== Internal methods ==========
@@ -643,7 +671,7 @@ public class NeuralTts implements ITts {
      *   Output: "waveform"   float32[1, num_samples]  (16kHz audio)
      */
     @Nullable
-    private float[] runInference(OrtSession session, long[] inputIds) {
+    private float[] runInference(OrtSession session, long[] inputIds, float langSpeedScale) {
         try {
             // Create input tensor: shape [1, seq_len]
             long[][] inputData = new long[1][inputIds.length];
@@ -658,7 +686,7 @@ public class NeuralTts implements ITts {
 
                 // MMS-TTS VITS models accept length_scale (speed) and noise_scale
                 if (inputNames.contains("length_scale")) {
-                    float effectiveLength = DEFAULT_LENGTH_SCALE * speedScale;
+                    float effectiveLength = DEFAULT_LENGTH_SCALE * langSpeedScale;
                     try (OnnxTensor lsTensor = OnnxTensor.createTensor(onnxEnv,
                             new float[]{effectiveLength})) {
                         inputs.put("length_scale", lsTensor);
@@ -703,20 +731,40 @@ public class NeuralTts implements ITts {
 
     /**
      * Play PCM audio data through AudioTrack at the given sample rate.
+     * @param langSpeedScale per-language speed scale (>1.0 = slower)
      */
-    private void playAudio(float[] audioData, int sampleRate) {
+    private void playAudio(float[] audioData, int sampleRate, float langSpeedScale) {
         if (stopRequested) return;
 
         // Apply speed control: lower playback sample rate = slower speech
-        int playbackRate = (int) (sampleRate / speedScale);
+        int playbackRate = (int) (sampleRate / langSpeedScale);
 
-        Log.i(TAG, "Playing audio: " + audioData.length + " samples at " + playbackRate + " Hz (model: " + sampleRate + " Hz, speedScale: " + speedScale + ")"
+        Log.i(TAG, "Playing audio: " + audioData.length + " samples at " + playbackRate + " Hz (model: " + sampleRate + " Hz, speedScale: " + langSpeedScale + ")"
                 + " (" + (audioData.length * 1000L / playbackRate) + " ms)");
 
+        // --- Volume normalization ---
+        // Find peak amplitude and normalize to use full dynamic range
+        float maxAmplitude = 0f;
+        for (float sample : audioData) {
+            float abs = Math.abs(sample);
+            if (abs > maxAmplitude) maxAmplitude = abs;
+        }
+        float[] normalizedData = audioData;
+        if (maxAmplitude > 0.001f && maxAmplitude < 0.95f) {
+            float gain = 0.95f / maxAmplitude;  // normalize to 95% to avoid clipping
+            normalizedData = new float[audioData.length];
+            for (int i = 0; i < audioData.length; i++) {
+                normalizedData[i] = audioData[i] * gain;
+            }
+            Log.i(TAG, "Volume normalized: peak " + maxAmplitude + " -> 0.95 (gain: " + String.format("%.1f", gain) + "x)");
+        } else if (maxAmplitude <= 0.001f) {
+            Log.w(TAG, "Audio signal very quiet (peak: " + maxAmplitude + "), skipping normalization");
+        }
+
         // Convert float [-1.0, 1.0] to short [-32768, 32767]
-        short[] pcmData = new short[audioData.length];
-        for (int i = 0; i < audioData.length; i++) {
-            float sample = Math.max(-1.0f, Math.min(1.0f, audioData[i]));
+        short[] pcmData = new short[normalizedData.length];
+        for (int i = 0; i < normalizedData.length; i++) {
+            float sample = Math.max(-1.0f, Math.min(1.0f, normalizedData[i]));
             pcmData[i] = (short) (sample * 32767);
         }
 
@@ -726,9 +774,11 @@ public class NeuralTts implements ITts {
                 AudioFormat.ENCODING_PCM_16BIT
         );
 
+        // Use USAGE_MEDIA so volume is controlled by media volume slider (hardware buttons)
+        // instead of the often-ignored TTS/assistant volume channel
         AudioTrack audioTrack = new AudioTrack(
                 new AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ASSISTANT)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                         .build(),
                 new AudioFormat.Builder()
@@ -740,6 +790,9 @@ public class NeuralTts implements ITts {
                 AudioTrack.MODE_STREAM,
                 AudioManager.AUDIO_SESSION_ID_GENERATE
         );
+
+        // Set playback volume to maximum
+        audioTrack.setVolume(AudioTrack.getMaxVolume());
 
         synchronized (speakLock) {
             currentAudioTrack = audioTrack;
@@ -788,4 +841,5 @@ public class NeuralTts implements ITts {
         }
     }
 }
+
 
