@@ -68,8 +68,9 @@ public class NeuralTts implements ITts {
     // Vocab filename template: mms-tts-lao.vocab.json
     private static final String VOCAB_FILE_TEMPLATE = "mms-tts-%s.vocab.json";
 
-    // Audio output parameters (MMS-TTS outputs 16kHz mono)
-    private static final int SAMPLE_RATE = 16000;
+    // Audio output parameters — detected per model (MMS-TTS varies: 16000, 22050, etc.)
+    private static final int DEFAULT_SAMPLE_RATE = 22050;
+    private final Map<String, Integer> sampleRateCache = new ConcurrentHashMap<>();
 
     // Inference parameters
     private static final float DEFAULT_LENGTH_SCALE = 1.0f;
@@ -175,8 +176,9 @@ public class NeuralTts implements ITts {
                         return;
                     }
 
-                    // Play audio
-                    playAudio(audioData);
+                    // Detect model output sample rate and play audio
+                    int sampleRate = detectSampleRate(session, langCode);
+                    playAudio(audioData, sampleRate);
 
                     // Notify done
                     if (utteranceListener != null && !stopRequested) {
@@ -237,6 +239,7 @@ public class NeuralTts implements ITts {
             sessionCache.clear();
             vocabCache.clear();
             modelVocabSizeCache.clear();
+            sampleRateCache.clear();
             if (onnxEnv != null) {
                 try {
                     onnxEnv.close();
@@ -551,6 +554,32 @@ public class NeuralTts implements ITts {
     }
 
     /**
+     * Detect the model's output sample rate from ONNX metadata.
+     * MMS-TTS models store "sampling_rate" in model metadata (e.g. 16000, 22050, 24000).
+     * Falls back to DEFAULT_SAMPLE_RATE if not found.
+     */
+    private int detectSampleRate(OrtSession session, String langCode) {
+        Integer cached = sampleRateCache.get(langCode);
+        if (cached != null) return cached;
+
+        int rate = DEFAULT_SAMPLE_RATE;
+        try {
+            java.util.Map<String, String> metadata = session.getMetadata();
+            String sr = metadata.get("sampling_rate");
+            if (sr != null) {
+                rate = Integer.parseInt(sr);
+                Log.i(TAG, "Detected sample rate from model metadata: " + rate + " Hz");
+            } else {
+                Log.w(TAG, "No sampling_rate in model metadata, using default: " + DEFAULT_SAMPLE_RATE + " Hz");
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to read sample rate from metadata, using default: " + DEFAULT_SAMPLE_RATE + " Hz");
+        }
+        sampleRateCache.put(langCode, rate);
+        return rate;
+    }
+
+    /**
      * Run MMS-TTS ONNX inference.
      *
      * Expected model I/O:
@@ -590,10 +619,13 @@ public class NeuralTts implements ITts {
     }
 
     /**
-     * Play PCM audio data through AudioTrack.
+     * Play PCM audio data through AudioTrack at the given sample rate.
      */
-    private void playAudio(float[] audioData) {
+    private void playAudio(float[] audioData, int sampleRate) {
         if (stopRequested) return;
+
+        Log.i(TAG, "Playing audio: " + audioData.length + " samples at " + sampleRate + " Hz ("
+                + (audioData.length * 1000L / sampleRate) + " ms)");
 
         // Convert float [-1.0, 1.0] to short [-32768, 32767]
         short[] pcmData = new short[audioData.length];
@@ -603,7 +635,7 @@ public class NeuralTts implements ITts {
         }
 
         int minBufferSize = AudioTrack.getMinBufferSize(
-                SAMPLE_RATE,
+                sampleRate,
                 AudioFormat.CHANNEL_OUT_MONO,
                 AudioFormat.ENCODING_PCM_16BIT
         );
@@ -614,7 +646,7 @@ public class NeuralTts implements ITts {
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                         .build(),
                 new AudioFormat.Builder()
-                        .setSampleRate(SAMPLE_RATE)
+                        .setSampleRate(sampleRate)
                         .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                         .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                         .build(),
