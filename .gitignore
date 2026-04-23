@@ -7,3 +7,4 @@
 .externalNativeBuild
 app/.cxx
 app/release
+app-debug.apk

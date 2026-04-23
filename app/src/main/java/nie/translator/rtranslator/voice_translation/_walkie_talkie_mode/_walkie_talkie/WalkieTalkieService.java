@@ -386,6 +386,11 @@ public class WalkieTalkieService extends VoiceTranslationService {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent == null) {
+            // System restarted the service after being killed — just keep running
+            return super.onStartCommand(intent, flags, startId);
+        }
+
         final CustomLocale finalFirstLanguage = this.firstLanguage;
         final CustomLocale finalSecondLanguage = this.secondLanguage;
 

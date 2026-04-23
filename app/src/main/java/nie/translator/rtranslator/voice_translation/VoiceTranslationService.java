@@ -271,6 +271,9 @@ public abstract class VoiceTranslationService extends GeneralService {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent == null) {
+            return super.onStartCommand(intent, flags, startId);
+        }
         if (notification == null) {
             notification = intent.getParcelableExtra("notification");
         }
