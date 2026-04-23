@@ -80,6 +80,7 @@ public class NeuralTts implements ITts {
     private OrtEnvironment onnxEnv;
     private final Map<String, OrtSession> sessionCache = new ConcurrentHashMap<>();
     private final Map<String, Map<String, Integer>> vocabCache = new ConcurrentHashMap<>();
+    private final Map<String, Integer> modelVocabSizeCache = new ConcurrentHashMap<>();
     private final Context context;
     private volatile boolean isActive = false;
     private volatile boolean isSpeaking = false;
@@ -157,7 +158,8 @@ public class NeuralTts implements ITts {
 
                     // Tokenize text
                     Map<String, Integer> vocab = getOrLoadVocab(langCode);
-                    long[] inputIds = tokenize(speakText, vocab);
+                    int modelVocabSize = (vocab != null) ? detectModelVocabSize(session, langCode, vocab.size()) : Integer.MAX_VALUE;
+                    long[] inputIds = tokenize(speakText, vocab, modelVocabSize);
 
                     if (inputIds.length == 0) {
                         Log.w(TAG, "Tokenization produced empty input for: " + textStr);
@@ -234,6 +236,7 @@ public class NeuralTts implements ITts {
             }
             sessionCache.clear();
             vocabCache.clear();
+            modelVocabSizeCache.clear();
             if (onnxEnv != null) {
                 try {
                     onnxEnv.close();
@@ -448,24 +451,40 @@ public class NeuralTts implements ITts {
      *
      * If vocab is available: map characters through vocab (UNK token for unknown chars).
      * If vocab is null: use Unicode code points as token IDs (MMS default).
+     *
+     * @param modelVocabSize the actual embedding table size from the ONNX model.
+     *        Token IDs >= modelVocabSize are clamped to UNK to prevent Gather errors.
      */
-    private long[] tokenize(String text, @Nullable Map<String, Integer> vocab) {
+    private long[] tokenize(String text, @Nullable Map<String, Integer> vocab, int modelVocabSize) {
         if (vocab != null) {
             // Tokenize using vocab.json
             List<Long> ids = new ArrayList<>();
+            Integer unkId = vocab.get("<unk>");
+            int clampedCount = 0;
             // MMS-TTS uses character-level tokenization
             for (int i = 0; i < text.length(); i++) {
                 String ch = String.valueOf(text.charAt(i));
                 Integer id = vocab.get(ch);
                 if (id != null) {
-                    ids.add((long) id);
+                    if (id < modelVocabSize) {
+                        ids.add((long) id);
+                    } else {
+                        // Token ID exceeds model embedding size — use UNK
+                        clampedCount++;
+                        if (unkId != null && unkId < modelVocabSize) {
+                            ids.add((long) unkId);
+                        }
+                        // else: skip this token entirely
+                    }
                 } else {
-                    // Try UNK token
-                    Integer unkId = vocab.get("<unk>");
-                    if (unkId != null) {
+                    // Character not in vocab — use UNK
+                    if (unkId != null && unkId < modelVocabSize) {
                         ids.add((long) unkId);
                     }
                 }
+            }
+            if (clampedCount > 0) {
+                Log.w(TAG, "Clamped " + clampedCount + " tokens exceeding model vocab size " + modelVocabSize);
             }
             // Convert to array
             long[] result = new long[ids.size()];
@@ -476,6 +495,58 @@ public class NeuralTts implements ITts {
         } else {
             // Fallback: Unicode code points (this works for many MMS-TTS models)
             return text.codePoints().mapToLong(cp -> cp).toArray();
+        }
+    }
+
+    /**
+     * Detect the model's actual vocab size by probing the embedding layer.
+     * MMS-TTS models have an embedding table of size N, but vocab.json may have >N entries
+     * (extra special tokens). This method finds the real boundary by testing token IDs.
+     * Result is cached per language to avoid repeated probing.
+     */
+    private int detectModelVocabSize(OrtSession session, String langCode, int vocabJsonSize) {
+        // Check cache first
+        Integer cached = modelVocabSizeCache.get(langCode);
+        if (cached != null) return cached;
+
+        // Binary search: find the largest ID that doesn't cause a Gather OOB error.
+        int lo = 0;
+        int hi = vocabJsonSize - 1;
+        while (lo < hi) {
+            int mid = (lo + hi + 1) / 2;
+            if (testTokenId(session, mid)) {
+                lo = mid;
+            } else {
+                hi = mid - 1;
+            }
+        }
+        // model vocab size = largest valid ID + 1
+        int modelVocabSize = lo + 1;
+        if (modelVocabSize < vocabJsonSize) {
+            Log.w(TAG, "Model embedding size (" + modelVocabSize + ") < vocab.json size (" + vocabJsonSize + "). "
+                    + "Clamping token IDs to model range.");
+        }
+        modelVocabSizeCache.put(langCode, modelVocabSize);
+        return modelVocabSize;
+    }
+
+    /**
+     * Test if a token ID is valid for the model's embedding layer.
+     * Runs a minimal single-token inference and checks for OOB errors.
+     */
+    private boolean testTokenId(OrtSession session, int tokenId) {
+        try {
+            long[][] inputData = new long[1][1];
+            inputData[0][0] = tokenId;
+            try (OnnxTensor inputTensor = OnnxTensor.createTensor(onnxEnv, inputData)) {
+                Map<String, OnnxTensor> inputs = new HashMap<>();
+                inputs.put("input_ids", inputTensor);
+                try (OrtSession.Result result = session.run(inputs)) {
+                    return true;
+                }
+            }
+        } catch (OrtException e) {
+            return false;
         }
     }
 
