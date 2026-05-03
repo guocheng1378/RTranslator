@@ -18,10 +18,6 @@
 
 apply plugin: 'com.android.application'
 
-ext {
-    supportLibraryVersion = '1.0.0'
-    grpcVersion = '1.11.0'
-}
 
 android {
     namespace 'nie.translator.rtranslator'
@@ -79,7 +75,7 @@ android {
     }
     configurations.all {
         resolutionStrategy.force 'com.google.code.findbugs:jsr305:3.0.2'
-        resolutionStrategy.force "com.android.support:support-annotations:$supportLibraryVersion"
+        resolutionStrategy.force "androidx.annotation:annotation:1.7.0"
     }
     productFlavors {
     }
