@@ -25,7 +25,7 @@
     <string name="notification_channel_name">використання у фоновому режимі</string>
 
     <string name="age_check_box">Я підтверджую, що мені щонайменше 14 років</string>
-    <string name="privacy_check_box">Я підтверджую, що я прочитав <a href="https://github.com/niedev/RTranslator/blob/v2.00/privacy/Privacy_Policy_en.md">політику конфіденційності</a></string>
+    <string name="privacy_check_box">Я підтверджую, що я прочитав <a href="https://github.com/guocheng1378/RTranslator/blob/v2.00/privacy/Privacy_Policy_en.md">політику конфіденційності</a></string>
 
     <string name="toast_working_background">RTranslator буде працювати у фоновому режимі</string>
     <string name="toast_download_completed">Завантаження завершено</string>
@@ -101,16 +101,16 @@
     <string name="header_connected_peers">підключені</string>
     <string name="header_key">Ключі API</string>
 
-    <string name="description_cost">Розпізнавання мови округлює вартість кожного запиту до найближчого кратного 15 секундам, середня вартість (як для перекладу, так і для розпізнавання мови), без врахування округлення, становить 2,5 доларів на годину, також для WalkieTalkie необхідно додатково врахувати витрати на виявлення мови для перекладу, щоб дізнатися більше, прочитайте <a href="https://github.com/niedev/RTranslator">посібник</a></string>
+    <string name="description_cost">Розпізнавання мови округлює вартість кожного запиту до найближчого кратного 15 секундам, середня вартість (як для перекладу, так і для розпізнавання мови), без врахування округлення, становить 2,5 доларів на годину, також для WalkieTalkie необхідно додатково врахувати витрати на виявлення мови для перекладу, щоб дізнатися більше, прочитайте <a href="https://github.com/guocheng1378/RTranslator">посібник</a></string>
     <string name="description_discovery">На цьому екрані буде виконано пошук та ми будемо видимі для інших пристроїв, які використовують RTranslator, щоб зможемо встановити з\'єднання з ними та почати розмову</string>
-    <string name="description_key">Для того щоб дізнатися, як отримати файл ключа, прочитайте <a href="https://github.com/niedev/RTranslator">посібник</a></string>
+    <string name="description_key">Для того щоб дізнатися, як отримати файл ключа, прочитайте <a href="https://github.com/guocheng1378/RTranslator">посібник</a></string>
     <string name="description_fragment_user_data">Ваше ім\'я буде відображено на всіх навколишніх пристроях, тоді як ваше фото профілю покажуть лише на пристроях, з якими ви вже мали розмови</string>
     <string name="description_fragment_download">Тепер RTranslator завантажить необхідні нейромережеві моделі для перекладу та розпізнавання мови, коли завершите, ви зможете почати використовувати додаток (навіть офлайн).</string>
     <string name="description_conversation">Режим Розмови - основна функція RTranslator, вона дозволяє перекладати розмову між кількома людьми в реальному часі, для кращого враження рекомендується підключити блютуз-гарнітуру до телефону,
         крім того, програма буде продовжувати працювати в фоновому режимі і з телефоном у режимі очікування (однак деякі телефони можуть мати проблеми з продуктивністю, коли програма працює в фоновому режимі)</string>
     <string name="description_walkie_talkie">Режим WalkieTalkie - це вторинна функціональність RTranslator, він не дозволяє перекладати в реальному часі, але призначений для роботи з одним телефоном,
         він автоматично виявляє та перекладає мовлення на одній мові на іншу, а програма продовжуватиме працювати в фоновому режимі і з телефоном у режимі очікування</string>
-    <string name="description_notice">RTranslator використовує <a href="https://openai.com/index/whisper/">Whisper від OpenAi</a> для розпізнавання мовлення та <a href="https://ai.meta.com/research/no-language-left-behind/">NLLB від Meta</a> для перекладів, ці моделі вимагають значної кількості потужності та принаймні 6 ГБ ОЗП для роботи, тому переконайтеся, що ви використовуєте сучасний смартфон, щоб уникнути сповільнень або аварій. Для отримання додаткової інформації про RTranslator відвідайте проект додатка на GitHub <a href="https://github.com/niedev/RTranslator">тут</a></string>
+    <string name="description_notice">RTranslator використовує <a href="https://openai.com/index/whisper/">Whisper від OpenAi</a> для розпізнавання мовлення та <a href="https://ai.meta.com/research/no-language-left-behind/">NLLB від Meta</a> для перекладів, ці моделі вимагають значної кількості потужності та принаймні 6 ГБ ОЗП для роботи, тому переконайтеся, що ви використовуєте сучасний смартфон, щоб уникнути сповільнень або аварій. Для отримання додаткової інформації про RTranslator відвідайте проект додатка на GitHub <a href="https://github.com/guocheng1378/RTranslator">тут</a></string>
     <string name="description_download">Завантаження %1$s</string>
     <string name="description_transfer">Перенесення %1$s в пам\'ять</string>
     <string name="description_integrity_check">Перевірка цілісності %1$s</string>

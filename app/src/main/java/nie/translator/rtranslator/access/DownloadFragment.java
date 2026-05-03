@@ -81,16 +81,16 @@ public class DownloadFragment extends Fragment {
 
     // RAW URLs must be declared BEFORE DOWNLOAD_URLS (which calls buildDownloadUrls)
     private static final String[] RAW_DOWNLOAD_URLS = {
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/NLLB_cache_initializer.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/NLLB_decoder.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/NLLB_embed_and_lm_head.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/NLLB_encoder.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/Whisper_cache_initializer.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/Whisper_cache_initializer_batch.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/Whisper_decoder.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/Whisper_detokenizer.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/Whisper_encoder.onnx",
-            "https://github.com/niedev/RTranslator/releases/download/2.0.0/Whisper_initializer.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_cache_initializer.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_decoder.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_embed_and_lm_head.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/NLLB_encoder.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_cache_initializer.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_cache_initializer_batch.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_decoder.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_detokenizer.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_encoder.onnx",
+            "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/Whisper_initializer.onnx",
             // MMS-TTS models (downloaded to mms-tts/ subdirectory)
             "https://github.com/guocheng1378/RTranslator/releases/download/mms-tts-latest/mms-tts-lao.onnx",
             "https://github.com/guocheng1378/RTranslator/releases/download/mms-tts-latest/mms-tts-lao.vocab.json"

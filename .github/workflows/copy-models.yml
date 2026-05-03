@@ -35,7 +35,7 @@ jobs:
           for f in "${FILES[@]}"; do
             echo "Downloading $f ..."
             curl -sL -o "models/$f" \
-              "https://github.com/niedev/RTranslator/releases/download/2.0.0/$f"
+              "https://github.com/guocheng1378/RTranslator/releases/download/2.0.0/$f"
             ls -lh "models/$f"
           done
 
