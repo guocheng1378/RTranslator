@@ -8,3 +8,4 @@
 app/.cxx
 app/release
 app-debug.apk
+.idea/

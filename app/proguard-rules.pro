@@ -24,3 +24,25 @@
 #-dontwarn com.google.errorprone.annotations.**
 #-keep class io.grpc.internal.DnsNameResolveProvider
 #-keep class io.grpc.okhttp.OkHttpChannelProvider
+# ---- ONNX Runtime ----
+-keep class ai.onnxruntime.** { *; }
+-dontwarn ai.onnxruntime.**
+
+# ---- Room ----
+-keep class * extends androidx.room.RoomDatabase
+-keep @androidx.room.Entity class *
+-dontwarn androidx.room.paging.**
+
+# ---- ML Kit ----
+-keep class com.google.mlkit.** { *; }
+-dontwarn com.google.mlkit.**
+
+# ---- Nimbus JOSE JWT ----
+-keep class com.nimbusds.** { *; }
+-dontwarn com.nimbusds.**
+
+# ---- gRPC / Protobuf ----
+-dontwarn io.grpc.**
+-dontwarn com.google.protobuf.**
+-keep class io.grpc.internal.DnsNameResolveProvider
+-keep class io.grpc.okhttp.OkHttpChannelProvider
