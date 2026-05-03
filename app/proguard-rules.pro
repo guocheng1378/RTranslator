@@ -46,3 +46,13 @@
 -dontwarn com.google.protobuf.**
 -keep class io.grpc.internal.DnsNameResolveProvider
 -keep class io.grpc.okhttp.OkHttpChannelProvider
+
+# ---- App model/entity classes (prevent obfuscation for Room & serialization) ----
+-keep class nie.translator.rtranslator.database.entities.** { *; }
+-keep class nie.translator.rtranslator.database.dao.** { *; }
+
+# ---- Bluetooth communication classes ----
+-keep class nie.translator.rtranslator.bluetooth.** { *; }
+
+# ---- ONNX neural network wrappers ----
+-keep class nie.translator.rtranslator.tools.nn.** { *; }

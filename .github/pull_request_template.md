@@ -1,4 +1,4 @@
-- [ ] Read and followed the [contribution guidelines](https://github.com/niedev/RTranslator/blob/v2.00/CONTRIBUTING.md)
+- [ ] Read and followed the [contribution guidelines](https://github.com/guocheng1378/RTranslator/blob/v2.00/CONTRIBUTING.md)
 
 ### Summary
 

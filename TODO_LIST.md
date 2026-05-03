@@ -22,6 +22,6 @@ The possible states are: Not started (you can open a new pull request), Started 
 <br/><br/>
 If you want to do a contribution that is not listed here, feel free to do it and send a pull request, but if it is a complicated and long feature to implement you should write to me first at contact.niedev@gmail.com, to be sure that I will accept it before starting.
 
-Before doing any pull request please read the [contributions guidelines](https://github.com/niedev/RTranslator/blob/v2.00/CONTRIBUTING.md).
+Before doing any pull request please read the [contributions guidelines](https://github.com/guocheng1378/RTranslator/blob/v2.00/CONTRIBUTING.md).
 
 Thank you very much for wanting to contribute to this project! 🚀

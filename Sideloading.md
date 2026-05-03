@@ -2,7 +2,7 @@
 
 - **Download RTranslator version 2.0.3 or higher** (if you have already installed it, reset it).
   
-- **Download all the ".onnx" files from the assets of [this release](https://github.com/niedev/RTranslator/releases/tag/2.0.0) in the way you prefer**.<br />
+- **Download all the ".onnx" files from the assets of [this release](https://github.com/guocheng1378/RTranslator/releases/tag/2.0.0) in the way you prefer**.<br />
   These files are the neural network models that the app normally downloads on the first launch.
 
 - **Launch the app, accept notification permissions** (notification will only be used to show when the app is running in the background during Conversation or WalkieTalkie mode)**, and close the app** (without continuing).<br />

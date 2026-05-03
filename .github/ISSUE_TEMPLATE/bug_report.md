@@ -3,7 +3,7 @@ name: Bug report
 about: Create a report to help improve RTranslator
 title: "[BUG]"
 labels: bug
-assignees: niedev
+assignees: guocheng1378
 
 ---
 
